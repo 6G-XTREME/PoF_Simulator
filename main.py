@@ -55,8 +55,13 @@ def main():
 
 
 
+    from matplotlib import path
+    p = path.Path([(0,0), (0, 1), (1, 1), (1, 0)])  # square with legs length 1 and bottom left corner at the origin
+    print(p)
+    print(p.contains_points([(1.75, .75)]))
 
-
+    for i in range(0, len([1,2,3])):
+        print(i)
 
 if __name__ == '__main__':
     main()
