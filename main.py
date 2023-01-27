@@ -11,13 +11,16 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import map_utils
+
+from shapely.geometry import Polygon
 
 def main():
     # Your program goes here
     try:
         #os.system('clear')  #clear the console before start
         os.system('cls')
-        os.system('pip install openpyxl matplotlib')
+        os.system('pip install openpyxl matplotlib shapely')
 
     except Exception as e:
         print(bcolors.FAIL + 'Error installing the required dependencies' + bcolors.ENDC)
@@ -86,25 +89,67 @@ def main():
     UnsoldRegionX = WholeRegionX;
     UnsoldRegionY = WholeRegionY;
 
-    Regions = []
+    print(BaseStations)
+    Regions = np.empty((Npoints,2))
 
-    for k in range(Npoints,1):
-        print(k)
+    for k in range(Npoints-1,0,-1):
+        print ('k: ' + str(k))
+        RegionX = UnsoldRegionX
+        RegionY = UnsoldRegionY
+        for j in range(0,Npoints):
+            if (j<k):
+
+                if(BaseStations[k,2] != BaseStations[j,2]):
+                    # print('k: ' + str(k) + ' | j: '+ str(j))
+                    # print('BaseStations(22,(0,1): ')
+                    # print(BaseStations[22,(0,1)])
+                    # print('BaseStations(2,(0,1): ')
+                    # print(BaseStations[2,(0,1)])
+
+                    _resp = map_utils.apollonius_circle_path_loss(BaseStations[k,(0,1)], BaseStations[j,(0,1)], BaseStations[k, 2], BaseStations[j, 2], trasmitting_powers.loc['alpha_loss','value'])
+                    # print('_resp')
+                    # print(_resp)
+                    _Circ = map_utils.get_circle(_resp[0], _resp[1], _resp[2])
+                    # print('_Circ')
+                    # print(_Circ)
+
+                    _Reg1 = Polygon((RegionX[i], RegionY[i]) for i in range(0, len(RegionX)))
+                    _Reg2 = Polygon((_Circ[0][i], _Circ[1][i]) for i in range(0, len(_Circ[0])))
+                    # print(_Reg.intersects(_Reg2))
+                    _Reg = _Reg1.intersection(_Reg2)
+                    xx, yy = _Reg.exterior.coords.xy
+                    RegionX = xx.tolist()                    
+                    RegionY = yy.tolist()
+                else:
+                    print('k: ' + str(k) + ' | j: '+ str(j))
+                    # print('BaseStations(22,(0,1): ')
+                    # print(BaseStations[22,(0,1)])
+                    # print('BaseStations(2,(0,1): ')
+                    # print(BaseStations[2,(0,1)])
+
+                    _R = map_utils.get_dominance_area(BaseStations[k,(0,1)], BaseStations[j,(0,1)], fading_rayleigh_distribution.loc['Maplimit','value'])
+                    print('_R')
+                    print(_R)
+                    _Reg1 = Polygon((RegionX[i], RegionY[i]) for i in range(0, len(RegionX)))
+                    _Reg2 = Polygon((_R[0][i], _R[1][i]) for i in range(0, len(_R[0])))
+                    
+                    _Reg = _Reg1.intersection(_Reg2)
+                    xx, yy = _Reg.exterior.coords.xy
+                    RegionX = xx.tolist()                    
+                    RegionY = yy.tolist()
+
+            print(RegionX)
+            print(RegionY)
+        Regions[k] = [RegionX, RegionY]
+    print(Regions)
         
 
     
-    print ('\nTEST')
+    print ('\nTEST2')
     print (BaseStations)
     plt.show()
 
 
-    # from matplotlib import path
-    # p = path.Path([(0,0), (0, 1), (1, 1), (1, 0)])  # square with legs length 1 and bottom left corner at the origin
-    # print(p)
-    # print(p.contains_points([(1.75, .75)]))
-
-    # for i in range(0, len([1,2,3])):
-    #     print(i)
 
 if __name__ == '__main__':
     main()
