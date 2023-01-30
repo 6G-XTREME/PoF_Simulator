@@ -54,20 +54,25 @@ def get_dominance_area(P1, P2, limit):
     print(_medZero)
     print(_medOne)
 
-    _WholeRegionX = (0, 0, limit, limit)
-    _WholeRegionY = (0, limit, limit, 0)
+    _WholeRegionX = np.array([0, 0, limit, limit])
+    _WholeRegionY = np.array([0, limit, limit, 0])
     
-    aux = [_WholeRegionX, _WholeRegionY]
-
-    _c = polyclip(np.transpose([_WholeRegionX, _WholeRegionY]), [0, _medZero], [1, _medOne])
+    # _c = np.array(polyclip(np.transpose([_WholeRegionX, _WholeRegionY]), [0, _medZero], [1, _medOne]))
+    _c = np.array(polyclip(np.vstack((_WholeRegionX, _WholeRegionY)).T, [0, _medZero], [1, _medOne]))
+    print('_c')
+    print(_c)
 
     _point = Point(P1[0], P1[1])
-    _polygon =  Polygon((_c[i,0], _c[i,1]) for i in range(0, len(_WholeRegionX)))
+    # _Reg2 = Polygon((_R[0][i], _R[1][i]) for i in range(0, len(_R[0])))
+    _polygon =  Polygon((_c[i][0], _c[i][1]) for i in range(_c.shape[0]))
+    print('_polygon')
+    print(_polygon)
     
-    if(_polygon.contains(_point)):
-        _Reg1 = Polygon((_WholeRegionX[i], _WholeRegionY[i]) for i in range(0, len(_WholeRegionX)))
+    print(_polygon.contains(_point))
+    if(_polygon.contains(_point) == False):
+        _Reg1 = Polygon((_WholeRegionX[i], _WholeRegionY[i]) for i in range(len(_WholeRegionX)))
         
-        _Reg = _Reg1.intersection(_polygon)
+        _Reg = _Reg1.difference(_polygon)
         xx, yy = _Reg.exterior.coords.xy
         _a = xx.tolist()                    
         _b = yy.tolist()

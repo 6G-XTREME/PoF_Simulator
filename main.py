@@ -90,50 +90,65 @@ def main():
     UnsoldRegionY = WholeRegionY;
 
     print(BaseStations)
-    Regions = np.empty((Npoints,2))
+    Regions = {}
+    # print(Regions)
 
     for k in range(Npoints-1,0,-1):
-        print ('k: ' + str(k))
         RegionX = UnsoldRegionX
         RegionY = UnsoldRegionY
         for j in range(0,Npoints):
+            print('k: ' + str(k) + ' | j: '+ str(j))
+            print('RegionX')
+            print(RegionX)
+            print('RegionY')
+            print(RegionY)
             if (j<k):
 
                 if(BaseStations[k,2] != BaseStations[j,2]):
+                    print('DENTRO IF')
                     # print('k: ' + str(k) + ' | j: '+ str(j))
                     # print('BaseStations(22,(0,1): ')
                     # print(BaseStations[22,(0,1)])
                     # print('BaseStations(2,(0,1): ')
                     # print(BaseStations[2,(0,1)])
 
-                    _resp = map_utils.apollonius_circle_path_loss(BaseStations[k,(0,1)], BaseStations[j,(0,1)], BaseStations[k, 2], BaseStations[j, 2], trasmitting_powers.loc['alpha_loss','value'])
+                    _resp = map_utils.apollonius_circle_path_loss(BaseStations[k][:2], BaseStations[j][:2], BaseStations[k][2], BaseStations[j][2], trasmitting_powers.loc['alpha_loss','value'])
                     # print('_resp')
                     # print(_resp)
                     _Circ = map_utils.get_circle(_resp[0], _resp[1], _resp[2])
-                    # print('_Circ')
-                    # print(_Circ)
+                    print('_Circ')
+                    print(_Circ)
 
                     _Reg1 = Polygon((RegionX[i], RegionY[i]) for i in range(0, len(RegionX)))
                     _Reg2 = Polygon((_Circ[0][i], _Circ[1][i]) for i in range(0, len(_Circ[0])))
-                    # print(_Reg.intersects(_Reg2))
+
+                    print('_Reg1')
+                    print(_Reg1)
+                    print('2')
+                    print(_Reg2)
+
+                    print(_Reg1.intersects(_Reg2))
                     _Reg = _Reg1.intersection(_Reg2)
+                    print('_Reg')
+                    print(_Reg)
                     xx, yy = _Reg.exterior.coords.xy
                     RegionX = xx.tolist()                    
                     RegionY = yy.tolist()
                 else:
-                    print('k: ' + str(k) + ' | j: '+ str(j))
-                    # print('BaseStations(22,(0,1): ')
-                    # print(BaseStations[22,(0,1)])
-                    # print('BaseStations(2,(0,1): ')
-                    # print(BaseStations[2,(0,1)])
-
-                    _R = map_utils.get_dominance_area(BaseStations[k,(0,1)], BaseStations[j,(0,1)], fading_rayleigh_distribution.loc['Maplimit','value'])
+                    print('DENTRO ELSE')
+                    _R = np.array(map_utils.get_dominance_area(BaseStations[k][:2], BaseStations[j][:2], fading_rayleigh_distribution.loc['Maplimit','value']))
                     print('_R')
                     print(_R)
                     _Reg1 = Polygon((RegionX[i], RegionY[i]) for i in range(0, len(RegionX)))
-                    _Reg2 = Polygon((_R[0][i], _R[1][i]) for i in range(0, len(_R[0])))
-                    
+                    _Reg2 = Polygon((_R[0][i], _R[1][i]) for i in range(_R.shape[1]))
+                    print('_Reg1')
+                    print(_Reg1)
+                    print('_Reg2')
+                    print(_Reg2)
+                    print(_Reg1.intersects(_Reg2))
+
                     _Reg = _Reg1.intersection(_Reg2)
+                    print(_Reg)
                     xx, yy = _Reg.exterior.coords.xy
                     RegionX = xx.tolist()                    
                     RegionY = yy.tolist()

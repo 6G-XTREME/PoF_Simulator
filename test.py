@@ -1,20 +1,15 @@
 import numpy as np
+from matplotlib import path
+
 
 def main ():
-    a1 = [0, 0, 10, 10] 
-    a2 = [10, 0, 0, 10] 
-    a3 = [0, 10, 10, 00] 
-    a4 = [10, 0, 10, 0] 
+    a = np.array([[0 ,224.9842991], [0, 1000], [1000, 1000], [1000, 201.08568928]])
+    _polygon =  path.Path([(a[i][0], a[i][1]) for i in range(a.shape[0])])
+    print(a)
+    print(_polygon.contains_points([(662.6407796509268, 71.96295428363875)]))
 
-    # print(np.vstack((a1,a2)))
-
-    arr = []
-    arr = np.append(arr, np.array([[1,2,3]]), axis=0)
-    arr = np.append(arr, np.array([[4,5,6]]), axis=0)
+    np.inters
     
-    # arr = np.append(arr, a3)
-    print(arr)
-
     print('TBD!')
 
 if __name__ == '__main__':

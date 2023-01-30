@@ -24,11 +24,11 @@ def polyclip (pin, x1, x2):
     _plane[2] = x1[0] * _plane[0] + x1[1] * _plane[1]
     
     _n = pin.shape[0]
-    _s = pin[-1]
+    _s = pin[-1, :]
     _pout = np.empty((0,2))
 
-    for ci in range(0,_n):
-        _p = pin[ci]
+    for ci in range(_n):
+        _p = pin[ci, :]
         if (inside(_p, _plane)):
             if (inside(_s, _plane)): _pout = np.append(_pout, np.array([_p]),axis=0)
             else: 
