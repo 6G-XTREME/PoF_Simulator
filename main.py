@@ -11,9 +11,11 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Polygon as MplPolygon
 import map_utils
+from test import get_from_geometry_collection, get_from_multi_polygon
 
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, GeometryCollection, MultiPolygon, Point
 
 def main():
     # Your program goes here
@@ -71,12 +73,12 @@ def main():
 
     try:
         colorsBS = np.zeros((Npoints, 3))
-        fig = plt.figure()
+        fig, ax = plt.subplots()
         plt.axis([0, fading_rayleigh_distribution.loc['Maplimit','value'], 0, fading_rayleigh_distribution.loc['Maplimit','value']])
         for a in range(0,Npoints):
             colorsBS[a] = np.random.uniform(size=3, low=0, high=1)
-            plt.plot(BaseStations[a,0], BaseStations[a,1], 'o',color = colorsBS[a])
-            plt.text(BaseStations[a,0], BaseStations[a,1], 'P'+str(a+1) , ha='center', va='bottom')
+            ax.plot(BaseStations[a,0], BaseStations[a,1], 'o',color = colorsBS[a])
+            ax.text(BaseStations[a,0], BaseStations[a,1], 'P'+str(a) , ha='center', va='bottom')
 
         plt.show(block=False)
 
@@ -89,75 +91,113 @@ def main():
     UnsoldRegionX = WholeRegionX;
     UnsoldRegionY = WholeRegionY;
 
-    print(BaseStations)
+    # print(BaseStations)
     Regions = {}
+    aa = False
     # print(Regions)
-
-    for k in range(Npoints-1,0,-1):
+    fig2, ax2 = plt.subplots()
+    # fig3, ax3 = plt.subplots()
+    plt.show(block=False)
+    
+    _polygon = MplPolygon(np.column_stack((UnsoldRegionX, UnsoldRegionY)), facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
+    # ax2.add_patch(_polygon)
+    for k in range(Npoints-1,-1,-1):
+        print('-- k: ' + str(k))
         RegionX = UnsoldRegionX
         RegionY = UnsoldRegionY
+        # if k != 22:
+        #     ax2.plot(UnsoldRegionX,UnsoldRegionY)
+        col = np.random.rand(3)
         for j in range(0,Npoints):
-            print('k: ' + str(k) + ' | j: '+ str(j))
-            print('RegionX')
-            print(RegionX)
-            print('RegionY')
-            print(RegionY)
+            # y, x = 1
+            # print(y)
+            # print(x)
+            _Reg = _Reg1T= _Reg2T = _Reg1L = _Reg2L = _Reg1F = _Reg2F = _RegF = _RegT = _RegL = None
             if (j<k):
 
                 if(BaseStations[k,2] != BaseStations[j,2]):
-                    print('DENTRO IF')
-                    # print('k: ' + str(k) + ' | j: '+ str(j))
-                    # print('BaseStations(22,(0,1): ')
-                    # print(BaseStations[22,(0,1)])
-                    # print('BaseStations(2,(0,1): ')
-                    # print(BaseStations[2,(0,1)])
-
                     _resp = map_utils.apollonius_circle_path_loss(BaseStations[k][:2], BaseStations[j][:2], BaseStations[k][2], BaseStations[j][2], trasmitting_powers.loc['alpha_loss','value'])
-                    # print('_resp')
-                    # print(_resp)
                     _Circ = map_utils.get_circle(_resp[0], _resp[1], _resp[2])
-                    print('_Circ')
-                    print(_Circ)
 
-                    _Reg1 = Polygon((RegionX[i], RegionY[i]) for i in range(0, len(RegionX)))
-                    _Reg2 = Polygon((_Circ[0][i], _Circ[1][i]) for i in range(0, len(_Circ[0])))
+                    _Reg1T = Polygon(np.column_stack((RegionX, RegionY)))
+                    _Reg2T = Polygon(np.column_stack((_Circ[0], _Circ[1])))
 
-                    print('_Reg1')
-                    print(_Reg1)
-                    print('2')
-                    print(_Reg2)
-
-                    print(_Reg1.intersects(_Reg2))
-                    _Reg = _Reg1.intersection(_Reg2)
-                    print('_Reg')
-                    print(_Reg)
-                    xx, yy = _Reg.exterior.coords.xy
+                    _RegT = _Reg1T.intersection(_Reg2T)
+                    if type(_RegT) == GeometryCollection: 
+                        print('----- k: ' + str(k))
+                        _RegT = _RegT.convex_hull
+                        # _RegT = get_from_geometry_collection(_RegT)
+                    
+                    xx, yy = _RegT.exterior.coords.xy
                     RegionX = xx.tolist()                    
                     RegionY = yy.tolist()
                 else:
-                    print('DENTRO ELSE')
                     _R = np.array(map_utils.get_dominance_area(BaseStations[k][:2], BaseStations[j][:2], fading_rayleigh_distribution.loc['Maplimit','value']))
-                    print('_R')
-                    print(_R)
-                    _Reg1 = Polygon((RegionX[i], RegionY[i]) for i in range(0, len(RegionX)))
-                    _Reg2 = Polygon((_R[0][i], _R[1][i]) for i in range(_R.shape[1]))
-                    print('_Reg1')
-                    print(_Reg1)
-                    print('_Reg2')
-                    print(_Reg2)
-                    print(_Reg1.intersects(_Reg2))
+                    _Reg1L = Polygon(np.column_stack((RegionX, RegionY)))
+                    _Reg2L = Polygon(np.column_stack((_R[0], _R[1])))
 
-                    _Reg = _Reg1.intersection(_Reg2)
-                    print(_Reg)
-                    xx, yy = _Reg.exterior.coords.xy
+                    _RegL = _Reg1L.intersection(_Reg2L)
+                    xx, yy = _RegL.exterior.coords.xy
                     RegionX = xx.tolist()                    
                     RegionY = yy.tolist()
 
-            print(RegionX)
-            print(RegionY)
+                # _polygon = MplPolygon(np.column_stack((RegionX, RegionY)), facecolor=col, alpha=0.5, edgecolor=None)
+                # ax2.add_patch(_polygon)
+                # fig2.canvas.draw()
+                # fig2.canvas.flush_events()
         Regions[k] = [RegionX, RegionY]
-    print(Regions)
-        
+
+        _polygon = MplPolygon(np.column_stack((RegionX, RegionY)), facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
+        ax.add_patch(_polygon)
+
+        _Reg1F = Polygon(np.column_stack((RegionX, RegionY)))
+        _Reg2F = Polygon(np.column_stack((UnsoldRegionX, UnsoldRegionY)))
+
+        _RegF = _Reg2F.difference(_Reg1F)
+        if type(_RegF) == GeometryCollection: 
+            print('----- k: ' + str(k))
+            _RegF = _RegF.convex_hull
+        if type(_RegF) == MultiPolygon: 
+            print('----- k: ' + str(k))
+            _RegF = get_from_multi_polygon(_RegF)   
+
+
+        # _chP = Point(BaseStations[k,0], BaseStations[k,1])
+        # print(_chP)
+        # print(_RegF.contains(_chP))
+        # _chP = Point(999, 999)
+        # print(_RegF.contains(_chP))
+        # _chP = Point(473.32, 743.16)
+        # print(_RegF.contains(_chP))
+
+        xx, yy = _RegF.exterior.coords.xy
+        UnsoldRegionX = xx.tolist()                    
+        UnsoldRegionY = yy.tolist()
+
+
+        # ax3.plot(xx,yy)
+        # print('UnsoldRegionX')
+        # print(UnsoldRegionX)
+        # print('UnsoldRegionY')
+        # print(UnsoldRegionY)
+
+        # # Plotting the patch
+        # polygon = MplPolygon(np.column_stack((RegionX, RegionY)), facecolor=np.random.rand(3), alpha=0.35, edgecolor='none')
+        # ax.add_patch(polygon)
+
+        # # Performing the subtraction
+        # UnsoldPolygon = Polygon(np.column_stack((UnsoldRegionX, UnsoldRegionY)))
+        # RegionPolygon = Polygon(np.column_stack((RegionX, RegionY)))
+        # UnsoldPolygon = UnsoldPolygon.difference(RegionPolygon)
+        # print('------> UnsoldPolygon')
+        # print(UnsoldPolygon)
+        # if type(UnsoldPolygon) == MultiPolygon:
+        #     print(UnsoldPolygon.convex_hull)
+        #     UnsoldPolygon = UnsoldPolygon.convex_hull
+        # UnsoldRegionX, UnsoldRegionY = UnsoldPolygon.exterior.xy
+
+        # Slow down for the viewer
+        plt.pause(0.25)        
 
     
     print ('\nTEST2')
