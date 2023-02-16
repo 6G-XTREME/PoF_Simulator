@@ -5,6 +5,18 @@ __maintainer__ = "Jose-Manuel Martinez-Caro"
 __email__ = "jmmartinez@e-lighthouse.com"
 __status__ = "Working on"
 
+import map_utils
 
-def search_closest_macro ():
+def search_closest_macro (Device, BaseStations):
+    temp_dist = float('inf')
+    closestMacro = None
+
+
+    for station in range(BaseStations.shape[0]):
+        temp = map_utils.get_euclidean_distance(Device, BaseStations[station, :])
+        if temp < temp_dist:
+            temp_dist = temp
+            closestMacro = station
+    
+    return closestMacro
     print("TBD!")
