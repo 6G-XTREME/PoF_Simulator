@@ -37,63 +37,38 @@ def get_from_geometry_collection(_Reg):
     return _Reg
 
 def main ():
-    # fig, ax = plt.subplots()
-    fig = plt.figure()
-    ax = fig.gca()
-    plt.axis([-2, 2, -2, 2])
+    # Creating an empty dictionary
+    myDict = {}
+    
+    # Adding list as value
+    myDict["key1"] = [1, 2]
+    
+    # creating a list
+    lst = ['Geeks', 'For', 'Geeks']
+    
+    # Adding this list as sublist in myDict
+    myDict["key1"].append(lst)
+    
+    print(myDict)
+    print(myDict['key1'][2])
 
-    theta = np.linspace(0,2*math.pi,100)
-    x1 = np.cos(theta) - 0.5
-    y1 = -np.sin(theta)
-    x2 = x1*0.5
-    y2 = y1*0.5
+    data = {
+        'V_TIME':  [None] *10, # (m)
+        'V_POSITION_X':  [[]] *10, # (m)
+        'V_POSITION_Y':  [[]] *10, # (m/s)
+        'V_DIRECTION':  [[]] *10, # pause time (s)
+        'V_SPEED_MAGNITUDE':  [[]] *10, # walk time(s)
+        'V_IS_MOVING':  [[]] *10, # (degrees)
+        'V_DURATION':  [[]] *10 # (
+    }
 
-    _polygon2 = MplPolygon(np.column_stack((x1, y1)), facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
-    _polygon1 = MplPolygon(np.column_stack((x2,y2)), facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
-    ax.add_patch(_polygon2)
-    plt.pause(2)
-    ax.add_patch(_polygon1)
-    plt.pause(2)
-
-    _Reg1 = Polygon(np.column_stack((x1, y1)))
-    _Reg2 = Polygon(np.column_stack((x2, y2)))
-
-    difference = _Reg1.intersection(_Reg2)  # or difference = polygon2 - polygon1
-    xx, yy = difference.exterior.coords.xy
-    RegionX = xx.tolist()                    
-    RegionY = yy.tolist()
-    _polygon = MplPolygon(np.column_stack((RegionX, RegionY)), facecolor=np.random.rand(3), alpha=1, edgecolor=None)
-    ax.add_patch(_polygon)
-    print('previous pause')
-    plt.pause(2)
-
-    # polygon1 = Polygon([(0, 1), (0, 0), (1, 0), (1, 1)])
-    # xx, yy = polygon1.exterior.coords.xy
-    # RegionX = xx.tolist()                    
-    # RegionY = yy.tolist()
-    # _polygon = MplPolygon(np.column_stack((RegionX, RegionY)), facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
-    # ax.add_patch(_polygon)
-    # plt.pause(2)
-
-    # polygon2 = Polygon([(0.75, 0.25), (1.25, 0.25), (1.25, 0.75), (0.75, 0.75)])
-    # xx, yy = polygon2.exterior.coords.xy
-    # RegionX = xx.tolist()                    
-    # RegionY = yy.tolist()
-    # _polygon = MplPolygon(np.column_stack((RegionX, RegionY)), facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
-    # ax.add_patch(_polygon)
-    # plt.pause(2)
-
-
-    # difference = polygon2.difference(polygon1)  # or difference = polygon2 - polygon1
-    # xx, yy = difference.exterior.coords.xy
-    # RegionX = xx.tolist()                    
-    # RegionY = yy.tolist()
-    # _polygon = MplPolygon(np.column_stack((RegionX, RegionY)), facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
-    # ax.add_patch(_polygon)
-    # plt.pause(2)
-
-    # print('done!')
-
+    # data['V_TIME'][0].append(10.225)
+    print(data['V_TIME'][0])
+    if data['V_TIME'][0] == None: data['V_TIME'][0] = [0]
+    else: data['V_TIME'][0].append(10)
+    if data['V_TIME'][0] == None: data['V_TIME'][0] = [0]
+    else: data['V_TIME'][0].append(10)
+    print(data)
 
     print('TBD!')
 
