@@ -209,6 +209,7 @@ def main():
 
     s_mobility = mobility_utils.generate_mobility(sim_input)
 
+    ## CONTINUES HERE!
     sim_times = np.arange(0, sim_input['SIMULATION_TIME'] + timeStep, timeStep)
 
     node_list = []
