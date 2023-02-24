@@ -1,9 +1,14 @@
 import numpy as np
 import matplotlib.pyplot as plt
 #from matplotlib.patches import Polygon
-from shapely.geometry import Polygon, GeometryCollection, MultiPolygon, LineString
 from matplotlib.patches import Polygon as MplPolygon
 import math
+
+    # Creating an empty dictionary
+import matplotlib.pyplot as plt
+from shapely.geometry import Point, LineString, Polygon, GeometryCollection
+from matplotlib.lines import Line2D
+from matplotlib.patches import Circle
 
 
 def get_from_multi_polygon(_Reg):
@@ -37,38 +42,23 @@ def get_from_geometry_collection(_Reg):
     return _Reg
 
 def main ():
-    # Creating an empty dictionary
-    myDict = {}
-    
-    # Adding list as value
-    myDict["key1"] = [1, 2]
-    
-    # creating a list
-    lst = ['Geeks', 'For', 'Geeks']
-    
-    # Adding this list as sublist in myDict
-    myDict["key1"].append(lst)
-    
-    print(myDict)
-    print(myDict['key1'][2])
 
-    data = {
-        'V_TIME':  [None] *10, # (m)
-        'V_POSITION_X':  [[]] *10, # (m)
-        'V_POSITION_Y':  [[]] *10, # (m/s)
-        'V_DIRECTION':  [[]] *10, # pause time (s)
-        'V_SPEED_MAGNITUDE':  [[]] *10, # walk time(s)
-        'V_IS_MOVING':  [[]] *10, # (degrees)
-        'V_DURATION':  [[]] *10 # (
-    }
+    polygon = Polygon([(0, 0), (0, 5), (5, 5), (5, 0), (0, 0)])
 
-    # data['V_TIME'][0].append(10.225)
-    print(data['V_TIME'][0])
-    if data['V_TIME'][0] == None: data['V_TIME'][0] = [0]
-    else: data['V_TIME'][0].append(10)
-    if data['V_TIME'][0] == None: data['V_TIME'][0] = [0]
-    else: data['V_TIME'][0].append(10)
-    print(data)
+    # Define a geometry collection with polygons and linestrings
+    geoms = [
+        Polygon([(1, 1), (1, 2), (2, 2), (2, 1), (1, 1)]),
+        LineString([(2, 2), (3, 3), (4, 2)]),
+        Polygon([(3, 1), (4, 1), (4, 2), (3, 2), (3, 1)])
+    ]
+
+    geom_collection = GeometryCollection(geoms)
+
+    # Calculate the intersection between the polygon and the geometry collection
+    intersection = geom_collection.intersection(polygon)
+
+    print(intersection)
+    plt.show()
 
     print('TBD!')
 

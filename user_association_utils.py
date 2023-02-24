@@ -12,7 +12,7 @@ def search_closest_macro (Device, BaseStations):
     closestMacro = None
 
 
-    for station in range(BaseStations.shape[0]):
+    for station in range(len(BaseStations)):
         temp = map_utils.get_euclidean_distance(Device, BaseStations[station, :])
         if temp < temp_dist:
             temp_dist = temp

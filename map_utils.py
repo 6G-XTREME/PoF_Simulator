@@ -33,41 +33,44 @@ def apollonius_circle_path_loss (P1, P2, w1, w2, alpha):  # CHECKED
         print(e)
 
 
-def get_circle(x:float, y:float, r:float): #CHECKED
+def get_circle(var): #CHECKED
     try:
         _aux = pi/50
         _th = np.arange(0,(2*pi)+_aux,_aux)
 
-        xunit = r * np.cos(_th) + x
-        yunit = r * np.sin(_th) + y
+        xunit = var[2] * np.cos(_th) + var[0]
+        yunit = var[2] * np.sin(_th) + var[1]
 
-        return xunit, yunit
+        res = [(x, y) for x, y in zip(xunit, yunit)]
+        return res
     except Exception as e:
         print(bcolors.FAIL + 'Error in function: ' + sys._getframe( ).f_code.co_name + bcolors.ENDC)
         print(bcolors.FAIL + 'Error in file: '+ sys._getframe( ).f_code.co_filename + bcolors.ENDC)
         print(e)
 
-def get_dominance_area(P1, P2, limit):
+def get_dominance_area(P1, P2):
     _medZero, _medOne = perpendicular_bisector(P1, P2)
 
-    _WholeRegionX = np.array([0, 0, limit, limit])
-    _WholeRegionY = np.array([0, limit, limit, 0])
+    _WholeRegion = Polygon([(0,0), (0,1000), (1000,1000), (1000, 0)])
     
-    _c = np.array(polyclip(np.vstack((_WholeRegionX, _WholeRegionY)).T, [0, _medZero], [1, _medOne]))
+    _c =polyclip(_WholeRegion, [0, _medZero], [1, _medOne])
 
     _point = Point(P1[0], P1[1])    
     _polygon = Polygon(_c)
     
+    
     if(_polygon.contains(_point) == False):
-        _Reg1 = Polygon(np.column_stack((_WholeRegionX, _WholeRegionY)))
+        _Reg1 = Polygon(_WholeRegion)
         
         _Reg = _Reg1.difference(_polygon)
-        xx, yy = _Reg.exterior.coords.xy
-        _a = xx.tolist()                    
-        _b = yy.tolist()
+        # xx, yy = _Reg.exterior.coords.xy
+        # _a = xx.tolist()                    
+        # _b = yy.tolist()
+        return _Reg
     else:
-        _a = _c[:,0]
-        _b = _c[:,1]
+        # _a = _c[:,0]
+        # _b = _c[:,1]
+        return _polygon
     
     return _a, _b
 
@@ -90,9 +93,10 @@ def search_closest_bs(P, Regions):
     # Regions are sorted from lowest to highest preference or weight.
     _closest = 0
     for i in range(0, len(Regions)):
-        _p = path.Path([(0,0), (0, 1), (1, 1), (1, 0)])  # square with legs length 1 and bottom left corner at the origin
-        _in =_p.contains_points([(P[0], P[1])])
-        _closet = _closest + _in*i
+        _p = path.Path([(Regions[i][0][j], Regions[i][1][j]) for i in range(len(Regions)) for j in range(len(Regions[i][0]))])  # square with legs length 1 and bottom left corner at the origin
+        
+        _in =_p.contains_points([(P[0], P[1])])[0]
+        _closest = _closest + _in*i
     print("Complete and review it!")
-    return _closet
+    return _closest
 

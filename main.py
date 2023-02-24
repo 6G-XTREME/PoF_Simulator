@@ -16,8 +16,9 @@ import time
 from tqdm import tqdm
 import map_utils, mobility_utils, user_association_utils, radio_utils
 from test import get_from_geometry_collection, get_from_multi_polygon
+from matplotlib.lines import Line2D
 
-from shapely.geometry import Polygon, GeometryCollection, MultiPolygon, Point
+from shapely.geometry import Polygon, GeometryCollection, MultiPolygon, Point, LineString
 
 def main():
     # Your program goes here
@@ -115,82 +116,50 @@ def main():
         print(e)
 
     # try:
-    #     WholeRegionX = [0, 0, Maplimit, Maplimit]
-    #     WholeRegionY = [0, Maplimit, Maplimit, 0]
-    #     UnsoldRegionX = WholeRegionX;
-    #     UnsoldRegionY = WholeRegionY;
+    _WholeRegion = Polygon([(0,0), (0,1000), (1000,1000),(1000, 0), (0,0)])
+    _UnsoldRegion = _WholeRegion
 
-    #     # print(BaseStations)
-    #     Regions = {}
-    #     aa = False
-    #     # print(Regions)
-    #     fig2, ax2 = plt.subplots()
-    #     # fig3, ax3 = plt.subplots()
-    #     plt.show(block=False)
+    # print(BaseStations)
+    Regions = {}
+    aa = False
+    # print(Regions)
+    fig2, ax2 = plt.subplots()
+    plt.show(block=False)
+    
+    for k in range(Npoints-1,-1,-1):
+        print('-- k: ' + str(k))
+        _Region = _UnsoldRegion
+        for j in range(0,Npoints):
+            if (j<k):
+
+                if(BaseStations[k,2] != BaseStations[j,2]):
+                    _resp = map_utils.apollonius_circle_path_loss(BaseStations[k][:2], BaseStations[j][:2], BaseStations[k][2], BaseStations[j][2], alpha_loss)
+                    _Circ = map_utils.get_circle(_resp)
+
+                    _Reg2 = Polygon(_Circ)
+                    if not _Reg2.is_valid:
+                        _Reg2 = _Reg2.buffer(0)
+                    # if isinstance(_Region, GeometryCollection):
+                    #     print('Soy GeometryCollection')
+                    _Region = _Region.intersection(_Reg2)
+                else:
+                    _R = map_utils.get_dominance_area(BaseStations[k][:2], BaseStations[j][:2])
+                    _Region = _Region.intersection(_R)
+
+        Regions[k] = _Region
+        if isinstance(_Region, GeometryCollection):
+            for geom in _Region.geoms:
+                if isinstance(geom, Polygon):
+                    _polygon = MplPolygon(geom.exterior.coords, facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
+        else:
+            _polygon = MplPolygon(_Region.exterior.coords, facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
+        ax.add_patch(_polygon)
+
+        _UnsoldRegion = _UnsoldRegion.difference(_Region)
         
-    #     _polygon = MplPolygon(np.column_stack((UnsoldRegionX, UnsoldRegionY)), facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
-    #     for k in range(Npoints-1,-1,-1):
-    #         print('-- k: ' + str(k))
-    #         RegionX = UnsoldRegionX
-    #         RegionY = UnsoldRegionY
-    #         col = np.random.rand(3)
-    #         for j in range(0,Npoints):
-    #             _Reg = _Reg1T= _Reg2T = _Reg1L = _Reg2L = _Reg1F = _Reg2F = _RegF = _RegT = _RegL = None
-    #             if (j<k):
 
-    #                 if(BaseStations[k,2] != BaseStations[j,2]):
-    #                     _resp = map_utils.apollonius_circle_path_loss(BaseStations[k][:2], BaseStations[j][:2], BaseStations[k][2], BaseStations[j][2], trasmitting_powers.loc['alpha_loss','value'])
-    #                     _Circ = map_utils.get_circle(_resp[0], _resp[1], _resp[2])
-
-    #                     _Reg1 = Polygon(np.column_stack((RegionX, RegionY)))
-    #                     _Reg2 = Polygon(np.column_stack((_Circ[0], _Circ[1])))
-
-    #                     _Reg = _Reg1.intersection(_Reg2)
-    #                     if type(_Reg) == GeometryCollection: 
-    #                         print('----- k: ' + str(k))
-    #                         _Reg = _Reg.convex_hull
-    #                         # _RegT = get_from_geometry_collection(_RegT)
-                        
-                        
-    #                     xx, yy = _Reg.exterior.coords.xy
-    #                     RegionX = xx.tolist()                    
-    #                     RegionY = yy.tolist()
-    #                 else:
-    #                     _R = np.array(map_utils.get_dominance_area(BaseStations[k][:2], BaseStations[j][:2], Maplimit))
-    #                     _Reg1 = Polygon(np.column_stack((RegionX, RegionY)))
-    #                     _Reg2 = Polygon(np.column_stack((_R[0], _R[1])))
-
-    #                     _Reg = _Reg1.intersection(_Reg2)
-    #                     xx, yy = _Reg.exterior.coords.xy
-    #                     RegionX = xx.tolist()                    
-    #                     RegionY = yy.tolist()
-
-    #         Regions[k] = [RegionX, RegionY]
-
-    #         _polygon = MplPolygon(np.column_stack((RegionX, RegionY)), facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
-    #         ax.add_patch(_polygon)
-
-    #         _Reg1 = Polygon(np.column_stack((RegionX, RegionY)))
-    #         _Reg2 = Polygon(np.column_stack((UnsoldRegionX, UnsoldRegionY)))
-
-    #         _Reg = _Reg2.difference(_Reg1)
-    #         if type(_Reg) == GeometryCollection: 
-    #             print('----- k: ' + str(k))
-    #             _Reg = _Reg.convex_hull
-    #         if type(_Reg) == MultiPolygon: 
-    #             print('----- k: ' + str(k))
-    #             _Reg = get_from_multi_polygon(_Reg)   
-
-    #         xx, yy = _Reg.exterior.coords.xy
-    #         UnsoldRegionX = xx.tolist()                    
-    #         UnsoldRegionY = yy.tolist()
-
-    #         # # Plotting the patch
-    #         polygon = MplPolygon(np.column_stack((UnsoldRegionX, UnsoldRegionY)), facecolor=np.random.rand(3), alpha=0.35, edgecolor='none')
-    #         ax2.add_patch(polygon)
-
-    #         # Slow down for the viewer
-    #         plt.pause(0.25)    
+        # # Slow down for the viewer
+        plt.pause(0.25)    
     # except Exception as e:
     #     print(bcolors.FAIL + 'Error plotting the BSs coverage' + bcolors.ENDC)
     #     print(e)    
@@ -214,34 +183,33 @@ def main():
 
     node_list = []
 
-    # for nodeIndex in range(s_mobility['NB_NODES']):
-    #     node_x = np.interp(sim_times, s_mobility[nodeIndex]['V_TIME'], s_mobility[nodeIndex]['V_POSITION_X'])
-    #     node_y = np.interp(sim_times, s_mobility[nodeIndex]['V_TIME'], s_mobility[nodeIndex]['V_POSITION_Y'])
-    #     node_list.append({'v_x': node_x, 'v_y': node_y})
+    for nodeIndex in range(sim_input['NB_NODES']):
+        node_y = np.interp(sim_times, s_mobility['V_TIME'][nodeIndex], s_mobility['V_POSITION_Y'][nodeIndex])
+        node_x = np.interp(sim_times, s_mobility['V_TIME'][nodeIndex], s_mobility['V_POSITION_X'][nodeIndex])
+        node_list.append({'v_x': node_x, 'v_y': node_y})
 
-    # active_Cells = np.zeros(NMacroCells + NFemtoCells)
-    # fig, ax = plt.subplots()
-    # node_pos_plot = []
-    # node_association_line = []
+    active_Cells = np.zeros(NMacroCells + NFemtoCells)
+    node_pos_plot = []
+    node_association_line = []
 
-    # for nodeIndex in range(s_mobility['NB_NODES']):
-    #     node_pos, = ax.plot(node_list[nodeIndex].v_x[0], node_list[nodeIndex].v_y[0], '+', markersize=10, linewidth=2, color=[0.3, 0.3, 1])
-    #     node_pos_plot.append(node_pos)
+    for nodeIndex in range(sim_input['NB_NODES']):
+        node_pos = ax.plot(node_list[nodeIndex]['v_x'][0], node_list[nodeIndex]['v_y'][0], '+', markersize=10, linewidth=2, color=[0.3, 0.3, 1])
+        node_pos_plot.append(node_pos)
 
-    #     closestBSDownlink = user_association_utils.search_closest_macro([node_list[nodeIndex].v_x[0], node_list[nodeIndex].v_y[0]], Regions)
-    #     x = [node_list[nodeIndex].v_x[0], BaseStations[closestBSDownlink][0]]
-    #     y = [node_list[nodeIndex].v_y[0], BaseStations[closestBSDownlink][1]]
-    #     node_assoc, = ax.plot(x, y, color=colorsBS[closestBSDownlink])
-    #     node_association_line.append(node_assoc)
+        closestBSDownlink = map_utils.search_closest_bs([node_list[nodeIndex]['v_x'][0], node_list[nodeIndex]['v_y'][0]], Regions)
+        x = [node_list[nodeIndex].v_x[0], BaseStations[closestBSDownlink][0]]
+        y = [node_list[nodeIndex].v_y[0], BaseStations[closestBSDownlink][1]]
+        node_assoc, = ax.plot(x, y, color=colorsBS[closestBSDownlink])
+        node_association_line.append(node_assoc)
 
-    #     active_Cells[closestBSDownlink] = 1
+        active_Cells[closestBSDownlink] = 1
 
-    # ax.set_title('Downlink association. Distance & Power criterion')
-    # ax.set_xlabel('X [m]')
-    # ax.set_ylabel('Y [m]')
-    # text = ax.text(0, Maplimit, 'Time (sec) = 0')
+    ax.set_title('Downlink association. Distance & Power criterion')
+    ax.set_xlabel('X [m]')
+    ax.set_ylabel('Y [m]')
+    text = ax.text(0, Maplimit, 'Time (sec) = 0')
 
-    # plt.show()
+    plt.show()
     
     # live_smallcell_occupancy = [sum(active_Cells[NMacroCells:])]
 

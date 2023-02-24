@@ -14,9 +14,9 @@ def Out_adjustDuration_random_waypoint(time,duration,dict):
     if (time+duration) >= dict['SIMULATION_TIME']: return dict['SIMULATION_TIME'] - time
     return duration
 
-def add_element_to_s_mobility_tmp(variable, value):
-    if s_mobility_tmp[variable][nodeIndex_tmp] == None: s_mobility_tmp[variable][nodeIndex_tmp] = [value]
-    else: s_mobility_tmp[variable][nodeIndex_tmp].append(value)
+def add_element_to_s_mobility(variable, value):
+    if s_mobility[variable][nodeIndex_tmp] == None: s_mobility[variable][nodeIndex_tmp] = [value]
+    else: s_mobility[variable][nodeIndex_tmp].append(value)
 
 def Out_setRestrictedWalk_random_waypoint(previousX, previousY, previousDuration, previousTime, dict):
     
@@ -29,13 +29,13 @@ def Out_setRestrictedWalk_random_waypoint(previousX, previousY, previousDuration
     distance_tmp = speed * duration_tmp
 
     if distance_tmp == 0: # No movement
-        add_element_to_s_mobility_tmp('V_TIME', time_tmp)
-        add_element_to_s_mobility_tmp('V_POSITION_X', x_tmp)
-        add_element_to_s_mobility_tmp('V_POSITION_Y', y_tmp)
-        add_element_to_s_mobility_tmp('V_DIRECTION', direction_tmp)
-        add_element_to_s_mobility_tmp('V_SPEED_MAGNITUDE', speed)
-        add_element_to_s_mobility_tmp('V_IS_MOVING', True)
-        add_element_to_s_mobility_tmp('V_DURATION', duration_tmp)
+        add_element_to_s_mobility('V_TIME', time_tmp)
+        add_element_to_s_mobility('V_POSITION_X', x_tmp)
+        add_element_to_s_mobility('V_POSITION_Y', y_tmp)
+        add_element_to_s_mobility('V_DIRECTION', direction_tmp)
+        add_element_to_s_mobility('V_SPEED_MAGNITUDE', speed)
+        add_element_to_s_mobility('V_IS_MOVING', True)
+        add_element_to_s_mobility('V_DURATION', duration_tmp)
 
     else: # The loop begins
         flag_mobility_finised = False
@@ -67,13 +67,13 @@ def Out_setRestrictedWalk_random_waypoint(previousX, previousY, previousDuration
             current_distance = abs(np.diff([x_tmp, x_dest])[0] + 1j * np.diff([y_tmp, y_dest])[0] ) # Movement distance in a complex plane
             current_duration = Out_adjustDuration_random_waypoint(time_tmp, current_distance/speed, dict) # Duration of the movement
             
-            add_element_to_s_mobility_tmp('V_TIME', time_tmp)
-            add_element_to_s_mobility_tmp('V_POSITION_X', x_tmp)
-            add_element_to_s_mobility_tmp('V_POSITION_Y', y_tmp)
-            add_element_to_s_mobility_tmp('V_DIRECTION', direction_tmp)
-            add_element_to_s_mobility_tmp('V_SPEED_MAGNITUDE', speed)
-            add_element_to_s_mobility_tmp('V_IS_MOVING', True)
-            add_element_to_s_mobility_tmp('V_DURATION', duration_tmp)
+            add_element_to_s_mobility('V_TIME', time_tmp)
+            add_element_to_s_mobility('V_POSITION_X', x_tmp)
+            add_element_to_s_mobility('V_POSITION_Y', y_tmp)
+            add_element_to_s_mobility('V_DIRECTION', direction_tmp)
+            add_element_to_s_mobility('V_SPEED_MAGNITUDE', speed)
+            add_element_to_s_mobility('V_IS_MOVING', True)
+            add_element_to_s_mobility('V_DURATION', duration_tmp)
 
             if flag_mobility_was_outside:
                 time_tmp = time_tmp + current_duration
@@ -97,13 +97,12 @@ def generate_mobility (dict):
         'V_SPEED_X':        [None] * dict['NB_NODES'],  # (
         'V_SPEED_Y':        [None] * dict['NB_NODES']  # (
     }
-    global s_mobility_tmp 
+    global s_mobility
     global nodeIndex_tmp
-    s_mobility_tmp = data
     s_mobility = data
 
     for nodeIndex_tmp in range(dict['NB_NODES']):
-        # s_mobility_tmp = data
+        # s_mobility = data
         previousX = uniform(dict['V_POSITION_X_INTERVAL'][0], dict['V_POSITION_X_INTERVAL'][1])
         previousY = uniform(dict['V_POSITION_Y_INTERVAL'][0], dict['V_POSITION_Y_INTERVAL'][1])
         previousDuration = 0
@@ -116,79 +115,78 @@ def generate_mobility (dict):
 
         #########################
         # Promenade
-        while s_mobility_tmp['V_TIME'][nodeIndex_tmp][-1] < dict['SIMULATION_TIME']:
-            if s_mobility_tmp['V_IS_MOVING'][nodeIndex_tmp][-1] == False:
-                previousX = s_mobility_tmp['V_POSITION_X'][nodeIndex_tmp][-1]
-                previousY = s_mobility_tmp['V_POSITION_Y'][nodeIndex_tmp][-1]
-                previousDuration = s_mobility_tmp['V_DURATION'][nodeIndex_tmp][-1]
-                previousTime = s_mobility_tmp['V_TIME'][nodeIndex_tmp][-1]
+        while s_mobility['V_TIME'][nodeIndex_tmp][-1] < dict['SIMULATION_TIME']:
+            if s_mobility['V_IS_MOVING'][nodeIndex_tmp][-1] == False:
+                previousX = s_mobility['V_POSITION_X'][nodeIndex_tmp][-1]
+                previousY = s_mobility['V_POSITION_Y'][nodeIndex_tmp][-1]
+                previousDuration = s_mobility['V_DURATION'][nodeIndex_tmp][-1]
+                previousTime = s_mobility['V_TIME'][nodeIndex_tmp][-1]
                 Out_setRestrictedWalk_random_waypoint(previousX, previousY, previousDuration, previousTime, dict)
             else:
-                previousDirection = s_mobility_tmp['V_DIRECTION'][nodeIndex_tmp][-1]
-                previousSpeed = s_mobility_tmp['V_SPEED_MAGNITUDE'][nodeIndex_tmp][-1]
-                previousX = s_mobility_tmp['V_POSITION_X'][nodeIndex_tmp][-1]
-                previousY = s_mobility_tmp['V_POSITION_Y'][nodeIndex_tmp][-1]
-                previousTime = s_mobility_tmp['V_TIME'][nodeIndex_tmp][-1]
-                previousDuration = s_mobility_tmp['V_DURATION'][nodeIndex_tmp][-1]
+                previousDirection = s_mobility['V_DIRECTION'][nodeIndex_tmp][-1]
+                previousSpeed = s_mobility['V_SPEED_MAGNITUDE'][nodeIndex_tmp][-1]
+                previousX = s_mobility['V_POSITION_X'][nodeIndex_tmp][-1]
+                previousY = s_mobility['V_POSITION_Y'][nodeIndex_tmp][-1]
+                previousTime = s_mobility['V_TIME'][nodeIndex_tmp][-1]
+                previousDuration = s_mobility['V_DURATION'][nodeIndex_tmp][-1]
                 distance = previousDuration * previousSpeed
 
-                add_element_to_s_mobility_tmp('V_TIME', previousTime + previousDuration)
-                add_element_to_s_mobility_tmp('V_POSITION_X', previousX + distance * math.cos(math.radians(previousDirection)))
-                add_element_to_s_mobility_tmp('V_POSITION_Y', previousY + distance * math.sin(math.radians(previousDirection)))
-                add_element_to_s_mobility_tmp('V_DIRECTION', 0)
-                add_element_to_s_mobility_tmp('V_SPEED_MAGNITUDE', 0)
-                add_element_to_s_mobility_tmp('V_IS_MOVING', False)
-                add_element_to_s_mobility_tmp('V_DURATION', Out_adjustDuration_random_waypoint(s_mobility_tmp['V_TIME'][nodeIndex_tmp][-1], uniform(dict['V_PAUSE_INTERVAL'][0], dict['V_PAUSE_INTERVAL'][1]), dict))
+                add_element_to_s_mobility('V_TIME', previousTime + previousDuration)
+                add_element_to_s_mobility('V_POSITION_X', previousX + distance * math.cos(math.radians(previousDirection)))
+                add_element_to_s_mobility('V_POSITION_Y', previousY + distance * math.sin(math.radians(previousDirection)))
+                add_element_to_s_mobility('V_DIRECTION', 0)
+                add_element_to_s_mobility('V_SPEED_MAGNITUDE', 0)
+                add_element_to_s_mobility('V_IS_MOVING', False)
+                add_element_to_s_mobility('V_DURATION', Out_adjustDuration_random_waypoint(s_mobility['V_TIME'][nodeIndex_tmp][-1], uniform(dict['V_PAUSE_INTERVAL'][0], dict['V_PAUSE_INTERVAL'][1]), dict))
 
-        nb_speed = len(s_mobility_tmp['V_SPEED_MAGNITUDE'][nodeIndex_tmp])
+        nb_speed = len(s_mobility['V_SPEED_MAGNITUDE'][nodeIndex_tmp])
         for s in range(nb_speed):
-            speed = s_mobility_tmp['V_SPEED_MAGNITUDE'][nodeIndex_tmp][s]
-            direction = s_mobility_tmp['V_DIRECTION'][nodeIndex_tmp][s]
-            add_element_to_s_mobility_tmp('V_SPEED_X', speed * math.cos(math.radians(direction)))
-            add_element_to_s_mobility_tmp('V_SPEED_Y', speed * math.sin(math.radians(direction)))
+            speed = s_mobility['V_SPEED_MAGNITUDE'][nodeIndex_tmp][s]
+            direction = s_mobility['V_DIRECTION'][nodeIndex_tmp][s]
+            add_element_to_s_mobility('V_SPEED_X', speed * math.cos(math.radians(direction)))
+            add_element_to_s_mobility('V_SPEED_Y', speed * math.sin(math.radians(direction)))
 
         # To remove null pauses
-        v_index = 0 in s_mobility_tmp['V_DURATION'][nodeIndex_tmp][:-1]
+        v_index = 0 in s_mobility['V_DURATION'][nodeIndex_tmp][:-1]
         if v_index:
-            v_index = s_mobility_tmp['V_DURATION'][nodeIndex_tmp][:-1].index(0)
-            s_mobility_tmp['V_TIME']            = np.delete(s_mobility_tmp['V_TIME'], v_index)
-            s_mobility_tmp['V_POSITION_X']      = np.delete(s_mobility_tmp['V_POSITION_X'], v_index)
-            s_mobility_tmp['V_POSITION_Y']      = np.delete(s_mobility_tmp['V_POSITION_Y'], v_index)
-            s_mobility_tmp['V_DIRECTION']       = np.delete(s_mobility_tmp['V_DIRECTION'], v_index)
-            s_mobility_tmp['V_SPEED_MAGNITUDE'] = np.delete(s_mobility_tmp['V_SPEED_MAGNITUDE'], v_index)
-            s_mobility_tmp['V_IS_MOVING']       = np.delete(s_mobility_tmp['V_IS_MOVINT'], v_index)
-            s_mobility_tmp['V_DURATION']        = np.delete(s_mobility_tmp['V_DURATION'], v_index)
-            s_mobility_tmp['V_SPEED_X']         = np.delete(s_mobility_tmp['V_SPEED_X'], v_index)
-            s_mobility_tmp['V_SPEED_Y']         = np.delete(s_mobility_tmp['V_SPEED_Y'], v_index)
+            v_index = s_mobility['V_DURATION'][nodeIndex_tmp][:-1].index(0)
+            s_mobility['V_TIME']            = np.delete(s_mobility['V_TIME'], v_index)
+            s_mobility['V_POSITION_X']      = np.delete(s_mobility['V_POSITION_X'], v_index)
+            s_mobility['V_POSITION_Y']      = np.delete(s_mobility['V_POSITION_Y'], v_index)
+            s_mobility['V_DIRECTION']       = np.delete(s_mobility['V_DIRECTION'], v_index)
+            s_mobility['V_SPEED_MAGNITUDE'] = np.delete(s_mobility['V_SPEED_MAGNITUDE'], v_index)
+            s_mobility['V_IS_MOVING']       = np.delete(s_mobility['V_IS_MOVINT'], v_index)
+            s_mobility['V_DURATION']        = np.delete(s_mobility['V_DURATION'], v_index)
+            s_mobility['V_SPEED_X']         = np.delete(s_mobility['V_SPEED_X'], v_index)
+            s_mobility['V_SPEED_Y']         = np.delete(s_mobility['V_SPEED_Y'], v_index)
 
         # To remove the too small difference at the end, if there is one:
-        if s_mobility_tmp['V_TIME'][nodeIndex_tmp][-1] - s_mobility_tmp['V_TIME'][nodeIndex_tmp][-2] < 1e-14:
-            s_mobility_tmp['V_TIME'][nodeIndex_tmp].pop()
-            s_mobility_tmp['V_POSITION_X'][nodeIndex_tmp].pop()
-            s_mobility_tmp['V_POSITION_Y'][nodeIndex_tmp].pop()
-            s_mobility_tmp['V_DIRECTION'][nodeIndex_tmp].pop()
-            s_mobility_tmp['V_SPEED_MAGNITUDE'][nodeIndex_tmp].pop()
-            s_mobility_tmp['V_IS_MOVING'][nodeIndex_tmp].pop()
-            s_mobility_tmp['V_DURATION'][nodeIndex_tmp].pop()
-            s_mobility_tmp['V_SPEED_X'][nodeIndex_tmp].pop()
-            s_mobility_tmp['V_SPEED_Y'][nodeIndex_tmp].pop()
+        if s_mobility['V_TIME'][nodeIndex_tmp][-1] - s_mobility['V_TIME'][nodeIndex_tmp][-2] < 1e-14:
+            s_mobility['V_TIME'][nodeIndex_tmp].pop()
+            s_mobility['V_POSITION_X'][nodeIndex_tmp].pop()
+            s_mobility['V_POSITION_Y'][nodeIndex_tmp].pop()
+            s_mobility['V_DIRECTION'][nodeIndex_tmp].pop()
+            s_mobility['V_SPEED_MAGNITUDE'][nodeIndex_tmp].pop()
+            s_mobility['V_IS_MOVING'][nodeIndex_tmp].pop()
+            s_mobility['V_DURATION'][nodeIndex_tmp].pop()
+            s_mobility['V_SPEED_X'][nodeIndex_tmp].pop()
+            s_mobility['V_SPEED_Y'][nodeIndex_tmp].pop()
 
-        s_mobility_tmp['V_TIME'][nodeIndex_tmp][-1] = dict['SIMULATION_TIME']
-        s_mobility_tmp['V_DURATION'][nodeIndex_tmp][-1] = 0
-        s_mobility_tmp['V_SPEED_MAGNITUDE'][nodeIndex_tmp][-1] = 0
-        s_mobility_tmp['V_SPEED_X'][nodeIndex_tmp][-1] = 0
-        s_mobility_tmp['V_SPEED_Y'][nodeIndex_tmp][-1] = 0
+        s_mobility['V_TIME'][nodeIndex_tmp][-1] = dict['SIMULATION_TIME']
+        s_mobility['V_DURATION'][nodeIndex_tmp][-1] = 0
+        s_mobility['V_SPEED_MAGNITUDE'][nodeIndex_tmp][-1] = 0
+        s_mobility['V_SPEED_X'][nodeIndex_tmp][-1] = 0
+        s_mobility['V_SPEED_Y'][nodeIndex_tmp][-1] = 0
 
-        node_data = {   'V_TIME':          s_mobility_tmp['V_TIME'][nodeIndex_tmp],
-                        'V_POSITION_X':    s_mobility_tmp['V_POSITION_X'][nodeIndex_tmp],
-                        'V_POSITION_Y':    s_mobility_tmp['V_POSITION_Y'][nodeIndex_tmp],
-                        'V_SPEED_X':       s_mobility_tmp['V_SPEED_X'][nodeIndex_tmp],
-                        'V_SPEED_Y':       s_mobility_tmp['V_SPEED_Y'][nodeIndex_tmp]
+        node_data = {   'V_TIME':          s_mobility['V_TIME'][nodeIndex_tmp],
+                        'V_POSITION_X':    s_mobility['V_POSITION_X'][nodeIndex_tmp],
+                        'V_POSITION_Y':    s_mobility['V_POSITION_Y'][nodeIndex_tmp],
+                        'V_SPEED_X':       s_mobility['V_SPEED_X'][nodeIndex_tmp],
+                        'V_SPEED_Y':       s_mobility['V_SPEED_Y'][nodeIndex_tmp]
                     }
 
         s_mobility[nodeIndex_tmp] = node_data
     
-    del s_mobility_tmp
     del nodeIndex_tmp
     
     return s_mobility
