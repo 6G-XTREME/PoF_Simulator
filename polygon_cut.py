@@ -6,12 +6,13 @@ __email__ = "jmmartinez@e-lighthouse.com"
 __status__ = "Working on"
 
 import numpy as np
+import operator
 
 def clip (p1, p2, plane):
     _d1 = p1[0] * plane [0] + p1[1] * plane[1] - plane[2]
     _d2 = p2[0] * plane [0] + p2[1] * plane[1] - plane[2]
     _t = (0 - _d1)/(_d2 - _d1)
-    return p1 + _t * (p2 - p1)
+    return tuple(map(operator.add, p1, map(lambda x: _t * x, map(operator.sub, p2, p1))))
     print("TBD!")
 
 def inside (p, plane):
@@ -23,24 +24,25 @@ def polyclip (pin, x1, x2):
     _plane = [x1[1] - x2[1], x2[0] - x1[0], 0]
     _plane[2] = x1[0] * _plane[0] + x1[1] * _plane[1]
     
-    _n = pin.shape[0]
-    _s = pin[-1, :]
-    _pout = np.empty((0,2))
+    _n = len(list(pin.exterior.coords))
+    _s = list(pin.exterior.coords)[-1]
+    if pin.exterior.coords[0] == pin.exterior.coords[-1]: 
+        _n -= 1
+        _s = list(pin.exterior.coords)[-2]
+    
+    _pout = []
 
     for ci in range(_n):
-        _p = pin[ci, :]
+        _p = list(pin.exterior.coords)[ci]
         if (inside(_p, _plane)):
-            if (inside(_s, _plane)): _pout = np.append(_pout, np.array([_p]),axis=0)
+            if (inside(_s, _plane)): _pout.append(_p)
             else: 
                 _t = clip(_s,_p,_plane)
-                _pout = np.append(_pout, np.array([_t]),axis=0)
-                _pout = np.append(_pout, np.array([_p]),axis=0)
+                _pout.append(_t)
+                _pout.append(_p)
         else:
             if(inside(_s, _plane)): #case 2
                 _t=clip(_s, _p, _plane)
-                _pout = np.append(_pout, np.array([_t]),axis=0)
+                _pout.append(_t)
         _s = _p
-    return np.array(_pout)
-
-def test ():
-    print("TBD!")
+    return _pout
