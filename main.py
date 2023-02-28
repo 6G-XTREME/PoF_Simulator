@@ -7,30 +7,16 @@ __status__ = "Working on"
 
 # main.py
 from bcolors import bcolors
-import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon as MplPolygon
-import time
 from tqdm import tqdm
 import map_utils, mobility_utils, user_association_utils, radio_utils
-from test import get_from_geometry_collection, get_from_multi_polygon
-from matplotlib.lines import Line2D
 
 from shapely.geometry import Polygon, GeometryCollection, MultiPolygon, Point, LineString
 
 def main():
-    # Your program goes here
-    # try:
-    #     #os.system('clear')  #clear the console before start
-    #     os.system('cls')
-    #     os.system('pip install openpyxl matplotlib shapely')
-
-    # except Exception as e:
-    #     print(bcolors.FAIL + 'Error installing the required dependencies' + bcolors.ENDC)
-    #     print(e)
-
 
     try:
         trasmitting_powers = pd.read_excel('inputParameters.xlsx','TransmittingPowers',index_col=0, header=0)

@@ -46,6 +46,3 @@ def polyclip (pin, x1, x2):
                 _pout.append(_t)
         _s = _p
     return _pout
-
-def test ():
-    print("TBD!")
