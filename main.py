@@ -147,13 +147,22 @@ def main():
                     _Region = _Region.intersection(_R)
 
         Regions[k] = _Region
+        
         if isinstance(_Region, GeometryCollection):
             for geom in _Region.geoms:
                 if isinstance(geom, Polygon):
                     _polygon = MplPolygon(geom.exterior.coords, facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
+                    ax.add_patch(_polygon)
+        elif isinstance(_Region, MultiPolygon):
+            col = np.random.rand(3)
+            print('Hola!')
+            for _Reg in _Region.geoms:
+                _polygon = MplPolygon(_Reg.exterior.coords, facecolor=col, alpha=0.5, edgecolor=None)
+                ax.add_patch(_polygon)
+
         else:
             _polygon = MplPolygon(_Region.exterior.coords, facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
-        ax.add_patch(_polygon)
+            ax.add_patch(_polygon)
 
         _UnsoldRegion = _UnsoldRegion.difference(_Region)
         
