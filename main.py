@@ -101,63 +101,63 @@ def main():
         print(bcolors.FAIL + 'Error importing the printing the BSs' + bcolors.ENDC)
         print(e)
 
-    # try:
-    _WholeRegion = Polygon([(0,0), (0,1000), (1000,1000),(1000, 0), (0,0)])
-    _UnsoldRegion = _WholeRegion
+    try:
+        _WholeRegion = Polygon([(0,0), (0,1000), (1000,1000),(1000, 0), (0,0)])
+        _UnsoldRegion = _WholeRegion
 
-    # print(BaseStations)
-    Regions = {}
-    aa = False
-    # print(Regions)
-    fig2, ax2 = plt.subplots()
-    plt.show(block=False)
-    
-    for k in range(Npoints-1,-1,-1):
-        print('-- k: ' + str(k))
-        _Region = _UnsoldRegion
-        for j in range(0,Npoints):
-            if (j<k):
-
-                if(BaseStations[k,2] != BaseStations[j,2]):
-                    _resp = map_utils.apollonius_circle_path_loss(BaseStations[k][:2], BaseStations[j][:2], BaseStations[k][2], BaseStations[j][2], alpha_loss)
-                    _Circ = map_utils.get_circle(_resp)
-
-                    _Reg2 = Polygon(_Circ)
-                    if not _Reg2.is_valid:
-                        _Reg2 = _Reg2.buffer(0)
-                    # if isinstance(_Region, GeometryCollection):
-                    #     print('Soy GeometryCollection')
-                    _Region = _Region.intersection(_Reg2)
-                else:
-                    _R = map_utils.get_dominance_area(BaseStations[k][:2], BaseStations[j][:2])
-                    _Region = _Region.intersection(_R)
-
-        Regions[k] = _Region
+        # print(BaseStations)
+        Regions = {}
+        aa = False
+        # print(Regions)
+        fig2, ax2 = plt.subplots()
+        plt.show(block=False)
         
-        if isinstance(_Region, GeometryCollection):
-            for geom in _Region.geoms:
-                if isinstance(geom, Polygon):
-                    _polygon = MplPolygon(geom.exterior.coords, facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
+        for k in range(Npoints-1,-1,-1):
+            print('-- k: ' + str(k))
+            _Region = _UnsoldRegion
+            for j in range(0,Npoints):
+                if (j<k):
+
+                    if(BaseStations[k,2] != BaseStations[j,2]):
+                        _resp = map_utils.apollonius_circle_path_loss(BaseStations[k][:2], BaseStations[j][:2], BaseStations[k][2], BaseStations[j][2], alpha_loss)
+                        _Circ = map_utils.get_circle(_resp)
+
+                        _Reg2 = Polygon(_Circ)
+                        if not _Reg2.is_valid:
+                            _Reg2 = _Reg2.buffer(0)
+                        # if isinstance(_Region, GeometryCollection):
+                        #     print('Soy GeometryCollection')
+                        _Region = _Region.intersection(_Reg2)
+                    else:
+                        _R = map_utils.get_dominance_area(BaseStations[k][:2], BaseStations[j][:2])
+                        _Region = _Region.intersection(_R)
+
+            Regions[k] = _Region
+            
+            if isinstance(_Region, GeometryCollection):
+                for geom in _Region.geoms:
+                    if isinstance(geom, Polygon):
+                        _polygon = MplPolygon(geom.exterior.coords, facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
+                        ax.add_patch(_polygon)
+            elif isinstance(_Region, MultiPolygon):
+                col = np.random.rand(3)
+                print('Hola!')
+                for _Reg in _Region.geoms:
+                    _polygon = MplPolygon(_Reg.exterior.coords, facecolor=col, alpha=0.5, edgecolor=None)
                     ax.add_patch(_polygon)
-        elif isinstance(_Region, MultiPolygon):
-            col = np.random.rand(3)
-            print('Hola!')
-            for _Reg in _Region.geoms:
-                _polygon = MplPolygon(_Reg.exterior.coords, facecolor=col, alpha=0.5, edgecolor=None)
+
+            else:
+                _polygon = MplPolygon(_Region.exterior.coords, facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
                 ax.add_patch(_polygon)
 
-        else:
-            _polygon = MplPolygon(_Region.exterior.coords, facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
-            ax.add_patch(_polygon)
+            _UnsoldRegion = _UnsoldRegion.difference(_Region)
+            
 
-        _UnsoldRegion = _UnsoldRegion.difference(_Region)
-        
-
-        # # Slow down for the viewer
-        plt.pause(0.25)    
-    # except Exception as e:
-    #     print(bcolors.FAIL + 'Error plotting the BSs coverage' + bcolors.ENDC)
-    #     print(e)    
+            # # Slow down for the viewer
+            plt.pause(0.25)    
+    except Exception as e:
+        print(bcolors.FAIL + 'Error plotting the BSs coverage' + bcolors.ENDC)
+        print(e)    
 
     sim_input = {
         'V_POSITION_X_INTERVAL': [0, Maplimit], # (m)
