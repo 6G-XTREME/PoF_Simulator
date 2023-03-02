@@ -1,5 +1,5 @@
-__author__ = "Gabriel Otero Perez (gaoterop@it.uc3m.es), Jose-Manuel Martinez-Caro (jmmartinez@e-lighthouse.com)"
-__credits__ = ["Gabriel Otero Perez", "Jose-Manuel Martinez-Caro"]
+__author__ = "Gabriel Otero Perez (gaoterop@it.uc3m.es), Jose-Manuel Martinez-Caro (jmmartinez@e-lighthouse.com), Enrique Fernandez Sanchez (efernandez@e-lighthouse.com)"
+__credits__ = ["Gabriel Otero Perez", "Jose-Manuel Martinez-Caro", "Enrique Fernandez Sanchez"]
 __version__ = "1.0.1"
 __maintainer__ = "Jose-Manuel Martinez-Caro"
 __email__ = "jmmartinez@e-lighthouse.com"
@@ -109,8 +109,8 @@ def main():
         Regions = {}
         aa = False
         # print(Regions)
-        fig2, ax2 = plt.subplots()
-        plt.show(block=False)
+        #fig2, ax2 = plt.subplots()
+        #plt.show(block=False)
         
         for k in range(Npoints-1,-1,-1):
             print('-- k: ' + str(k))
@@ -171,12 +171,16 @@ def main():
     }
     print(sim_input['V_WALK_INTERVAL'])
 
+    # Before here, validated!!! 
+    
+    # Generate the mobility path of users
     s_mobility = mobility_utils.generate_mobility(sim_input)
 
-    ## CONTINUES HERE!
     sim_times = np.arange(0, sim_input['SIMULATION_TIME'] + timeStep, timeStep)
 
     node_list = []
+
+    #  Create visualization plots
 
     for nodeIndex in range(sim_input['NB_NODES']):
         node_y = np.interp(sim_times, s_mobility['V_TIME'][nodeIndex], s_mobility['V_POSITION_Y'][nodeIndex])
@@ -192,8 +196,8 @@ def main():
         node_pos_plot.append(node_pos)
 
         closestBSDownlink = map_utils.search_closest_bs([node_list[nodeIndex]['v_x'][0], node_list[nodeIndex]['v_y'][0]], Regions)
-        x = [node_list[nodeIndex].v_x[0], BaseStations[closestBSDownlink][0]]
-        y = [node_list[nodeIndex].v_y[0], BaseStations[closestBSDownlink][1]]
+        x = [node_list[nodeIndex]['v_x'][0], BaseStations[closestBSDownlink][0]]
+        y = [node_list[nodeIndex]['v_y'][0], BaseStations[closestBSDownlink][1]]
         node_assoc, = ax.plot(x, y, color=colorsBS[closestBSDownlink])
         node_association_line.append(node_assoc)
 
@@ -205,7 +209,8 @@ def main():
     text = ax.text(0, Maplimit, 'Time (sec) = 0')
 
     plt.show()
-    
+    print("here!")
+
     # live_smallcell_occupancy = [sum(active_Cells[NMacroCells:])]
 
     # fig, ax = plt.subplots()

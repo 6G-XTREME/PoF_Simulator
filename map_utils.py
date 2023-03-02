@@ -91,12 +91,18 @@ def perpendicular_bisector(P1, P2):
 
 def search_closest_bs(P, Regions):
     # Regions are sorted from lowest to highest preference or weight.
-    _closest = 0
-    for i in range(0, len(Regions)):
-        _p = path.Path([(Regions[i][0][j], Regions[i][1][j]) for i in range(len(Regions)) for j in range(len(Regions[i][0]))])  # square with legs length 1 and bottom left corner at the origin
-        
-        _in =_p.contains_points([(P[0], P[1])])[0]
-        _closest = _closest + _in*i
-    print("Complete and review it!")
-    return _closest
+    closest = 0
 
+    for l in range(len(Regions)):
+        if isinstance(Regions[l], Polygon):
+            polygon = Regions[l]
+            if polygon.contains(Point(P)):
+                closest = l
+        # Undetermined case that a region is a MultiPolygon... 
+        elif isinstance(Regions[l], MultiPolygon):
+            multipolygon = Regions[l]
+            poly = multipolygon.envelope
+            if poly.contains(Point(P)):
+                closest = l
+
+    return closest
