@@ -7,7 +7,7 @@ __status__ = "Working on"
 
 import numpy as np
 
-def compute_sinr_dl(P, BaseStations, closest, alpha, Pm, Pf, NMacro, noise, b):
+def compute_sinr_dl(P, BaseStations, closest, alpha, Pm, Pf, NMacro, noise):
     # Convert P to Numpy
     P = np.array(P)
     closest = int(closest)

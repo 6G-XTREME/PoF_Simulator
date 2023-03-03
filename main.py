@@ -17,7 +17,7 @@ import time
 
 from shapely.geometry import Polygon, GeometryCollection, MultiPolygon, Point, LineString
 
-def main():
+def main(live_plots = False):
 
     try:
         trasmitting_powers = pd.read_excel('inputParameters.xlsx','TransmittingPowers',index_col=0, header=0)
@@ -89,7 +89,7 @@ def main():
 
     try:
         colorsBS = np.zeros((Npoints, 3))
-        fig, ax = plt.subplots()
+        fig1, ax = plt.subplots()
         plt.axis([0, Maplimit, 0, Maplimit])
         for a in range(0,Npoints):
             colorsBS[a] = np.random.uniform(size=3, low=0, high=1)
@@ -142,7 +142,7 @@ def main():
                         ax.add_patch(_polygon)
             elif isinstance(_Region, MultiPolygon):
                 col = np.random.rand(3)
-                print('Hola!')
+                print('MultiPolygon here!')
                 for _Reg in _Region.geoms:
                     _polygon = MplPolygon(_Reg.exterior.coords, facecolor=col, alpha=0.5, edgecolor=None)
                     ax.add_patch(_polygon)
@@ -213,56 +213,60 @@ def main():
     text = ax.text(0, Maplimit, 'Time (sec) = 0')
 
     plt.show(block=False)
-
+    
     live_smallcell_occupancy = np.zeros(len(sim_times))
     live_smallcell_occupancy[0] = sum(active_Cells[NMacroCells-1:-1])
 
-    fig, ax = plt.subplots()
-    ax.plot([0, sim_times[0]], [NFemtoCells, NFemtoCells], 'r', label='Total Small cells')
-    ax.plot(sim_times[0], live_smallcell_occupancy[0], 'g', label='Small cells being used')
-    ax.text(0, NFemtoCells - 1, f"Phantom Cells ON: 0")
-    ax.legend()
-    ax.set_title('Number of small cells under use')
+    if live_plots:
+        fig, ax = plt.subplots()
+        ax.plot([0, sim_times[0]], [NFemtoCells, NFemtoCells], 'r', label='Total Small cells')
+        ax.plot(sim_times[0], live_smallcell_occupancy[0], 'g', label='Small cells being used')
+        ax.text(0, NFemtoCells - 1, f"Phantom Cells ON: 0")
+        ax.legend()
+        ax.set_title('Number of small cells under use')
 
     # Plot the first time slot for consumption
     live_smallcell_consumption = np.zeros(len(sim_times))
     live_smallcell_consumption[0] = live_smallcell_occupancy[0] * small_cell_consumption_ON + (NFemtoCells - live_smallcell_occupancy[0]) * small_cell_consumption_SLEEP
 
-    fig, ax = plt.subplots()
-    ax.plot([0, sim_times[0]], [small_cell_consumption_ON * NFemtoCells, small_cell_consumption_ON * NFemtoCells], 'r', label='Total always ON consumption [W]')
-    ax.plot(sim_times[0], live_smallcell_consumption[0], 'g', label='Live energy consumption [W]')
-    ax.text(1, small_cell_consumption_ON * NFemtoCells - 1, f"Energy consumption (Active Femtocells): 0 W")
-    ax.text(1, small_cell_consumption_ON * NFemtoCells - 3, f"Energy consumption (Idle Femtocells): 0 W")
-    ax.text(1, small_cell_consumption_ON * NFemtoCells - 5, f"Energy consumption (Total Femtocells): 0 W")
-    ax.legend()
-    ax.set_title('Live energy consumption')
+    if live_plots:
+        fig, ax = plt.subplots()
+        ax.plot([0, sim_times[0]], [small_cell_consumption_ON * NFemtoCells, small_cell_consumption_ON * NFemtoCells], 'r', label='Total always ON consumption [W]')
+        ax.plot(sim_times[0], live_smallcell_consumption[0], 'g', label='Live energy consumption [W]')
+        ax.text(1, small_cell_consumption_ON * NFemtoCells - 1, f"Energy consumption (Active Femtocells): 0 W")
+        ax.text(1, small_cell_consumption_ON * NFemtoCells - 3, f"Energy consumption (Idle Femtocells): 0 W")
+        ax.text(1, small_cell_consumption_ON * NFemtoCells - 5, f"Energy consumption (Total Femtocells): 0 W")
+        ax.legend()
+        ax.set_title('Live energy consumption')
 
     # Plot the first time slot for throughput
     live_throughput = np.zeros(len(sim_times))
     live_throughput_NO_BATTERY = np.zeros(len(sim_times))
     live_throughput_only_Macros = np.zeros(len(sim_times))
 
-    fig, ax = plt.subplots()
-    ax.plot(sim_times[0], live_throughput[0], label='With battery system')
-    ax.plot(sim_times[0], live_throughput_NO_BATTERY[0], 'r--', label='Without battery system')
-    ax.plot(sim_times[0], live_throughput_only_Macros[0], 'g:.', label='Only Macrocells')
-    ax.legend()
-    ax.set_title('Live system throughput')
-    ax.set_xlabel('Time [s]')
-    ax.set_ylabel('Throughput [Mb/s]')
+    if live_plots:
+        fig, ax = plt.subplots()
+        ax.plot(sim_times[0], live_throughput[0], label='With battery system')
+        ax.plot(sim_times[0], live_throughput_NO_BATTERY[0], 'r--', label='Without battery system')
+        ax.plot(sim_times[0], live_throughput_only_Macros[0], 'g:.', label='Only Macrocells')
+        ax.legend()
+        ax.set_title('Live system throughput')
+        ax.set_xlabel('Time [s]')
+        ax.set_ylabel('Throughput [Mb/s]')
 
     battery_vector = battery_capacity * np.ones((1, NMacroCells + NFemtoCells))
     association_vector = np.zeros((1, len(s_mobility['NB_NODES'])))
     association_vector_overflow_alternative = np.zeros((1, len(s_mobility['NB_NODES'])))
-
-    fig, ax = plt.subplots()
-    for b in range(NFemtoCells):
-        ax.bar(NMacroCells + b + 1, battery_vector[0, NMacroCells + b], color='b')
-
-    ax.set_title('Live battery state')
-    plt.show(block=False)
-
     battery_mean_values = np.zeros(len(sim_times)) + battery_capacity
+
+    if live_plots:
+        fig, ax = plt.subplots()
+        for b in range(NFemtoCells):
+            ax.bar(NMacroCells + b + 1, battery_vector[0, NMacroCells + b], color='b')
+        ax.set_title('Live battery state')
+        
+    if live_plots:
+        plt.show(block=False)
 
     # Start the simulation!
     print("Starting simulation...")
@@ -386,12 +390,12 @@ def main():
                 active_Cells[closestBSDownlink] = 1 # This cell does not count for the overall PoF power budget.
                 baseStation_users[closestBSDownlink] += 1 # Add user.
         
-        print("Compute additional parameters")
+        #print("Compute additional parameters")
         
         # Compute additional throughput parameters
         total_DL_Throughput = 0
         for nodeIndex in range(0, len(s_mobility['NB_NODES'])):
-            SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations, association_vector[0][nodeIndex-1], alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise, b)
+            SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations, association_vector[0][nodeIndex-1], alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise)
             naturalDL = 10**(SINRDLink/10)
             if association_vector[0][nodeIndex-1] <= NMacroCells:
                 BW = MacroCellDownlinkBW
@@ -403,7 +407,7 @@ def main():
         total_DL_Throughput_overflow_alternative = 0
         for nodeIndex in range(0, len(s_mobility['NB_NODES'])):
             if association_vector_overflow_alternative[0][nodeIndex] == 0.0:
-                SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations, association_vector[0][nodeIndex-1], alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise, b)
+                SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations, association_vector[0][nodeIndex-1], alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise)
                 naturalDL = 10**(SINRDLink/10)
                 if association_vector[0][nodeIndex-1] <= NMacroCells:
                     BW = MacroCellDownlinkBW
@@ -414,7 +418,7 @@ def main():
                     RateDL = (BW/(baseStation_users[int(association_vector[0][nodeIndex])] - overflown_from[int(association_vector[0][nodeIndex])])) * np.log2(1+naturalDL)
                 total_DL_Throughput_overflow_alternative += RateDL 
             else:
-                SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations, association_vector_overflow_alternative[0][nodeIndex-1], alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise, b)
+                SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations, association_vector_overflow_alternative[0][nodeIndex-1], alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise)
                 naturalDL = 10**(SINRDLink/10)
                 BW = MacroCellDownlinkBW
                 RateDL = (BW/(baseStation_users[int(association_vector_overflow_alternative[0][nodeIndex])] + sum(association_vector_overflow_alternative[0] == association_vector_overflow_alternative[0][nodeIndex]))) * np.log2(1+naturalDL)
@@ -427,7 +431,7 @@ def main():
         for nodeIndex in range(0, len(s_mobility['NB_NODES'])):
             cl = map_utils.search_closest_bs([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations[0:NMacroCells, 0:2])
             temporal_association_vector[cl] += 1
-            SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations, cl, alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise, b)
+            SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations, cl, alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise)
             naturalDL = 10**(SINRDLink/10)
             BW = MacroCellDownlinkBW
             
@@ -488,6 +492,7 @@ def main():
         #     handleToThisBar[b].set_facecolor(battery_color_codes[battery_state[0, NMacroCells+b]])
         
         plt.draw()
+        plt.pause(0.1)
         print("Step endend. Plots updated!")
         #time.sleep(0.5)
         
@@ -535,7 +540,10 @@ def main():
 
     ax.set_title('Live battery state')
     
-    plt.show()
+    plt.show(block=False)
+    plt.pause(0.001)
+    input("hit [enter] to end")
+    plt.close('all')
     
 
 if __name__ == '__main__':
