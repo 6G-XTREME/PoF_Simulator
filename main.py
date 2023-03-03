@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon as MplPolygon
 from tqdm import tqdm
 import map_utils, mobility_utils, user_association_utils, radio_utils
+import time
 
 from shapely.geometry import Polygon, GeometryCollection, MultiPolygon, Point, LineString
 
@@ -213,7 +214,8 @@ def main():
 
     plt.show(block=False)
 
-    live_smallcell_occupancy = [sum(active_Cells[NMacroCells:])]
+    live_smallcell_occupancy = np.zeros(len(sim_times))
+    live_smallcell_occupancy[0] = sum(active_Cells[NMacroCells-1:-1])
 
     fig, ax = plt.subplots()
     ax.plot([0, sim_times[0]], [NFemtoCells, NFemtoCells], 'r', label='Total Small cells')
@@ -223,8 +225,8 @@ def main():
     ax.set_title('Number of small cells under use')
 
     # Plot the first time slot for consumption
-    live_smallcell_consumption = [live_smallcell_occupancy[0] * small_cell_consumption_ON + 
-                                 (NFemtoCells - live_smallcell_occupancy[0]) * small_cell_consumption_SLEEP]
+    live_smallcell_consumption = np.zeros(len(sim_times))
+    live_smallcell_consumption[0] = live_smallcell_occupancy[0] * small_cell_consumption_ON + (NFemtoCells - live_smallcell_occupancy[0]) * small_cell_consumption_SLEEP
 
     fig, ax = plt.subplots()
     ax.plot([0, sim_times[0]], [small_cell_consumption_ON * NFemtoCells, small_cell_consumption_ON * NFemtoCells], 'r', label='Total always ON consumption [W]')
@@ -236,9 +238,9 @@ def main():
     ax.set_title('Live energy consumption')
 
     # Plot the first time slot for throughput
-    live_throughput = [0]
-    live_throughput_NO_BATTERY = [0]
-    live_throughput_only_Macros = [0]
+    live_throughput = np.zeros(len(sim_times))
+    live_throughput_NO_BATTERY = np.zeros(len(sim_times))
+    live_throughput_only_Macros = np.zeros(len(sim_times))
 
     fig, ax = plt.subplots()
     ax.plot(sim_times[0], live_throughput[0], label='With battery system')
@@ -260,7 +262,7 @@ def main():
     ax.set_title('Live battery state')
     plt.show(block=False)
 
-    battery_mean_values = [battery_capacity]
+    battery_mean_values = np.zeros(len(sim_times)) + battery_capacity
 
     # Start the simulation!
     print("Starting simulation...")
@@ -395,37 +397,37 @@ def main():
                 BW = MacroCellDownlinkBW
             else:
                 BW = FemtoCellDownlinkBW
-            print("Here!!!")
-            RateDL = (BW/baseStation_users[0][association_vector[0][nodeIndex]]) * np.log2(1 + naturalDL)
+            RateDL = (BW/baseStation_users[int(association_vector[0][nodeIndex])]) * np.log2(1 + naturalDL)
             total_DL_Throughput += RateDL
 
         total_DL_Throughput_overflow_alternative = 0
-        for nodeIndex in range(s_mobility['NB_NODES']):
-            if association_vector_overflow_alternative[0, nodeIndex] == 0:
-                SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex].v_x[timeIndex], node_list[nodeIndex].v_y[timeIndex]], BaseStations, association_vector[0][nodeIndex-1], alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise, b)
+        for nodeIndex in range(0, len(s_mobility['NB_NODES'])):
+            if association_vector_overflow_alternative[0][nodeIndex] == 0.0:
+                SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations, association_vector[0][nodeIndex-1], alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise, b)
                 naturalDL = 10**(SINRDLink/10)
                 if association_vector[0][nodeIndex-1] <= NMacroCells:
                     BW = MacroCellDownlinkBW
-                    RateDL = (BW/(baseStation_users[0][association_vector[0][nodeIndex]] - overflown_from[0][association_vector[0][nodeIndex]])) * np.log2(1+naturalDL)
+                    RateDL = (BW / (baseStation_users[int(association_vector[0][nodeIndex])] + np.sum(association_vector_overflow_alternative == association_vector_overflow_alternative[0][nodeIndex]))) * np.log2(1 + naturalDL)
+                    #RateDL = (BW/(baseStation_users[int(association_vector[0][nodeIndex])] - overflown_from[int(association_vector[0][nodeIndex])])) * np.log2(1+naturalDL)
                 else:
                     BW = FemtoCellDownlinkBW
-                    RateDL = (BW/(baseStation_users[0][association_vector[0][nodeIndex]] - overflown_from[0][association_vector[0][nodeIndex]])) * np.log2(1+naturalDL)
+                    RateDL = (BW/(baseStation_users[int(association_vector[0][nodeIndex])] - overflown_from[int(association_vector[0][nodeIndex])])) * np.log2(1+naturalDL)
                 total_DL_Throughput_overflow_alternative += RateDL 
             else:
-                SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex].v_x[timeIndex], node_list[nodeIndex].v_y[timeIndex]], BaseStations, association_vector_overflow_alternative[0][nodeIndex-1], alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise, b)
+                SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations, association_vector_overflow_alternative[0][nodeIndex-1], alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise, b)
                 naturalDL = 10**(SINRDLink/10)
                 BW = MacroCellDownlinkBW
-                RateDL = (BW/(baseStation_users[0][association_vector_overflow_alternative[0][nodeIndex]] + sum(association_vector_overflow_alternative[0] == association_vector_overflow_alternative[0][nodeIndex]))) * np.log2(1+naturalDL)
+                RateDL = (BW/(baseStation_users[int(association_vector_overflow_alternative[0][nodeIndex])] + sum(association_vector_overflow_alternative[0] == association_vector_overflow_alternative[0][nodeIndex]))) * np.log2(1+naturalDL)
         total_DL_Throughput_overflow_alternative += RateDL
 
         # Throughput with ONLY Macrocells
         total_DL_Throughput_only_Macros = 0
         temporal_association_vector = np.zeros(NMacroCells, dtype=int)
 
-        for nodeIndex in range(s_mobility['NB_NODES']):
-            cl = map_utils.search_closest_bs([node_list[nodeIndex].v_x[timeIndex], node_list[nodeIndex].v_y[timeIndex]], BaseStations[0:NMacroCells, 0:2])
+        for nodeIndex in range(0, len(s_mobility['NB_NODES'])):
+            cl = map_utils.search_closest_bs([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations[0:NMacroCells, 0:2])
             temporal_association_vector[cl] += 1
-            SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex].v_x[timeIndex], node_list[nodeIndex].v_y[timeIndex]], BaseStations, cl, alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise, b)
+            SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations, cl, alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise, b)
             naturalDL = 10**(SINRDLink/10)
             BW = MacroCellDownlinkBW
             
@@ -433,12 +435,11 @@ def main():
             total_DL_Throughput_only_Macros += RateDL
 
         # Compute the number of active Smallcells
-        live_smallcell_occupancy[timeIndex] = np.sum(active_Cells[0, NMacroCells:])
-
+        #live_smallcell_occupancy[timeIndex] = np.sum(active_Cells[NMacroCells-1:-1])
         #CHECK
-        # live_occupancy_plot.set_data(sim_times[:timeIndex], live_smallcell_occupancy)
-        # max_occupancy_plot.set_data([0, sim_times[timeIndex]], [NFemtoCells, NFemtoCells])
-        # used.set_text('Phantom Cells in ON state: {}'.format(live_smallcell_occupancy[timeIndex]))
+        #live_occupancy_plot.set_data(sim_times[:timeIndex], live_smallcell_occupancy)
+        #max_occupancy_plot.set_data([0, sim_times[timeIndex]], [NFemtoCells, NFemtoCells])
+        #used.set_text('Phantom Cells in ON state: {}'.format(live_smallcell_occupancy[timeIndex]))
 
         # Compute the total consumption
         live_smallcell_consumption[timeIndex] = (live_smallcell_occupancy[timeIndex] * small_cell_consumption_ON 
@@ -452,19 +453,20 @@ def main():
         # Decide about battery recharging
         if live_smallcell_consumption[timeIndex] < max_energy_consumption:
             available = max_energy_consumption - live_smallcell_consumption[timeIndex]
-            I = np.argmin(battery_vector)
-            if battery_vector[I] < battery_capacity:
+            I = np.argmin(battery_vector[0])
+            if battery_vector[0][I] < battery_capacity:
                 charging_intensity = available / np.mean(small_cell_voltage_range)
-                battery_vector[I] = min(battery_vector[I] + charging_intensity * (timeStep/3600), battery_capacity)
-                if battery_state[0, I] == 0: battery_state[0, I] = 1
-                elif battery_state[0, I] == 2: battery_state[0, I] = 3
+                battery_vector[0][I] = min(battery_vector[0][I] + charging_intensity * (timeStep/3600), battery_capacity)
+                if battery_state[I] == 0: battery_state[I] = 1
+                elif battery_state[I] == 2: battery_state[I] = 3
         
         # Compute the number of active Smallcells
-        live_smallcell_occupancy[timeIndex] = np.sum(active_Cells[0, NMacroCells:])
+        live_smallcell_occupancy[timeIndex] = np.sum(active_Cells[NMacroCells-1:-1])
 
-        battery_mean_values[timeIndex] = np.mean(battery_vector)
+        battery_mean_values[timeIndex] = np.mean(battery_vector[0])
 
         #CHECK
+        # PLOT THINGS!!
         # Update total consumption plot
         # live_consumption_plot.set_data(sim_times[0:timeIndex], live_smallcell_consumption)
         # max_consumption_plot.set_data([0, sim_times[timeIndex]], [small_cell_consumption_ON * NFemtoCells, small_cell_consumption_ON * NFemtoCells])
@@ -484,9 +486,57 @@ def main():
         # for b in range(NFemtoCells):
         #     handleToThisBar[b].set_height(battery_vector[NMacroCells + b])
         #     handleToThisBar[b].set_facecolor(battery_color_codes[battery_state[0, NMacroCells+b]])
-        # plt.draw()
+        
+        plt.draw()
+        print("Step endend. Plots updated!")
+        #time.sleep(0.5)
+        
+    # END
+    # Print important sizes of output simulation parameters
+    print(f"Size of <live_smallcell_occupacy>: {len(live_smallcell_occupancy)}")
+    print(f"Size of <live_smallcell_consumption>: {len(live_smallcell_consumption)}")
+    print(f"Size of <battery_mean_values>: {len(battery_mean_values)}")
+    print("Done!")
+    
+    # Plotting output
+    
+    # 1
+    fig, ax = plt.subplots()
+    #ax.plot([0, sim_times], [NFemtoCells, NFemtoCells], 'r', label='Total Small cells')
+    ax.plot(sim_times, live_smallcell_occupancy, 'g', label='Small cells being used')
+    ax.text(0, NFemtoCells - 1, f"Phantom Cells ON: 0")
+    ax.legend()
+    ax.set_title('Number of small cells under use')
+    
+    # 2
+    fig, ax = plt.subplots()
+    #ax.plot([0, sim_times], [small_cell_consumption_ON * NFemtoCells, small_cell_consumption_ON * NFemtoCells], 'r', label='Total always ON consumption [W]')
+    ax.plot(sim_times, live_smallcell_consumption, 'g', label='Live energy consumption [W]')
+    ax.text(1, small_cell_consumption_ON * NFemtoCells - 1, f"Energy consumption (Active Femtocells): 0 W")
+    ax.text(1, small_cell_consumption_ON * NFemtoCells - 3, f"Energy consumption (Idle Femtocells): 0 W")
+    ax.text(1, small_cell_consumption_ON * NFemtoCells - 5, f"Energy consumption (Total Femtocells): 0 W")
+    ax.legend()
+    ax.set_title('Live energy consumption')
+    
+    # 3
+    fig, ax = plt.subplots()
+    ax.plot(sim_times, live_throughput, label='With battery system')
+    ax.plot(sim_times, live_throughput_NO_BATTERY, 'r--', label='Without battery system')
+    ax.plot(sim_times, live_throughput_only_Macros, 'g:.', label='Only Macrocells')
+    ax.legend()
+    ax.set_title('Live system throughput')
+    ax.set_xlabel('Time [s]')
+    ax.set_ylabel('Throughput [Mb/s]')
+    
+    # 4
+    fig, ax = plt.subplots()
+    for b in range(NFemtoCells):
+        ax.bar(NMacroCells + b + 1, battery_vector[0, NMacroCells + b], color='b')
 
-
+    ax.set_title('Live battery state')
+    
+    plt.show()
+    
 
 if __name__ == '__main__':
     main()
