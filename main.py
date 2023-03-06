@@ -491,60 +491,83 @@ def main(live_plots = False):
         #     handleToThisBar[b].set_height(battery_vector[NMacroCells + b])
         #     handleToThisBar[b].set_facecolor(battery_color_codes[battery_state[0, NMacroCells+b]])
         
+        ax.texts[-1].set_visible(False)
+        ax.text(0, Maplimit, f'Time (sec) = {timeIndex*timeStep}')
         plt.draw()
         plt.pause(0.1)
-        print("Step endend. Plots updated!")
-        #time.sleep(0.5)
+        print("Step ended. Plots updated!")
         
     # END
-    # Print important sizes of output simulation parameters
-    print(f"Size of <live_smallcell_occupacy>: {len(live_smallcell_occupancy)}")
-    print(f"Size of <live_smallcell_consumption>: {len(live_smallcell_consumption)}")
-    print(f"Size of <battery_mean_values>: {len(battery_mean_values)}")
-    print("Done!")
+    print("Simulation complete!")
     
-    # Plotting output
-    
+    ## Plotting output
     # 1
     fig, ax = plt.subplots()
     #ax.plot([0, sim_times], [NFemtoCells, NFemtoCells], 'r', label='Total Small cells')
+    ax.axhline(y=NFemtoCells, label='Total Small cells')
     ax.plot(sim_times, live_smallcell_occupancy, 'g', label='Small cells being used')
-    ax.text(0, NFemtoCells - 1, f"Phantom Cells ON: 0")
+    ax.text(0, NFemtoCells - 1, f"Phantom Cells ON: {NFemtoCells - 1}")
     ax.legend()
     ax.set_title('Number of small cells under use')
     
     # 2
     fig, ax = plt.subplots()
     #ax.plot([0, sim_times], [small_cell_consumption_ON * NFemtoCells, small_cell_consumption_ON * NFemtoCells], 'r', label='Total always ON consumption [W]')
+    ax.axhline(y=small_cell_consumption_ON * NFemtoCells, label='Total always ON consumption [W]')
     ax.plot(sim_times, live_smallcell_consumption, 'g', label='Live energy consumption [W]')
-    ax.text(1, small_cell_consumption_ON * NFemtoCells - 1, f"Energy consumption (Active Femtocells): 0 W")
-    ax.text(1, small_cell_consumption_ON * NFemtoCells - 3, f"Energy consumption (Idle Femtocells): 0 W")
-    ax.text(1, small_cell_consumption_ON * NFemtoCells - 5, f"Energy consumption (Total Femtocells): 0 W")
+    ax.text(1, small_cell_consumption_ON * NFemtoCells - 1, f"Energy consumption (Active Femtocells): {small_cell_consumption_ON * NFemtoCells - 1} W")
+    ax.text(1, small_cell_consumption_ON * NFemtoCells - 3, f"Energy consumption (Idle Femtocells): {small_cell_consumption_ON * NFemtoCells - 3} W")
+    ax.text(1, small_cell_consumption_ON * NFemtoCells - 5, f"Energy consumption (Total Femtocells): {small_cell_consumption_ON * NFemtoCells - 5} W")
     ax.legend()
     ax.set_title('Live energy consumption')
     
     # 3
     fig, ax = plt.subplots()
-    ax.plot(sim_times, live_throughput, label='With battery system')
-    ax.plot(sim_times, live_throughput_NO_BATTERY, 'r--', label='Without battery system')
-    ax.plot(sim_times, live_throughput_only_Macros, 'g:.', label='Only Macrocells')
+    ax.plot(sim_times, live_throughput/10e6, label='With battery system')
+    ax.plot(sim_times, live_throughput_NO_BATTERY/10e6, 'r--', label='Without battery system')
+    ax.plot(sim_times, live_throughput_only_Macros/10e6, 'g:.', label='Only Macrocells')
     ax.legend()
     ax.set_title('Live system throughput')
     ax.set_xlabel('Time [s]')
     ax.set_ylabel('Throughput [Mb/s]')
     
-    # 4
+    # 3, filtered one
+    SMA_WINDOW = 5
     fig, ax = plt.subplots()
-    for b in range(NFemtoCells):
-        ax.bar(NMacroCells + b + 1, battery_vector[0, NMacroCells + b], color='b')
-
-    ax.set_title('Live battery state')
+    X = sim_times[timeIndex-(len(live_throughput)-(SMA_WINDOW-1))+1:timeIndex]/3600
+    Y = np.convolve(live_throughput/10e6, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
+    ax.plot(X, Y[:-1], label='With battery system')
+    
+    X = sim_times[timeIndex-(len(live_throughput_NO_BATTERY)-(SMA_WINDOW-1))+1:timeIndex]/3600
+    Y = np.convolve(live_throughput_NO_BATTERY/10e6, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
+    ax.plot(X, Y[:-1], 'r--', label='Without battery system')
+    
+    X = sim_times[timeIndex-(len(live_throughput_only_Macros)-(SMA_WINDOW-1))+1:timeIndex]/3600 
+    Y = np.convolve(live_throughput_only_Macros/10e6, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
+    ax.plot(X, Y[:-1], 'g--o', label='Only Macrocells')
+    
+    ax.legend()
+    ax.set_title('Live system throughput [Filtered]')
+    ax.set_xlabel('Time (hours)')
+    ax.set_ylabel('Throughput (Mbps)')
+    
+    # 4
+    #fig, ax = plt.subplots()
+    #for b in range(NFemtoCells):
+    #    ax.bar(NMacroCells + b + 1, battery_vector[0, NMacroCells + b], color='b')
+    #ax.set_title('Live battery state')
+    
+    # 5
+    fig, ax = plt.subplots()
+    ax.plot(sim_times, battery_mean_values, label='Battery mean capacity')
+    ax.set_xlabel('Time [s]')
+    ax.set_ylabel('Mean battery capacity [Ah]')
+    ax.legend()
     
     plt.show(block=False)
     plt.pause(0.001)
     input("hit [enter] to end")
     plt.close('all')
     
-
 if __name__ == '__main__':
     main()
