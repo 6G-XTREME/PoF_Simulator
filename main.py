@@ -317,16 +317,18 @@ def main(live_plots = False):
                             association_vector[0, nodeIndex] = closestBSDownlink # Associate.
                             
                             # Alternative if we had no batteries would be...
-                            association_vector_overflow_alternative[0, nodeIndex] = map_utils.search_closest_bs([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations[0:NMacroCells, 0:2])
+                            association_vector_overflow_alternative[0, nodeIndex] = user_association_utils.search_closest_macro([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations[0:NMacroCells, 0:2])
                             overflown_from[closestBSDownlink] += 1
                             
+                            # Comment on MATLAB:
                             #active_Cells[0, closestBSDownlink] = 1 # This cell does not count for the overall PoF power budget.
+                            
                             battery_state[closestBSDownlink] = 2 # Discharge battery.
                             battery_vector[0, closestBSDownlink] = max(0, battery_vector[0, closestBSDownlink] - (timeStep/3600) * small_cell_current_draw) # However, draw from Femtocell's battery.
                             baseStation_users[closestBSDownlink] += 1 # Add user.
                         else:
                             #Associate to closest Macrocell
-                            closest_Macro = map_utils.search_closest_bs([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations[0:NMacroCells, 0:2])
+                            closest_Macro = user_association_utils.search_closest_macro([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations[0:NMacroCells, 0:2])
                             X = [node_list[nodeIndex]["v_x"][timeIndex], BaseStations[closest_Macro, 0]]
                             Y = [node_list[nodeIndex]["v_y"][timeIndex], BaseStations[closest_Macro, 1]]
                             node_association_line[nodeIndex].set_data(X, Y)
@@ -353,9 +355,9 @@ def main(live_plots = False):
                         baseStation_users[closestBSDownlink] += 1 # Add user.
                 else: # Already ON, associate to the femtocell, just add one user.
                     association_vector[0, nodeIndex] = closestBSDownlink # Associate.
-                    if battery_state[closestBSDownlink] == 2:
+                    if battery_state[closestBSDownlink] == 2.0:
                         # If we had no batteries, this user would have been gone to the closest macrocell. Search "overflow" alternative and add 1 to the "kicked" users of this femtocell in the hypothetical case we had no batteries installed. 
-                        association_vector_overflow_alternative[0, nodeIndex] = map_utils.search_closest_bs([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations[0:NMacroCells, 0:2])
+                        association_vector_overflow_alternative[0, nodeIndex] = user_association_utils.search_closest_macro([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations[0:NMacroCells, 0:2])
                         overflown_from[closestBSDownlink] += 1
                     else:
                         association_vector_overflow_alternative[0, nodeIndex] = 0
@@ -364,7 +366,7 @@ def main(live_plots = False):
                     X = [node_list[nodeIndex]["v_x"][timeIndex], BaseStations[closestBSDownlink, 0]]
                     Y = [node_list[nodeIndex]["v_y"][timeIndex], BaseStations[closestBSDownlink, 1]]
 
-                    if battery_state[closestBSDownlink] == 2:
+                    if battery_state[closestBSDownlink] == 2.0:
                         # %If using battery (only check == 2 because 3 only happens later at chaging decison)
                         node_association_line[nodeIndex].set_data(X, Y)
                         node_association_line[nodeIndex].set_color('green')
@@ -390,14 +392,12 @@ def main(live_plots = False):
                 active_Cells[closestBSDownlink] = 1 # This cell does not count for the overall PoF power budget.
                 baseStation_users[closestBSDownlink] += 1 # Add user.
         
-        #print("Compute additional parameters")
-        
         # Compute additional throughput parameters
         total_DL_Throughput = 0
         for nodeIndex in range(0, len(s_mobility['NB_NODES'])):
-            SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations, association_vector[0][nodeIndex-1], alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise)
+            SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations, association_vector[0][nodeIndex], alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise)
             naturalDL = 10**(SINRDLink/10)
-            if association_vector[0][nodeIndex-1] <= NMacroCells:
+            if association_vector[0][nodeIndex] <= NMacroCells:
                 BW = MacroCellDownlinkBW
             else:
                 BW = FemtoCellDownlinkBW
@@ -407,21 +407,21 @@ def main(live_plots = False):
         total_DL_Throughput_overflow_alternative = 0
         for nodeIndex in range(0, len(s_mobility['NB_NODES'])):
             if association_vector_overflow_alternative[0][nodeIndex] == 0.0:
-                SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations, association_vector[0][nodeIndex-1], alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise)
+                SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations, association_vector[0][nodeIndex], alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise)
                 naturalDL = 10**(SINRDLink/10)
-                if association_vector[0][nodeIndex-1] <= NMacroCells:
+                if association_vector[0][nodeIndex] <= NMacroCells:
                     BW = MacroCellDownlinkBW
                     RateDL = (BW / (baseStation_users[int(association_vector[0][nodeIndex])] + np.sum(association_vector_overflow_alternative == association_vector_overflow_alternative[0][nodeIndex]))) * np.log2(1 + naturalDL)
-                    #RateDL = (BW/(baseStation_users[int(association_vector[0][nodeIndex])] - overflown_from[int(association_vector[0][nodeIndex])])) * np.log2(1+naturalDL)
                 else:
                     BW = FemtoCellDownlinkBW
-                    RateDL = (BW/(baseStation_users[int(association_vector[0][nodeIndex])] - overflown_from[int(association_vector[0][nodeIndex])])) * np.log2(1+naturalDL)
+                    # Must '+' to avoid divide by zero, in MATLAB is '-'
+                    RateDL = (BW/(baseStation_users[int(association_vector[0][nodeIndex])] + overflown_from[int(association_vector[0][nodeIndex])])) * np.log2(1+naturalDL)
                 total_DL_Throughput_overflow_alternative += RateDL 
             else:
-                SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations, association_vector_overflow_alternative[0][nodeIndex-1], alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise)
+                SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations, association_vector_overflow_alternative[0][nodeIndex], alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise)
                 naturalDL = 10**(SINRDLink/10)
                 BW = MacroCellDownlinkBW
-                RateDL = (BW/(baseStation_users[int(association_vector_overflow_alternative[0][nodeIndex])] + sum(association_vector_overflow_alternative[0] == association_vector_overflow_alternative[0][nodeIndex]))) * np.log2(1+naturalDL)
+                RateDL = (BW/(baseStation_users[int(association_vector_overflow_alternative[0][nodeIndex])] + np.sum(association_vector_overflow_alternative[0] == association_vector_overflow_alternative[0][nodeIndex]))) * np.log2(1+naturalDL)
         total_DL_Throughput_overflow_alternative += RateDL
 
         # Throughput with ONLY Macrocells
@@ -429,7 +429,7 @@ def main(live_plots = False):
         temporal_association_vector = np.zeros(NMacroCells, dtype=int)
 
         for nodeIndex in range(0, len(s_mobility['NB_NODES'])):
-            cl = map_utils.search_closest_bs([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations[0:NMacroCells, 0:2])
+            cl = user_association_utils.search_closest_macro([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations[0:NMacroCells, 0:2])
             temporal_association_vector[cl] += 1
             SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations, cl, alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise)
             naturalDL = 10**(SINRDLink/10)
@@ -461,8 +461,8 @@ def main(live_plots = False):
             if battery_vector[0][I] < battery_capacity:
                 charging_intensity = available / np.mean(small_cell_voltage_range)
                 battery_vector[0][I] = min(battery_vector[0][I] + charging_intensity * (timeStep/3600), battery_capacity)
-                if battery_state[I] == 0: battery_state[I] = 1
-                elif battery_state[I] == 2: battery_state[I] = 3
+                if battery_state[I] == 0.0: battery_state[I] = 1.0
+                elif battery_state[I] == 2.0: battery_state[I] = 3.0
         
         # Compute the number of active Smallcells
         live_smallcell_occupancy[timeIndex] = np.sum(active_Cells[NMacroCells-1:-1])
