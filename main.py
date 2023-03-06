@@ -282,7 +282,7 @@ def main(live_plots = False):
         f.set_description("%.2f %% completed..." % (timeIndex * 100 / len(sim_times)+1))
 
         t = sim_times[timeIndex]
-        # ht.set_text('Time (sec) = {:.4f}'.format(t))
+        text.set_text('Time (sec) = {:.2f}'.format(t))
 
         active_Cells = np.zeros(NMacroCells+NFemtoCells)
         battery_state = np.zeros(NMacroCells+NFemtoCells) # 0 = nothing; 1 = charging; 2 = discharging; 3 = discharging & charging.
@@ -439,7 +439,8 @@ def main(live_plots = False):
             total_DL_Throughput_only_Macros += RateDL
 
         # Compute the number of active Smallcells
-        #live_smallcell_occupancy[timeIndex] = np.sum(active_Cells[NMacroCells-1:-1])
+        live_smallcell_occupancy[timeIndex] = np.sum(active_Cells[NMacroCells-1:-1])
+        
         #CHECK
         #live_occupancy_plot.set_data(sim_times[:timeIndex], live_smallcell_occupancy)
         #max_occupancy_plot.set_data([0, sim_times[timeIndex]], [NFemtoCells, NFemtoCells])
@@ -491,8 +492,6 @@ def main(live_plots = False):
         #     handleToThisBar[b].set_height(battery_vector[NMacroCells + b])
         #     handleToThisBar[b].set_facecolor(battery_color_codes[battery_state[0, NMacroCells+b]])
         
-        ax.texts[-1].set_visible(False)
-        ax.text(0, Maplimit, f'Time (sec) = {timeIndex*timeStep}')
         plt.draw()
         plt.pause(0.1)
         print("Step ended. Plots updated!")
@@ -504,20 +503,20 @@ def main(live_plots = False):
     # 1
     fig, ax = plt.subplots()
     #ax.plot([0, sim_times], [NFemtoCells, NFemtoCells], 'r', label='Total Small cells')
-    ax.axhline(y=NFemtoCells, label='Total Small cells')
+    ax.axhline(y=NFemtoCells, color='r', label='Total Small cells')
     ax.plot(sim_times, live_smallcell_occupancy, 'g', label='Small cells being used')
-    ax.text(0, NFemtoCells - 1, f"Phantom Cells ON: {NFemtoCells - 1}")
+    #ax.text(0, NFemtoCells - 1, f"Phantom Cells ON: {NFemtoCells - 1}")
     ax.legend()
     ax.set_title('Number of small cells under use')
     
     # 2
     fig, ax = plt.subplots()
     #ax.plot([0, sim_times], [small_cell_consumption_ON * NFemtoCells, small_cell_consumption_ON * NFemtoCells], 'r', label='Total always ON consumption [W]')
-    ax.axhline(y=small_cell_consumption_ON * NFemtoCells, label='Total always ON consumption [W]')
+    ax.axhline(y=small_cell_consumption_ON * NFemtoCells, color='r', label='Total always ON consumption [W]')
     ax.plot(sim_times, live_smallcell_consumption, 'g', label='Live energy consumption [W]')
-    ax.text(1, small_cell_consumption_ON * NFemtoCells - 1, f"Energy consumption (Active Femtocells): {small_cell_consumption_ON * NFemtoCells - 1} W")
-    ax.text(1, small_cell_consumption_ON * NFemtoCells - 3, f"Energy consumption (Idle Femtocells): {small_cell_consumption_ON * NFemtoCells - 3} W")
-    ax.text(1, small_cell_consumption_ON * NFemtoCells - 5, f"Energy consumption (Total Femtocells): {small_cell_consumption_ON * NFemtoCells - 5} W")
+    #ax.text(1, small_cell_consumption_ON * NFemtoCells - 1, f"Energy consumption (Active Femtocells): {small_cell_consumption_ON * NFemtoCells - 1} W")
+    #ax.text(1, small_cell_consumption_ON * NFemtoCells - 3, f"Energy consumption (Idle Femtocells): {small_cell_consumption_ON * NFemtoCells - 3} W")
+    #ax.text(1, small_cell_consumption_ON * NFemtoCells - 5, f"Energy consumption (Total Femtocells): {small_cell_consumption_ON * NFemtoCells - 5} W")
     ax.legend()
     ax.set_title('Live energy consumption')
     
@@ -549,7 +548,7 @@ def main(live_plots = False):
     ax.legend()
     ax.set_title('Live system throughput [Filtered]')
     ax.set_xlabel('Time (hours)')
-    ax.set_ylabel('Throughput (Mbps)')
+    ax.set_ylabel('Throughput (Mb/s)')
     
     # 4
     #fig, ax = plt.subplots()
@@ -560,6 +559,7 @@ def main(live_plots = False):
     # 5
     fig, ax = plt.subplots()
     ax.plot(sim_times, battery_mean_values, label='Battery mean capacity')
+    ax.axhline(y=3.3, color='r',label="Max. voltage battery")
     ax.set_xlabel('Time [s]')
     ax.set_ylabel('Mean battery capacity [Ah]')
     ax.legend()
