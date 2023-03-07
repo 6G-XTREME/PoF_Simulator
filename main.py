@@ -310,8 +310,9 @@ def main(live_plots = False, validate_mat = False):
                 if baseStation_users[closestBSDownlink] == 0: #If inactive
                     
                     #Can I turn it on with PoF?
-                    current_watts = sum(active_Cells[NMacroCells:]) * small_cell_consumption_ON + (NFemtoCells - sum(active_Cells[NMacroCells:])) * small_cell_consumption_SLEEP
-                    if current_watts >= max_energy_consumption - small_cell_consumption_ON + small_cell_consumption_SLEEP: # No, I cannot. Check battery.
+                    active_femto = np.sum(active_Cells[NMacroCells:])
+                    current_watts = (active_femto * small_cell_consumption_ON) + ((NFemtoCells - active_femto) * small_cell_consumption_SLEEP)
+                    if current_watts >= (max_energy_consumption - small_cell_consumption_ON + small_cell_consumption_SLEEP): # No, I cannot. Check battery.
                         
                         #Check if we can use Femtocell's battery
                         if battery_vector[0, closestBSDownlink] > (timeStep/3600) * small_cell_current_draw:
@@ -447,7 +448,7 @@ def main(live_plots = False, validate_mat = False):
             total_DL_Throughput_only_Macros += RateDL
 
         # Compute the number of active Smallcells
-        live_smallcell_occupancy[timeIndex] = np.sum(active_Cells[NMacroCells-1:-1])
+        live_smallcell_occupancy[timeIndex] = np.sum(active_Cells[NMacroCells:])
         
         #CHECK
         #live_occupancy_plot.set_data(sim_times[:timeIndex], live_smallcell_occupancy)
