@@ -8,12 +8,28 @@ __status__ = "Working on"
 import numpy as np
 
 def compute_sinr_dl(P, BaseStations, closest, alpha, Pm, Pf, NMacro, noise):
+    """ Compute SINR for Downlink
+
+    Args:
+        P (_type_): _description_
+        BaseStations (_type_): _description_
+        closest (_type_): _description_
+        alpha (_type_): _description_
+        Pm (_type_): _description_
+        Pf (_type_): _description_
+        NMacro (_type_): _description_
+        noise (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    
     # Convert P to Numpy
     P = np.array(P)
     closest = int(closest)
     
     # Compute signal power.
-    distance = np.linalg.norm(np.subtract(P, BaseStations[closest][:2]))
+    distance = np.linalg.norm(np.subtract(P, BaseStations[closest][0:2]))
     if closest <= NMacro:
         Power = Pm
         # freq=1800e9;
@@ -26,33 +42,29 @@ def compute_sinr_dl(P, BaseStations, closest, alpha, Pm, Pf, NMacro, noise):
     # Signal = 10*log10(Power*hx*((3e8/freq)/4*pi*distance)^alpha)
 
     s = BaseStations.shape
-    Interferers = np.setdiff1d(np.arange(1, s[0] + 1), closest)
+    Interferers = np.setdiff1d(np.arange(0, s[0]), closest)
 
     FinalInterference = 0
 
     # Compute Interference.
     for k in Interferers:
-        k = k-1     # Matlab index non zero fix :S
-
         if k <= NMacro:
             Int_Power = Pm
         else:
             Int_Power = Pf
 
         h = 1  # raylrnd(b)
-        dist = np.linalg.norm(P - BaseStations[k][:2])
+        dist = np.linalg.norm(np.subtract(P, BaseStations[k][0:2]))
 
         Interference = Int_Power * h * dist ** (-alpha)
         # Interference = 10*log10(Int_Power*h*((3e8/freq)/4*pi*dist)^alpha)
 
         # Add the contribution.
-
         FinalInterference = FinalInterference + Interference
 
     # Compute SINR adding the noise.
     FinalInterference = FinalInterference + noise
-    sinr = Signal - 10 * np.log10(FinalInterference)
-
+    sinr = Signal - (10 * np.log10(FinalInterference))
     return sinr
 
 def compute_sinr_ul ():

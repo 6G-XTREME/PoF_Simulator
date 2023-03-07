@@ -5,7 +5,6 @@ __maintainer__ = "Jose-Manuel Martinez-Caro"
 __email__ = "jmmartinez@e-lighthouse.com"
 __status__ = "Working on"
 
-# main.py
 from bcolors import bcolors
 import pandas as pd
 import numpy as np
@@ -13,11 +12,11 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon as MplPolygon
 from tqdm import tqdm
 import map_utils, mobility_utils, user_association_utils, radio_utils
-import time
+import scipy.io
 
 from shapely.geometry import Polygon, GeometryCollection, MultiPolygon, Point, LineString
 
-def main(live_plots = False):
+def main(live_plots = False, validate_mat = False):
 
     try:
         trasmitting_powers = pd.read_excel('inputParameters.xlsx','TransmittingPowers',index_col=0, header=0)
@@ -72,10 +71,10 @@ def main(live_plots = False):
         Users = fading_rayleigh_distribution.loc['Users','value']
         timeStep = fading_rayleigh_distribution.loc['timeStep','value']
         max_energy_consumption = fading_rayleigh_distribution.loc['max_energy_consumption','value']
-        small_cell_current_draw = fading_rayleigh_distribution.loc['small_cell_current_draw','value']
         noise = fading_rayleigh_distribution.loc['noise','value']
         SMA_WINDOW = fading_rayleigh_distribution.loc['SMA_WINDOW','value']
-        small_cell_voltage_range = 0.01 * np.array([fading_rayleigh_distribution.loc['small_cell_voltage_min','value'], fading_rayleigh_distribution.loc['small_cell_voltage_max','value']])
+        small_cell_voltage_range = np.array([fading_rayleigh_distribution.loc['small_cell_voltage_min','value'], fading_rayleigh_distribution.loc['small_cell_voltage_max','value']])
+        small_cell_current_draw = small_cell_consumption_ON/np.mean(small_cell_voltage_range)
 
         PMacroCells = trasmitting_powers.loc['PMacroCells', 'value']
         PFemtoCells = trasmitting_powers.loc['PFemtoCells', 'value']
@@ -155,7 +154,7 @@ def main(live_plots = False):
             
 
             # Slow down for the viewer
-            plt.pause(0.1)    
+            plt.pause(0.05)    
     except Exception as e:
         print(bcolors.FAIL + 'Error plotting the BSs coverage' + bcolors.ENDC)
         print(e)    
@@ -182,14 +181,21 @@ def main(live_plots = False):
 
     sim_times = np.arange(0, sim_input['SIMULATION_TIME'] + timeStep, timeStep)
 
-    node_list = []
-
     #  Create visualization plots
-
+    node_list = []
     for nodeIndex in range(sim_input['NB_NODES']):
         node_y = np.interp(sim_times, s_mobility['V_TIME'][nodeIndex], s_mobility['V_POSITION_Y'][nodeIndex])
         node_x = np.interp(sim_times, s_mobility['V_TIME'][nodeIndex], s_mobility['V_POSITION_X'][nodeIndex])
         node_list.append({'v_x': node_x, 'v_y': node_y})
+
+    ### Validate with MATLAB, import node_list with mobility data
+    if validate_mat:
+        node_list_mat = scipy.io.loadmat('node_list.mat')
+        node_list_mat = node_list_mat['node_list']
+        for nodeIndex in range(0, sim_input['NB_NODES']):
+            node_list[nodeIndex]['v_x'] = node_list_mat['v_x'][0][nodeIndex][0]
+            node_list[nodeIndex]['v_y'] = node_list_mat['v_y'][0][nodeIndex][0]
+    ###
 
     active_Cells = np.zeros(NMacroCells + NFemtoCells)
     node_pos_plot = []
@@ -291,6 +297,7 @@ def main(live_plots = False):
 
         for nodeIndex in range(0, len(s_mobility['NB_NODES'])):
     
+            # Update position on plot of User/Node
             node_pos_plot[nodeIndex][0].set_data([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]])
     
             #Search serving base station
@@ -393,6 +400,7 @@ def main(live_plots = False):
                 baseStation_users[closestBSDownlink] += 1 # Add user.
         
         # Compute additional throughput parameters
+        # Throughput WITH batteries
         total_DL_Throughput = 0
         for nodeIndex in range(0, len(s_mobility['NB_NODES'])):
             SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations, association_vector[0][nodeIndex], alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise)
@@ -404,6 +412,7 @@ def main(live_plots = False):
             RateDL = (BW/baseStation_users[int(association_vector[0][nodeIndex])]) * np.log2(1 + naturalDL)
             total_DL_Throughput += RateDL
 
+        # Throughput WITHOUT batteries
         total_DL_Throughput_overflow_alternative = 0
         for nodeIndex in range(0, len(s_mobility['NB_NODES'])):
             if association_vector_overflow_alternative[0][nodeIndex] == 0.0:
@@ -422,12 +431,11 @@ def main(live_plots = False):
                 naturalDL = 10**(SINRDLink/10)
                 BW = MacroCellDownlinkBW
                 RateDL = (BW/(baseStation_users[int(association_vector_overflow_alternative[0][nodeIndex])] + np.sum(association_vector_overflow_alternative[0] == association_vector_overflow_alternative[0][nodeIndex]))) * np.log2(1+naturalDL)
-        total_DL_Throughput_overflow_alternative += RateDL
+                total_DL_Throughput_overflow_alternative += RateDL
 
         # Throughput with ONLY Macrocells
         total_DL_Throughput_only_Macros = 0
         temporal_association_vector = np.zeros(NMacroCells, dtype=int)
-
         for nodeIndex in range(0, len(s_mobility['NB_NODES'])):
             cl = user_association_utils.search_closest_macro([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations[0:NMacroCells, 0:2])
             temporal_association_vector[cl] += 1
@@ -493,8 +501,8 @@ def main(live_plots = False):
         #     handleToThisBar[b].set_facecolor(battery_color_codes[battery_state[0, NMacroCells+b]])
         
         plt.draw()
-        plt.pause(0.1)
-        print("Step ended. Plots updated!")
+        plt.pause(0.05)
+        #print("Step ended. Plots updated!")
         
     # END
     print("Simulation complete!")
@@ -502,7 +510,6 @@ def main(live_plots = False):
     ## Plotting output
     # 1
     fig, ax = plt.subplots()
-    #ax.plot([0, sim_times], [NFemtoCells, NFemtoCells], 'r', label='Total Small cells')
     ax.axhline(y=NFemtoCells, color='r', label='Total Small cells')
     ax.plot(sim_times, live_smallcell_occupancy, 'g', label='Small cells being used')
     #ax.text(0, NFemtoCells - 1, f"Phantom Cells ON: {NFemtoCells - 1}")
@@ -511,7 +518,6 @@ def main(live_plots = False):
     
     # 2
     fig, ax = plt.subplots()
-    #ax.plot([0, sim_times], [small_cell_consumption_ON * NFemtoCells, small_cell_consumption_ON * NFemtoCells], 'r', label='Total always ON consumption [W]')
     ax.axhline(y=small_cell_consumption_ON * NFemtoCells, color='r', label='Total always ON consumption [W]')
     ax.plot(sim_times, live_smallcell_consumption, 'g', label='Live energy consumption [W]')
     #ax.text(1, small_cell_consumption_ON * NFemtoCells - 1, f"Energy consumption (Active Femtocells): {small_cell_consumption_ON * NFemtoCells - 1} W")
@@ -561,13 +567,13 @@ def main(live_plots = False):
     ax.plot(sim_times, battery_mean_values, label='Battery mean capacity')
     ax.axhline(y=3.3, color='r',label="Max. voltage battery")
     ax.set_xlabel('Time [s]')
-    ax.set_ylabel('Mean battery capacity [Ah]')
+    ax.set_ylabel('Battery capacity [Ah]')
+    ax.set_title('Mean Battery Capacity of the System')
     ax.legend()
     
     plt.show(block=False)
-    plt.pause(0.001)
     input("hit [enter] to end")
     plt.close('all')
     
 if __name__ == '__main__':
-    main()
+    main(validate_mat=True)
