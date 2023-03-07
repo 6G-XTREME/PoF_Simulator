@@ -14,16 +14,13 @@ from tqdm import tqdm
 import map_utils, mobility_utils, user_association_utils, radio_utils
 import scipy.io
 
-from shapely.geometry import Polygon, GeometryCollection, MultiPolygon, Point, LineString
+from shapely.geometry import Polygon, GeometryCollection, MultiPolygon
 
 def main(live_plots = False, validate_mat = False):
 
     try:
         trasmitting_powers = pd.read_excel('inputParameters.xlsx','TransmittingPowers',index_col=0, header=0)
         fading_rayleigh_distribution = pd.read_excel('inputParameters.xlsx','FadingRayleighDistribution',index_col=0, header=0)
-        # print(trasmitting_powers)
-        # print(fading_rayleigh_distribution)
-
     except Exception as e:
         print(bcolors.FAIL + 'Error reading from inputParameters.xlsx file' + bcolors.ENDC)
         print(e)
@@ -31,19 +28,14 @@ def main(live_plots = False, validate_mat = False):
     # try:
     #     WeightsTier1 = np.ones((1, fading_rayleigh_distribution.loc['NMacroCells','value']))*trasmitting_powers.loc['PMacroCells','value']
     #     WeightsTier2 = np.ones((1, fading_rayleigh_distribution.loc['NFemtoCells','value']))*trasmitting_powers.loc['PFemtoCells','value']
-
     #     BaseStations = np.zeros((fading_rayleigh_distribution.loc['NMacroCells','value'] + fading_rayleigh_distribution.loc['NFemtoCells','value'], 3));
-        
     #     # Settle Macro cells 
     #     BaseStations[0:fading_rayleigh_distribution.loc['NMacroCells','value'],0] = Maplimit * np.random.uniform(size=fading_rayleigh_distribution.loc['NMacroCells','value'], low=1, high=fading_rayleigh_distribution.loc['NMacroCells','value'])
     #     BaseStations[0:fading_rayleigh_distribution.loc['NMacroCells','value'],1] = Maplimit * np.random.uniform(size=fading_rayleigh_distribution.loc['NMacroCells','value'], low=1, high=fading_rayleigh_distribution.loc['NMacroCells','value'])
     #     BaseStations[0:fading_rayleigh_distribution.loc['NMacroCells','value'],2] = WeightsTier1
-
     #     BaseStations[fading_rayleigh_distribution.loc['NMacroCells','value']:,0] = Maplimit * np.random.uniform(size=fading_rayleigh_distribution.loc['NFemtoCells','value'], low=1, high=fading_rayleigh_distribution.loc['NFemtoCells','value'])
     #     BaseStations[fading_rayleigh_distribution.loc['NMacroCells','value']:,1] = Maplimit * np.random.uniform(size=fading_rayleigh_distribution.loc['NFemtoCells','value'], low=1, high=fading_rayleigh_distribution.loc['NFemtoCells','value'])
-
     #     # print(BaseStations)
-
     #     Stations = BaseStations.shape
     #     Npoints = Stations[0] #actually here
     # except Exception as e:
@@ -55,7 +47,6 @@ def main(live_plots = False, validate_mat = False):
         Stations = BaseStations.shape
         Npoints = Stations[0] 
         print(Stations, Npoints)
-
     except Exception as e:
         print(bcolors.FAIL + 'Error importing the nice_setup sheet' + bcolors.ENDC)
         print(e)
@@ -105,13 +96,7 @@ def main(live_plots = False, validate_mat = False):
     try:
         _WholeRegion = Polygon([(0,0), (0,1000), (1000,1000),(1000, 0), (0,0)])
         _UnsoldRegion = _WholeRegion
-
-        # print(BaseStations)
         Regions = {}
-        aa = False
-        # print(Regions)
-        #fig2, ax2 = plt.subplots()
-        #plt.show(block=False)
         
         for k in range(Npoints-1,-1,-1):
             print('-- k: ' + str(k))
@@ -126,8 +111,6 @@ def main(live_plots = False, validate_mat = False):
                         _Reg2 = Polygon(_Circ)
                         if not _Reg2.is_valid:
                             _Reg2 = _Reg2.buffer(0)
-                        # if isinstance(_Region, GeometryCollection):
-                        #     print('Soy GeometryCollection')
                         _Region = _Region.intersection(_Reg2)
                     else:
                         _R = map_utils.get_dominance_area(BaseStations[k][:2], BaseStations[j][:2])
@@ -171,8 +154,6 @@ def main(live_plots = False, validate_mat = False):
         'NB_NODES': Users # (
     }
     print(sim_input['V_WALK_INTERVAL'])
-
-    # Before here, validated!!! 
     
     # Generate the mobility path of users
     s_mobility = mobility_utils.generate_mobility(sim_input)
