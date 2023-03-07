@@ -70,7 +70,8 @@ def main(live_plots = False, validate_mat = False):
         Simulation_Time = fading_rayleigh_distribution.loc['Simulation_Time','value']
         Users = fading_rayleigh_distribution.loc['Users','value']
         timeStep = fading_rayleigh_distribution.loc['timeStep','value']
-        max_energy_consumption = fading_rayleigh_distribution.loc['max_energy_consumption','value']
+        numberOfLasers = fading_rayleigh_distribution.loc['numberOfLasers','value']
+        max_energy_consumption = numberOfLasers * small_cell_consumption_ON
         noise = fading_rayleigh_distribution.loc['noise','value']
         SMA_WINDOW = fading_rayleigh_distribution.loc['SMA_WINDOW','value']
         small_cell_voltage_range = np.array([fading_rayleigh_distribution.loc['small_cell_voltage_min','value'], fading_rayleigh_distribution.loc['small_cell_voltage_max','value']])
@@ -328,8 +329,7 @@ def main(live_plots = False, validate_mat = False):
                             overflown_from[closestBSDownlink] += 1
                             
                             # Comment on MATLAB:
-                            #active_Cells[0, closestBSDownlink] = 1 # This cell does not count for the overall PoF power budget.
-                            
+                            #active_Cells[closestBSDownlink] = 1 # This cell does not count for the overall PoF power budget.
                             battery_state[closestBSDownlink] = 2 # Discharge battery.
                             battery_vector[0, closestBSDownlink] = max(0, battery_vector[0, closestBSDownlink] - (timeStep/3600) * small_cell_current_draw) # However, draw from Femtocell's battery.
                             baseStation_users[closestBSDownlink] += 1 # Add user.
@@ -396,10 +396,10 @@ def main(live_plots = False, validate_mat = False):
                 association_vector[0, nodeIndex] = closestBSDownlink # Associate.
                 association_vector_overflow_alternative[0, nodeIndex] = 0                
                 
-                active_Cells[closestBSDownlink] = 1 # This cell does not count for the overall PoF power budget.
+                active_Cells[closestBSDownlink] = 1
                 baseStation_users[closestBSDownlink] += 1 # Add user.
         
-        # Compute additional throughput parameters
+        ## Compute additional throughput parameters
         # Throughput WITH batteries
         total_DL_Throughput = 0
         for nodeIndex in range(0, len(s_mobility['NB_NODES'])):
@@ -472,13 +472,9 @@ def main(live_plots = False, validate_mat = False):
                 battery_vector[0][I] = min(battery_vector[0][I] + charging_intensity * (timeStep/3600), battery_capacity)
                 if battery_state[I] == 0.0: battery_state[I] = 1.0
                 elif battery_state[I] == 2.0: battery_state[I] = 3.0
-        
-        # Compute the number of active Smallcells
-        live_smallcell_occupancy[timeIndex] = np.sum(active_Cells[NMacroCells-1:-1])
 
         battery_mean_values[timeIndex] = np.mean(battery_vector[0])
 
-        #CHECK
         # PLOT THINGS!!
         # Update total consumption plot
         # live_consumption_plot.set_data(sim_times[0:timeIndex], live_smallcell_consumption)
@@ -494,7 +490,6 @@ def main(live_plots = False, validate_mat = False):
         #                                         np.convolve(live_throughput_NO_BATTERY / 10e6, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid'))
         # live_throughput_only_Macros_plot.set_data(sim_times[timeIndex - (len(live_throughput_only_Macros) - (SMA_WINDOW - 1)) + 1:timeIndex], 
         #                                         np.convolve(live_throughput_only_Macros / 10e6, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid'))
-
         # Update battery states
         # for b in range(NFemtoCells):
         #     handleToThisBar[b].set_height(battery_vector[NMacroCells + b])
@@ -513,6 +508,7 @@ def main(live_plots = False, validate_mat = False):
     ax.axhline(y=NFemtoCells, color='r', label='Total Small cells')
     ax.plot(sim_times, live_smallcell_occupancy, 'g', label='Small cells being used')
     #ax.text(0, NFemtoCells - 1, f"Phantom Cells ON: {NFemtoCells - 1}")
+    #ax.axhline(y=numberOfLasers-1, label=f"Max. Lasers:")
     ax.legend()
     ax.set_title('Number of small cells under use')
     

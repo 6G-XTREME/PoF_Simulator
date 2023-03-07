@@ -104,5 +104,10 @@ def search_closest_bs(P, Regions):
             poly = multipolygon.envelope
             if poly.contains(Point(P)):
                 closest = l
+        # Undetermined case that a region is a GeometryCollection...
+        elif isinstance(Regions[l], GeometryCollection):
+            poly = Regions[l].convex_hull
+            if poly.contains(Point(P)):
+                closest = l
 
     return closest
