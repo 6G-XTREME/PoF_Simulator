@@ -190,7 +190,3 @@ def generate_mobility (dict):
     del nodeIndex_tmp
     
     return s_mobility
-
-    print("TBD!")
-
-

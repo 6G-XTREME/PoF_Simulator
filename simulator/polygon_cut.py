@@ -5,7 +5,6 @@ __maintainer__ = "Jose-Manuel Martinez-Caro"
 __email__ = "jmmartinez@e-lighthouse.com"
 __status__ = "Working on"
 
-import numpy as np
 import operator
 
 def clip (p1, p2, plane):
@@ -13,12 +12,11 @@ def clip (p1, p2, plane):
     _d2 = p2[0] * plane [0] + p2[1] * plane[1] - plane[2]
     _t = (0 - _d1)/(_d2 - _d1)
     return tuple(map(operator.add, p1, map(lambda x: _t * x, map(operator.sub, p2, p1))))
-    print("TBD!")
 
 def inside (p, plane):
     _d = p[0] * plane[0] + p[1] * plane[1]
-    if (_d > plane[2]): return True;
-    else: return False;
+    if (_d > plane[2]): return True
+    else: return False
 
 def polyclip (pin, x1, x2):
     _plane = [x1[1] - x2[1], x2[0] - x1[0], 0]

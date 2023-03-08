@@ -5,17 +5,14 @@ __maintainer__ = "Jose-Manuel Martinez-Caro"
 __email__ = "jmmartinez@e-lighthouse.com"
 __status__ = "Working on"
 
-from math import pi, sqrt
 import numpy as np
-from bcolors import bcolors
 import sys
-from matplotlib import path
-from polygon_cut import polyclip
+from math import pi, sqrt
+from simulator.bcolors import bcolors
+from simulator.polygon_cut import polyclip
 from shapely.geometry import Point, GeometryCollection, MultiPolygon, Polygon
 
-
-
-def apollonius_circle_path_loss (P1, P2, w1, w2, alpha):  # CHECKED
+def apollonius_circle_path_loss (P1, P2, w1, w2, alpha):
     try:
         _lambda = (w1/w2)**(1/alpha)
         _lambda = _lambda.real
@@ -33,7 +30,7 @@ def apollonius_circle_path_loss (P1, P2, w1, w2, alpha):  # CHECKED
         print(e)
 
 
-def get_circle(var): #CHECKED
+def get_circle(var):
     try:
         _aux = pi/50
         _th = np.arange(0,(2*pi)+_aux,_aux)
@@ -87,7 +84,6 @@ def perpendicular_bisector(P1, P2):
     _b = _ymed - (_a*_xmed)
 
     return _b, (_a + _b)
-    print("TBD!")
 
 def search_closest_bs(P, Regions):
     # Regions are sorted from lowest to highest preference or weight.

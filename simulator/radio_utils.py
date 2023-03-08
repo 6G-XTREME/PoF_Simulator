@@ -8,20 +8,8 @@ __status__ = "Working on"
 import numpy as np
 
 def compute_sinr_dl(P, BaseStations, closest, alpha, Pm, Pf, NMacro, noise):
-    """ Compute SINR for Downlink
-
-    Args:
-        P (_type_): _description_
-        BaseStations (_type_): _description_
-        closest (_type_): _description_
-        alpha (_type_): _description_
-        Pm (_type_): _description_
-        Pf (_type_): _description_
-        NMacro (_type_): _description_
-        noise (_type_): _description_
-
-    Returns:
-        _type_: _description_
+    """ 
+        Compute SINR for Downlink
     """
     
     # Convert P to Numpy
@@ -65,6 +53,7 @@ def compute_sinr_dl(P, BaseStations, closest, alpha, Pm, Pf, NMacro, noise):
     # Compute SINR adding the noise.
     FinalInterference = FinalInterference + noise
     sinr = Signal - (10 * np.log10(FinalInterference))
+    
     return sinr
 
 def compute_sinr_ul ():
