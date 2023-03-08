@@ -387,7 +387,7 @@ def main(live_plots = False, validate_mat = False):
         for nodeIndex in range(0, len(s_mobility['NB_NODES'])):
             SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations, association_vector[0][nodeIndex], alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise)
             naturalDL = 10**(SINRDLink/10)
-            if association_vector[0][nodeIndex] <= NMacroCells:
+            if association_vector[0][nodeIndex] < NMacroCells:
                 BW = MacroCellDownlinkBW
             else:
                 BW = FemtoCellDownlinkBW
@@ -400,7 +400,7 @@ def main(live_plots = False, validate_mat = False):
             if association_vector_overflow_alternative[0][nodeIndex] == 0.0:
                 SINRDLink = radio_utils.compute_sinr_dl([node_list[nodeIndex]["v_x"][timeIndex], node_list[nodeIndex]["v_y"][timeIndex]], BaseStations, association_vector[0][nodeIndex], alpha_loss, PMacroCells, PFemtoCells, NMacroCells, noise)
                 naturalDL = 10**(SINRDLink/10)
-                if association_vector[0][nodeIndex] <= NMacroCells:
+                if association_vector[0][nodeIndex] < NMacroCells:
                     BW = MacroCellDownlinkBW
                     RateDL = (BW / (baseStation_users[int(association_vector[0][nodeIndex])] + np.sum(association_vector_overflow_alternative == association_vector_overflow_alternative[0][nodeIndex]))) * np.log2(1 + naturalDL)
                 else:
@@ -530,7 +530,7 @@ def main(live_plots = False, validate_mat = False):
     ax.plot(X, Y[:-1], 'g--o', label='Only Macrocells')
     
     ax.legend()
-    ax.set_title('Live system throughput [Filtered]')
+    ax.set_title('Live system throughput [Smooth]')
     ax.set_xlabel('Time (hours)')
     ax.set_ylabel('Throughput (Mb/s)')
     

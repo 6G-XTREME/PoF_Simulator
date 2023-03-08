@@ -30,7 +30,7 @@ def compute_sinr_dl(P, BaseStations, closest, alpha, Pm, Pf, NMacro, noise):
     
     # Compute signal power.
     distance = np.linalg.norm(np.subtract(P, BaseStations[closest][0:2]))
-    if closest <= NMacro:
+    if closest < NMacro:
         Power = Pm
         # freq=1800e9;
     else:
@@ -48,7 +48,7 @@ def compute_sinr_dl(P, BaseStations, closest, alpha, Pm, Pf, NMacro, noise):
 
     # Compute Interference.
     for k in Interferers:
-        if k <= NMacro:
+        if k < NMacro:
             Int_Power = Pm
         else:
             Int_Power = Pf
