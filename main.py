@@ -16,6 +16,7 @@ if __name__ == "__main__":
     simulator_config['save_output'] = False      # Save the run output on output folder
     simulator_config['show_plots'] = True       # Show output plots
     simulator_config['use_nice_setup'] = True
+    #simulator_config['output_folder'] = 'parametric_users'
     
     logging.info("Execute simulator...")
     execute_simulator(config_parameters=simulator_config)
