@@ -13,8 +13,9 @@ if __name__ == "__main__":
     
     simulator_config = CONFIG_PARAMETERS.copy() # Retrieve the default config of the simulator
     simulator_config['use_node_list'] = True    # For validate MATLAB output. Always the same execution. Fixed Simulation Time
-    simulator_config['save_output'] = True      # Save the run output on output folder
-    simulator_config['show_plots'] = False       # Show output plots
+    simulator_config['save_output'] = False      # Save the run output on output folder
+    simulator_config['show_plots'] = True       # Show output plots
+    simulator_config['use_nice_setup'] = True
     
     logging.info("Execute simulator...")
     execute_simulator(config_parameters=simulator_config)

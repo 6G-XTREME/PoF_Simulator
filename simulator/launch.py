@@ -31,6 +31,8 @@ INPUT_PARAMETERS = {
         'numberOfLasers': 5,
         'noise': 2.5e-14,
         'SMA_WINDOW': 5, 
+        'NMacroCells': 3,
+        'NFemtoCells': 20,
         'TransmittingPower' : {
             'PMacroCells': 40,
             'PFemtoCells': 0.1,
@@ -86,39 +88,45 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
         logger.error(bcolors.FAIL + 'Error importing parameters into local variables' + bcolors.ENDC)
         logger.error(e)
     
-    # Generate random distribution of BaseStations
-    #try:
-    #    NMacroCells = input_parameters['NMacroCells']
-    #    NFemtoCells = input_parameters['NFemtoCells']
-    #    WeightsTier1 = np.ones((1, NMacroCells))*PMacroCells
-    #    WeightsTier2 = np.ones((1, NFemtoCells))*PFemtoCells
-    #    BaseStations = np.zeros((NMacroCells + NFemtoCells, 3))
-    #    # Settle Macro cells 
-    #    BaseStations[0:NMacroCells,0] = Maplimit * np.random.uniform(size=NMacroCells, low=1, high=NMacroCells)
-    #    BaseStations[0:NMacroCells,1] = Maplimit * np.random.uniform(size=NMacroCells, low=1, high=NMacroCells)
-    #    BaseStations[0:NMacroCells,2] = WeightsTier1
-    #    BaseStations[NMacroCells:,0] = Maplimit * np.random.uniform(size=NFemtoCells, low=1, high=NFemtoCells)
-    #    BaseStations[NMacroCells:,1] = Maplimit * np.random.uniform(size=NFemtoCells, low=1, high=NFemtoCells)
-    #    # print(BaseStations)
-    #    Stations = BaseStations.shape
-    #    Npoints = Stations[0] #actually here
-    #except Exception as e:
-    #    print(bcolors.FAIL + 'Error calculating intermediate variables' + bcolors.ENDC)
-    #    print(e)
+    if config_parameters['use_nice_setup']:
+        # Use nice_setup from .mat file. Already selected distribution of BaseStations
+        try:
+            nice_setup_mat = scipy.io.loadmat('simulator/nice_setup.mat')
+            BaseStations = nice_setup_mat['BaseStations']
+            Stations = BaseStations.shape
+            Npoints = Stations[0]
+            logger.debug(f"Stations: {Stations}, NPoints: {Npoints}")
 
-    # Use nice_setup from .mat file. Already selected distribution of BaseStations
-    try:
-        nice_setup_mat = scipy.io.loadmat('simulator/nice_setup.mat')
-        BaseStations = nice_setup_mat['BaseStations']
-        Stations = BaseStations.shape
-        Npoints = Stations[0]
-        logger.debug(f"Stations: {Stations}, NPoints: {Npoints}")
-        
-        NMacroCells = nice_setup_mat['NMacroCells'][0][0]
-        NFemtoCells = nice_setup_mat['NFemtoCells'][0][0]
-    except Exception as e:
-        logger.error(bcolors.FAIL + 'Error importing the nice_setup.mat' + bcolors.ENDC)
-        logger.error(e)
+            NMacroCells = nice_setup_mat['NMacroCells'][0][0]
+            NFemtoCells = nice_setup_mat['NFemtoCells'][0][0]
+        except Exception as e:
+            logger.error(bcolors.FAIL + 'Error importing the nice_setup.mat' + bcolors.ENDC)
+            logger.error(e)
+    else:   
+        # Generate random distribution of BaseStations
+        try:
+            NMacroCells = input_parameters['NMacroCells']
+            NFemtoCells = input_parameters['NFemtoCells']
+            WeightsTier1 = np.ones((1, NMacroCells))*PMacroCells
+            WeightsTier2 = np.ones((1, NFemtoCells))*PFemtoCells
+            BaseStations = np.zeros((NMacroCells + NFemtoCells, 3))
+            
+            # Settle Macro cells 
+            BaseStations[0:NMacroCells,0] = Maplimit * np.random.rand(NMacroCells)
+            BaseStations[0:NMacroCells,1] = Maplimit * np.random.rand(NMacroCells)
+            BaseStations[0:NMacroCells,2] = WeightsTier1
+            
+            # Settle Femto cells
+            BaseStations[NMacroCells:,0] = Maplimit * np.random.rand(NFemtoCells)
+            BaseStations[NMacroCells:,1] = Maplimit * np.random.rand(NFemtoCells)
+            BaseStations[NMacroCells:,2] = WeightsTier2
+            
+            Stations = BaseStations.shape
+            Npoints = Stations[0]
+            logger.debug(f"Stations: {Stations}, NPoints: {Npoints}")
+        except Exception as e:
+            logger.error(bcolors.FAIL + 'Error calculating intermediate variables' + bcolors.ENDC)
+            logger.error(e)
 
     try:
         colorsBS = np.zeros((Npoints, 3))
