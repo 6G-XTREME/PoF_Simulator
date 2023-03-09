@@ -44,7 +44,7 @@ INPUT_PARAMETERS = {
 CONFIG_PARAMETERS = {
         'algorithm': 'uc3m',         # Select over: uc3m or e-li
         'use_nice_setup': True,
-        'use_node_list': False,
+        'use_user_list': False,
         'show_plots': True,
         'show_live_plots': False,
         'speed_live_plots': 0.05,
@@ -230,47 +230,51 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
         'V_WALK_INTERVAL': [30.00, 60.00],                              # walk time(s)
         'V_DIRECTION_INTERVAL': [-180, 180],                            # (degrees)
         'SIMULATION_TIME': Simulation_Time,                             # (s)
-        'NB_NODES': Users
+        'NB_USERS': Users
     }
     logger.debug(sim_input['V_WALK_INTERVAL'])
     
     # Generate the mobility path of users
     s_mobility = simulator.mobility_utils.generate_mobility(sim_input)
-    s_mobility["NB_NODES"] = []
-    for node in range(0, sim_input['NB_NODES']):
-        s_mobility['NB_NODES'].append(s_mobility[node])
+    s_mobility["NB_USERS"] = []
+    for user in range(0, sim_input['NB_USERS']):
+        s_mobility['NB_USERS'].append(s_mobility[user])
 
     sim_times = np.arange(0, sim_input['SIMULATION_TIME'] + timeStep, timeStep)
 
     #  Create visualization plots
-    node_list = []
-    for nodeIndex in range(sim_input['NB_NODES']):
-        node_y = np.interp(sim_times, s_mobility['V_TIME'][nodeIndex], s_mobility['V_POSITION_Y'][nodeIndex])
-        node_x = np.interp(sim_times, s_mobility['V_TIME'][nodeIndex], s_mobility['V_POSITION_X'][nodeIndex])
-        node_list.append({'v_x': node_x, 'v_y': node_y})
+    user_list = []
+    for userIndex in range(sim_input['NB_USERS']):
+        user_y = np.interp(sim_times, s_mobility['V_TIME'][userIndex], s_mobility['V_POSITION_Y'][userIndex])
+        user_x = np.interp(sim_times, s_mobility['V_TIME'][userIndex], s_mobility['V_POSITION_X'][userIndex])
+        user_list.append({'v_x': user_x, 'v_y': user_y})
 
-    ### Validate with MATLAB, import node_list with mobility data
-    if config_parameters['use_node_list']:
-        node_list_mat = scipy.io.loadmat('simulator/node_list.mat')
-        node_list_mat = node_list_mat['node_list']
-        for nodeIndex in range(0, sim_input['NB_NODES']):
-            node_list[nodeIndex]['v_x'] = node_list_mat['v_x'][0][nodeIndex][0]
-            node_list[nodeIndex]['v_y'] = node_list_mat['v_y'][0][nodeIndex][0]
+    ### Validate with MATLAB, import user_list with mobility data
+    if config_parameters['use_user_list']:
+        user_list_mat = scipy.io.loadmat('simulator/user_list.mat')
+        try:
+            user_list_mat = user_list_mat['user_list']
+        except KeyError:
+            user_list_mat = user_list_mat['node_list']
+            
+        for userIndex in range(0, sim_input['NB_USERS']):
+            user_list[userIndex]['v_x'] = user_list_mat['v_x'][0][userIndex][0]
+            user_list[userIndex]['v_y'] = user_list_mat['v_y'][0][userIndex][0]
     ###
 
     active_Cells = np.zeros(NMacroCells + NFemtoCells)
-    node_pos_plot = []
-    node_association_line = []
+    user_pos_plot = []
+    user_association_line = []
 
-    for nodeIndex in range(sim_input['NB_NODES']):
-        node_pos = ax.plot(node_list[nodeIndex]['v_x'][0], node_list[nodeIndex]['v_y'][0], '+', markersize=10, linewidth=2, color=[0.3, 0.3, 1])
-        node_pos_plot.append(node_pos)
+    for userIndex in range(sim_input['NB_USERS']):
+        user_pos = ax.plot(user_list[userIndex]['v_x'][0], user_list[userIndex]['v_y'][0], '+', markersize=10, linewidth=2, color=[0.3, 0.3, 1])
+        user_pos_plot.append(user_pos)
 
-        closestBSDownlink = simulator.map_utils.search_closest_bs([node_list[nodeIndex]['v_x'][0], node_list[nodeIndex]['v_y'][0]], Regions)
-        x = [node_list[nodeIndex]['v_x'][0], BaseStations[closestBSDownlink][0]]
-        y = [node_list[nodeIndex]['v_y'][0], BaseStations[closestBSDownlink][1]]
-        node_assoc, = ax.plot(x, y, color=colorsBS[closestBSDownlink])
-        node_association_line.append(node_assoc)
+        closestBSDownlink = simulator.map_utils.search_closest_bs([user_list[userIndex]['v_x'][0], user_list[userIndex]['v_y'][0]], Regions)
+        x = [user_list[userIndex]['v_x'][0], BaseStations[closestBSDownlink][0]]
+        y = [user_list[userIndex]['v_y'][0], BaseStations[closestBSDownlink][1]]
+        user_assoc, = ax.plot(x, y, color=colorsBS[closestBSDownlink])
+        user_association_line.append(user_assoc)
 
         active_Cells[closestBSDownlink] = 1
 
@@ -280,15 +284,14 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
     text_plot = ax.text(0, Maplimit, 'Time (sec) = 0')
 
     user_dict = {
-        'node_list': node_list,
-        'node_pos_plot': node_pos_plot,
-        'node_association_line': node_association_line
+        'user_list': user_list,
+        'user_pos_plot': user_pos_plot,
+        'user_association_line': user_association_line
     }
 
     if config_parameters['show_plots']:
         plt.show(block=False)
 
-    # TODO: change 'node' to 'user' on everything
     # Start the simulation!
     if config_parameters['algorithm'] == 'uc3m':
         from simulator.algorithm_uc3m import PoF_simulation_UC3M

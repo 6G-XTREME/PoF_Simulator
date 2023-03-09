@@ -12,7 +12,7 @@ if __name__ == "__main__":
     #simulator_input['Simulation_Time'] = 2000
     
     simulator_config = CONFIG_PARAMETERS.copy() # Retrieve the default config of the simulator
-    simulator_config['use_node_list'] = True    # For validate MATLAB output. Always the same execution. Fixed Simulation Time
+    simulator_config['use_user_list'] = True    # For validate MATLAB output. Always the same execution. Fixed Simulation Time
     simulator_config['save_output'] = False      # Save the run output on output folder
     simulator_config['show_plots'] = True       # Show output plots
     simulator_config['use_nice_setup'] = True

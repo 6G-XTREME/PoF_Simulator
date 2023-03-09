@@ -19,9 +19,9 @@ class PoF_simulation_Base():
     overflown_from: np.array
     
     # User Parameters
-    node_list: np.array
-    node_pos_plot: np.array
-    node_association_line: np.array
+    user_list: np.array
+    user_pos_plot: np.array
+    user_association_line: np.array
     
     # Power & Battery Parameters
     battery_vector: np.array
@@ -64,14 +64,14 @@ class PoF_simulation_Base():
         self.Regions = basestation_data['Regions']
         self.NMacroCells = basestation_data['NMacroCells']
         self.NFemtoCells = basestation_data['NFemtoCells']
-        self.association_vector = np.zeros((1, len(s_mobility['NB_NODES'])))
-        self.association_vector_overflow_alternative = np.zeros((1, len(s_mobility['NB_NODES'])))
+        self.association_vector = np.zeros((1, len(s_mobility['NB_USERS'])))
+        self.association_vector_overflow_alternative = np.zeros((1, len(s_mobility['NB_USERS'])))
         self.colorsBS = basestation_data['colorsBS']
         
         # User Parameters
-        self.node_list = user_data['node_list']
-        self.node_pos_plot = user_data['node_pos_plot']
-        self.node_association_line = user_data['node_association_line']
+        self.user_list = user_data['user_list']
+        self.user_pos_plot = user_data['user_pos_plot']
+        self.user_association_line = user_data['user_association_line']
 
         # Power & Battery Parameters
         self.small_cell_consumption_ON = battery_data['small_cell_consumption_ON']
@@ -225,9 +225,9 @@ class PoF_simulation_Base():
         self.fig_throughput_smooth.savefig(os.path.join(plot_folder, f'{run_name}-throughput_smooth.png'))
         self.fig_battery_mean.savefig(os.path.join(plot_folder, f'{run_name}-battery_mean.png'))
 
-        # Copy node_list.mat [replicability of run]
-        node_list_output_mat_path = os.path.join(run_folder, f'{run_name}-node_list.mat')
-        scipy.io.savemat(node_list_output_mat_path, {'node_list': self.node_list})
+        # Copy user_list.mat [replicability of run]
+        user_list_output_mat_path = os.path.join(run_folder, f'{run_name}-user_list.mat')
+        scipy.io.savemat(user_list_output_mat_path, {'user_list': self.user_list})
         
         # Copy nice_setup.mat [replicability of run]
         nice_setup_mat_path = os.path.join(run_folder, f'{run_name}-nice_setup.mat')

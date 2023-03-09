@@ -42,12 +42,12 @@ class PoF_simulation_UC3M(PoF_simulation_Base):
         self.active_Cells = np.zeros(self.NMacroCells+self.NFemtoCells)
         self.overflown_from = np.zeros(self.NMacroCells+self.NFemtoCells)      # Number of users that could not be served in each BS if we had no batteries.
         
-        for nodeIndex in range(0, len(s_mobility['NB_NODES'])): 
-            # Update position on plot of User/Node
-            self.node_pos_plot[nodeIndex][0].set_data([self.node_list[nodeIndex]["v_x"][timeIndex], self.node_list[nodeIndex]["v_y"][timeIndex]])
+        for userIndex in range(0, len(s_mobility['NB_USERS'])): 
+            # Update position on plot of User
+            self.user_pos_plot[userIndex][0].set_data([self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]])
 
             # Search serving base station
-            closestBSDownlink = simulator.map_utils.search_closest_bs([self.node_list[nodeIndex]["v_x"][timeIndex], self.node_list[nodeIndex]["v_y"][timeIndex]], self.Regions)
+            closestBSDownlink = simulator.map_utils.search_closest_bs([self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]], self.Regions)
             
             # If closest is a Femtocell and it is sleeping (it has no users), then, check total energy consumption
             if closestBSDownlink > self.NMacroCells:
@@ -59,18 +59,18 @@ class PoF_simulation_UC3M(PoF_simulation_Base):
 
                         #Check if we can use Femtocell's battery
                         if self.battery_vector[0, closestBSDownlink] > (timeStep/3600) * self.small_cell_current_draw:
-                            X = [self.node_list[nodeIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
-                            Y = [self.node_list[nodeIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
+                            X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
+                            Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
                             
-                            self.node_association_line[nodeIndex].set_data(X, Y)
-                            self.node_association_line[nodeIndex].set_color('green')
-                            self.node_association_line[nodeIndex].set_linestyle('--')
-                            self.node_association_line[nodeIndex].set_linewidth(3)
-                            self.association_vector[0, nodeIndex] = closestBSDownlink # Associate.
+                            self.user_association_line[userIndex].set_data(X, Y)
+                            self.user_association_line[userIndex].set_color('green')
+                            self.user_association_line[userIndex].set_linestyle('--')
+                            self.user_association_line[userIndex].set_linewidth(3)
+                            self.association_vector[0, userIndex] = closestBSDownlink # Associate.
 
                             # Alternative if we had no batteries would be...
-                            self.association_vector_overflow_alternative[0, nodeIndex] = simulator.user_association_utils.search_closest_macro([self.node_list[nodeIndex]["v_x"][timeIndex], 
-                                                                                                                                                self.node_list[nodeIndex]["v_y"][timeIndex]], 
+                            self.association_vector_overflow_alternative[0, userIndex] = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex], 
+                                                                                                                                                self.user_list[userIndex]["v_y"][timeIndex]], 
                                                                                                                                                 self.BaseStations[0:self.NMacroCells, 0:2])
                             
                             self.overflown_from[closestBSDownlink] += 1
@@ -83,78 +83,78 @@ class PoF_simulation_UC3M(PoF_simulation_Base):
                             self.baseStation_users[closestBSDownlink] += 1 # Add user.
                         else:
                             #Associate to closest Macrocell
-                            closest_Macro = simulator.user_association_utils.search_closest_macro([self.node_list[nodeIndex]["v_x"][timeIndex],
-                                                                                                   self.node_list[nodeIndex]["v_y"][timeIndex]],
+                            closest_Macro = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex],
+                                                                                                   self.user_list[userIndex]["v_y"][timeIndex]],
                                                                                                    self.BaseStations[0:self.NMacroCells, 0:2])
                             
-                            X = [self.node_list[nodeIndex]["v_x"][timeIndex], self.BaseStations[closest_Macro, 0]]
-                            Y = [self.node_list[nodeIndex]["v_y"][timeIndex], self.BaseStations[closest_Macro, 1]]
+                            X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closest_Macro, 0]]
+                            Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closest_Macro, 1]]
 
-                            self.node_association_line[nodeIndex].set_data(X, Y)
-                            self.node_association_line[nodeIndex].set_color('red')
-                            self.node_association_line[nodeIndex].set_linestyle('--')
-                            self.node_association_line[nodeIndex].set_linewidth(2)
+                            self.user_association_line[userIndex].set_data(X, Y)
+                            self.user_association_line[userIndex].set_color('red')
+                            self.user_association_line[userIndex].set_linestyle('--')
+                            self.user_association_line[userIndex].set_linewidth(2)
 
-                            self.association_vector[0, nodeIndex] = closest_Macro # Associate.
+                            self.association_vector[0, userIndex] = closest_Macro # Associate.
                             self.active_Cells[closest_Macro] = 1 
                             self.baseStation_users[closest_Macro] += 1 
                     else:
                         #Yes, turn on with PoF and associate
-                        X = [self.node_list[nodeIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
-                        Y = [self.node_list[nodeIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
+                        X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
+                        Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
 
-                        self.node_association_line[nodeIndex].set_data(X, Y)
-                        self.node_association_line[nodeIndex].set_color(self.colorsBS[closestBSDownlink])
-                        self.node_association_line[nodeIndex].set_linestyle('-')
-                        self.node_association_line[nodeIndex].set_linewidth(0.5)
+                        self.user_association_line[userIndex].set_data(X, Y)
+                        self.user_association_line[userIndex].set_color(self.colorsBS[closestBSDownlink])
+                        self.user_association_line[userIndex].set_linestyle('-')
+                        self.user_association_line[userIndex].set_linewidth(0.5)
 
-                        self.association_vector[0, nodeIndex] = closestBSDownlink # Associate.
-                        self.association_vector_overflow_alternative[0, nodeIndex] = 0 # I can use PoF. Having batteries makes no difference in this case. Alternative is not needed.
+                        self.association_vector[0, userIndex] = closestBSDownlink # Associate.
+                        self.association_vector_overflow_alternative[0, userIndex] = 0 # I can use PoF. Having batteries makes no difference in this case. Alternative is not needed.
                         self.active_Cells[closestBSDownlink] = 1 # This cell counts for the PoF budget.
                         self.battery_state[closestBSDownlink] = 0 # No battery usage.
                         self.baseStation_users[closestBSDownlink] += 1 # Add user.
 
                 else: # Already ON, associate to the femtocell, just add one user.
-                    self.association_vector[0, nodeIndex] = closestBSDownlink # Associate.
+                    self.association_vector[0, userIndex] = closestBSDownlink # Associate.
 
                     if self.battery_state[closestBSDownlink] == 2.0: # Is Discharging
                         # If we had no batteries, this user would have been gone to the closest macrocell. 
                         # Search "overflow" alternative and add 1 to the "kicked" users of this femtocell in the hypothetical case we had no batteries installed. 
-                        self.association_vector_overflow_alternative[0, nodeIndex] = simulator.user_association_utils.search_closest_macro([self.node_list[nodeIndex]["v_x"][timeIndex], 
-                                                                                                                                            self.node_list[nodeIndex]["v_y"][timeIndex]], 
+                        self.association_vector_overflow_alternative[0, userIndex] = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex], 
+                                                                                                                                            self.user_list[userIndex]["v_y"][timeIndex]], 
                                                                                                                                             self.BaseStations[0:self.NMacroCells, 0:2])
                         self.overflown_from[closestBSDownlink] += 1
                     else:
-                        self.association_vector_overflow_alternative[0, nodeIndex] = 0
+                        self.association_vector_overflow_alternative[0, userIndex] = 0
                     self.baseStation_users[closestBSDownlink] += 1 # Add user.
 
-                    X = [self.node_list[nodeIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
-                    Y = [self.node_list[nodeIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
+                    X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
+                    Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
 
                     if self.battery_state[closestBSDownlink] == 2.0: # Is Discharging
                         # If using battery (only check == 2 because 3 only happens later at chaging decison)
-                        self.node_association_line[nodeIndex].set_data(X, Y)
-                        self.node_association_line[nodeIndex].set_color('green')
-                        self.node_association_line[nodeIndex].set_linestyle('--')
-                        self.node_association_line[nodeIndex].set_linewidth(3)
+                        self.user_association_line[userIndex].set_data(X, Y)
+                        self.user_association_line[userIndex].set_color('green')
+                        self.user_association_line[userIndex].set_linestyle('--')
+                        self.user_association_line[userIndex].set_linewidth(3)
 
                     else:   # Is Charging
-                        self.node_association_line[nodeIndex].set_data(X, Y)
-                        self.node_association_line[nodeIndex].set_color(self.colorsBS[closestBSDownlink])
-                        self.node_association_line[nodeIndex].set_linestyle('-')
-                        self.node_association_line[nodeIndex].set_linewidth(0.5)
+                        self.user_association_line[userIndex].set_data(X, Y)
+                        self.user_association_line[userIndex].set_color(self.colorsBS[closestBSDownlink])
+                        self.user_association_line[userIndex].set_linestyle('-')
+                        self.user_association_line[userIndex].set_linewidth(0.5)
 
             else: # Associate to a Macrocell
-                X = [self.node_list[nodeIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
-                Y = [self.node_list[nodeIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
+                X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
+                Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
 
-                self.node_association_line[nodeIndex].set_data(X, Y)
-                self.node_association_line[nodeIndex].set_color(self.colorsBS[closestBSDownlink])
-                self.node_association_line[nodeIndex].set_linestyle('-')
-                self.node_association_line[nodeIndex].set_linewidth(0.5)
+                self.user_association_line[userIndex].set_data(X, Y)
+                self.user_association_line[userIndex].set_color(self.colorsBS[closestBSDownlink])
+                self.user_association_line[userIndex].set_linestyle('-')
+                self.user_association_line[userIndex].set_linewidth(0.5)
 
-                self.association_vector[0, nodeIndex] = closestBSDownlink # Associate.
-                self.association_vector_overflow_alternative[0, nodeIndex] = 0                
+                self.association_vector[0, userIndex] = closestBSDownlink # Associate.
+                self.association_vector_overflow_alternative[0, userIndex] = 0                
                 self.active_Cells[closestBSDownlink] = 1
                 self.baseStation_users[closestBSDownlink] += 1 # Add user.
                 
@@ -163,52 +163,52 @@ class PoF_simulation_UC3M(PoF_simulation_Base):
     def compute_statistics(self, timeIndex, s_mobility):
         # Throughput WITH batteries
         total_DL_Throughput = 0
-        for nodeIndex in range(0, len(s_mobility['NB_NODES'])):
-            SINRDLink = simulator.radio_utils.compute_sinr_dl([self.node_list[nodeIndex]["v_x"][timeIndex], 
-                                                               self.node_list[nodeIndex]["v_y"][timeIndex]], 
+        for userIndex in range(0, len(s_mobility['NB_USERS'])):
+            SINRDLink = simulator.radio_utils.compute_sinr_dl([self.user_list[userIndex]["v_x"][timeIndex], 
+                                                               self.user_list[userIndex]["v_y"][timeIndex]], 
                                                                self.BaseStations, 
-                                                               self.association_vector[0][nodeIndex], 
+                                                               self.association_vector[0][userIndex], 
                                                                self.alpha_loss, 
                                                                self.PMacroCells, 
                                                                self.PFemtoCells, 
                                                                self.NMacroCells, 
                                                                self.noise)
             naturalDL = 10**(SINRDLink/10)
-            if self.association_vector[0][nodeIndex] < self.NMacroCells:
+            if self.association_vector[0][userIndex] < self.NMacroCells:
                 BW = self.MacroCellDownlinkBW
             else:
                 BW = self.FemtoCellDownlinkBW
-            RateDL = (BW/self.baseStation_users[int(self.association_vector[0][nodeIndex])]) * np.log2(1 + naturalDL)
+            RateDL = (BW/self.baseStation_users[int(self.association_vector[0][userIndex])]) * np.log2(1 + naturalDL)
             total_DL_Throughput += RateDL
 
         # Throughput WITHOUT batteries
         total_DL_Throughput_overflow_alternative = 0
-        for nodeIndex in range(0, len(s_mobility['NB_NODES'])):
-            if self.association_vector_overflow_alternative[0][nodeIndex] == 0.0:
-                SINRDLink = simulator.radio_utils.compute_sinr_dl([self.node_list[nodeIndex]["v_x"][timeIndex],
-                                                                   self.node_list[nodeIndex]["v_y"][timeIndex]],
+        for userIndex in range(0, len(s_mobility['NB_USERS'])):
+            if self.association_vector_overflow_alternative[0][userIndex] == 0.0:
+                SINRDLink = simulator.radio_utils.compute_sinr_dl([self.user_list[userIndex]["v_x"][timeIndex],
+                                                                   self.user_list[userIndex]["v_y"][timeIndex]],
                                                                    self.BaseStations,
-                                                                   self.association_vector[0][nodeIndex],
+                                                                   self.association_vector[0][userIndex],
                                                                    self.alpha_loss,
                                                                    self.PMacroCells,
                                                                    self.PFemtoCells,
                                                                    self.NMacroCells,
                                                                    self.noise)
                 naturalDL = 10**(SINRDLink/10)
-                if self.association_vector[0][nodeIndex] < self.NMacroCells:
+                if self.association_vector[0][userIndex] < self.NMacroCells:
                     BW = self.MacroCellDownlinkBW
-                    RateDL = (BW / (self.baseStation_users[int(self.association_vector[0][nodeIndex])] + \
-                                    np.sum(self.association_vector_overflow_alternative == self.association_vector_overflow_alternative[0][nodeIndex]))) * np.log2(1 + naturalDL)
+                    RateDL = (BW / (self.baseStation_users[int(self.association_vector[0][userIndex])] + \
+                                    np.sum(self.association_vector_overflow_alternative == self.association_vector_overflow_alternative[0][userIndex]))) * np.log2(1 + naturalDL)
                 else:
                     BW = self.FemtoCellDownlinkBW
                     # Must '+' to avoid divide by zero, in MATLAB is '-'
-                    RateDL = (BW/(self.baseStation_users[int(self.association_vector[0][nodeIndex])] + self.overflown_from[int(self.association_vector[0][nodeIndex])])) * np.log2(1+naturalDL)
+                    RateDL = (BW/(self.baseStation_users[int(self.association_vector[0][userIndex])] + self.overflown_from[int(self.association_vector[0][userIndex])])) * np.log2(1+naturalDL)
                 total_DL_Throughput_overflow_alternative += RateDL 
             else:
-                SINRDLink = simulator.radio_utils.compute_sinr_dl([self.node_list[nodeIndex]["v_x"][timeIndex],
-                                                                   self.node_list[nodeIndex]["v_y"][timeIndex]],
+                SINRDLink = simulator.radio_utils.compute_sinr_dl([self.user_list[userIndex]["v_x"][timeIndex],
+                                                                   self.user_list[userIndex]["v_y"][timeIndex]],
                                                                    self.BaseStations,
-                                                                   self.association_vector_overflow_alternative[0][nodeIndex],
+                                                                   self.association_vector_overflow_alternative[0][userIndex],
                                                                    self.alpha_loss,
                                                                    self.PMacroCells,
                                                                    self.PFemtoCells,
@@ -216,20 +216,20 @@ class PoF_simulation_UC3M(PoF_simulation_Base):
                                                                    self.noise)
                 naturalDL = 10**(SINRDLink/10)
                 BW = self.MacroCellDownlinkBW
-                RateDL = (BW/(self.baseStation_users[int(self.association_vector_overflow_alternative[0][nodeIndex])] + \
-                    np.sum(self.association_vector_overflow_alternative[0] == self.association_vector_overflow_alternative[0][nodeIndex]))) * np.log2(1+naturalDL)
+                RateDL = (BW/(self.baseStation_users[int(self.association_vector_overflow_alternative[0][userIndex])] + \
+                    np.sum(self.association_vector_overflow_alternative[0] == self.association_vector_overflow_alternative[0][userIndex]))) * np.log2(1+naturalDL)
                 total_DL_Throughput_overflow_alternative += RateDL
 
         # Throughput with ONLY Macrocells
         total_DL_Throughput_only_Macros = 0
         temporal_association_vector = np.zeros(self.NMacroCells, dtype=int)
-        for nodeIndex in range(0, len(s_mobility['NB_NODES'])):
-            cl = simulator.user_association_utils.search_closest_macro([self.node_list[nodeIndex]["v_x"][timeIndex],
-                                                                        self.node_list[nodeIndex]["v_y"][timeIndex]],
+        for userIndex in range(0, len(s_mobility['NB_USERS'])):
+            cl = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex],
+                                                                        self.user_list[userIndex]["v_y"][timeIndex]],
                                                                         self.BaseStations[0:self.NMacroCells, 0:2])
             temporal_association_vector[cl] += 1
-            SINRDLink = simulator.radio_utils.compute_sinr_dl([self.node_list[nodeIndex]["v_x"][timeIndex],
-                                                               self.node_list[nodeIndex]["v_y"][timeIndex]],
+            SINRDLink = simulator.radio_utils.compute_sinr_dl([self.user_list[userIndex]["v_x"][timeIndex],
+                                                               self.user_list[userIndex]["v_y"][timeIndex]],
                                                                self.BaseStations,
                                                                cl,
                                                                self.alpha_loss,
