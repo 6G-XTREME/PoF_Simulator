@@ -23,7 +23,7 @@ INPUT_PARAMETERS = {
         'small_cell_voltage_max': 0.033,        # In Volts
         'Maplimit': 1000,                       # Size of Map grid, [dont touch]
         'Users': 30,
-        'max_user_speed': 10,                   # In m/s
+        'mean_user_speed': 5.5,                 # In m/s
         'Simulation_Time': 50,                  # In seconds
         'timeStep': 0.5,                        # In seconds
         'numberOfLasers': 5,
@@ -85,6 +85,9 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
         small_cell_current_draw = small_cell_consumption_ON/np.mean(small_cell_voltage_range)
         max_energy_consumption = numberOfLasers * small_cell_consumption_ON
         
+        min_user_speed = 1
+        max_user_speed = 2 * input_parameters['mean_user_speed'] - min_user_speed    # Get the max value, [xmin, xmax] that satisfy the mean 
+        
         battery_dict = {
             'small_cell_consumption_ON': small_cell_consumption_ON,
             'small_cell_consumption_SLEEP': small_cell_consumption_SLEEP,
@@ -105,6 +108,10 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
     except Exception as e:
         logger.error(bcolors.FAIL + 'Error importing parameters into local variables' + bcolors.ENDC)
         logger.error(e)
+    
+    if config_parameters['use_user_list']:
+        logger.info("Overriding Simulation Time to 50s...")
+        Simulation_Time = 50
     
     if config_parameters['use_nice_setup']:
         # Use nice_setup from .mat file. Already selected distribution of BaseStations
@@ -225,7 +232,7 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
     sim_input = {
         'V_POSITION_X_INTERVAL': [0, Maplimit],                         # (m)
         'V_POSITION_Y_INTERVAL': [0, Maplimit],                         # (m)
-        'V_SPEED_INTERVAL': [1, input_parameters['max_user_speed']],    # (m/s)
+        'V_SPEED_INTERVAL': [min_user_speed, max_user_speed],           # (m/s)
         'V_PAUSE_INTERVAL': [0, 3],                                     # pause time (s)
         'V_WALK_INTERVAL': [30.00, 60.00],                              # walk time(s)
         'V_DIRECTION_INTERVAL': [-180, 180],                            # (degrees)
