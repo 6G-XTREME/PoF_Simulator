@@ -6,7 +6,9 @@ import matplotlib.pyplot as plt
 
 from simulator.launch import logger
 
-class PoF_simulation_Base():
+class Contex_Config():
+    Simulation_Time: int
+    
     # BaseStation Parameters
     BaseStations: dict
     Regions: list
@@ -100,6 +102,7 @@ class PoF_simulation_Base():
         self.live_smallcell_occupancy = np.zeros(len(sim_times))
         self.live_smallcell_overflow = np.zeros(len(sim_times))
         
+        self.Simulation_Time = sim_times[-1]        
         pass
     
     def start_simulation(self, sim_times, timeStep, s_mobility, text_plot, show_plots: bool = True, speed_plot: float = 0.05):
@@ -199,9 +202,9 @@ class PoF_simulation_Base():
         logger.info(f"Run folder: {run_folder}")
 
         # Create CSV and Plot folders
-        csv_folder = os.path.join(run_folder, 'csv')
+        data_folder = os.path.join(run_folder, 'data')
         plot_folder = os.path.join(run_folder, 'plot')
-        os.makedirs(csv_folder, exist_ok=True)
+        os.makedirs(data_folder, exist_ok=True)
         os.makedirs(plot_folder, exist_ok=True)
 
         # Save CSV foreach plot
@@ -215,7 +218,8 @@ class PoF_simulation_Base():
                                   'battery_mean[Ah]': self.battery_mean_values})
         df_output = df_output.assign(NMacroCells=self.NMacroCells)
         df_output = df_output.assign(NFemtoCells=self.NFemtoCells)
-        df_output.to_csv(os.path.join(csv_folder, f'{run_name}-output.csv'), index=False)
+        df_output.to_csv(os.path.join(data_folder, f'{run_name}-output.csv'), index=False)
+        df_output.to_json(os.path.join(data_folder, f'{run_name}-output.json'), orient="index", indent=4)
     
         # Save figures to output folder
         fig_map.savefig(os.path.join(plot_folder, f'{run_name}-map.png'))
@@ -227,7 +231,7 @@ class PoF_simulation_Base():
 
         # Copy user_list.mat [replicability of run]
         user_list_output_mat_path = os.path.join(run_folder, f'{run_name}-user_list.mat')
-        scipy.io.savemat(user_list_output_mat_path, {'user_list': self.user_list})
+        scipy.io.savemat(user_list_output_mat_path, {'user_list': self.user_list, 'Simulation_Time': self.Simulation_Time})
         
         # Copy nice_setup.mat [replicability of run]
         nice_setup_mat_path = os.path.join(run_folder, f'{run_name}-nice_setup.mat')

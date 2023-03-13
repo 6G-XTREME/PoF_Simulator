@@ -14,13 +14,13 @@ import scipy.io, uuid, logging
 from simulator.bcolors import bcolors
 import simulator.map_utils, simulator.mobility_utils, simulator.user_association_utils, simulator.radio_utils
 
-# Default input_parameters. Copy and modify ad-hoc
+# Default input_parameters. Copy and modify ad-hoc  [Legacy version]
 INPUT_PARAMETERS = {
         'battery_capacity': 3.3,                # Ah
         'small_cell_consumption_on': 0.7,       # In Watts
         'small_cell_consumption_sleep': 0.05,   # In Watts
-        'small_cell_voltage_min': 0.028,        # In Volts
-        'small_cell_voltage_max': 0.033,        # In Volts
+        'small_cell_voltage_min': 0.028,        # In mVolts
+        'small_cell_voltage_max': 0.033,        # In mVolts
         'Maplimit': 1000,                       # Size of Map grid, [dont touch]
         'Users': 30,
         'mean_user_speed': 5.5,                 # In m/s
@@ -110,7 +110,7 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
         logger.error(e)
     
     if config_parameters['use_user_list']:
-        logger.info("Overriding Simulation Time to 50s...")
+        logger.info("Using defined 'user_list', overriding Simulation Time to 50s...")
         Simulation_Time = 50
     
     if config_parameters['use_nice_setup']:
@@ -300,7 +300,8 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
         plt.show(block=False)
 
     # Start the simulation!
-    if config_parameters['algorithm'] == 'uc3m':
+    if config_parameters['algorithm'].lower() == 'uc3m':
+        logger.info("Using UC3M algorithm...")
         from simulator.algorithm_uc3m import PoF_simulation_UC3M
         uc3m = PoF_simulation_UC3M(sim_times=sim_times, 
                                    s_mobility=s_mobility,
@@ -321,6 +322,31 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
 
         if config_parameters['save_output']:
             uc3m.save_run(fig_map=fig_map, 
+                          sim_times=sim_times, 
+                          run_name=run_name, 
+                          output_folder=config_parameters['output_folder'])
+    elif config_parameters['algorithm'].lower() == 'eli':
+        logger.info("Using E-Lighthouse algorithm...")
+        from simulator.algorithm_eli import PoF_simulation_ELi
+        eli = PoF_simulation_ELi(sim_times=sim_times, 
+                                s_mobility=s_mobility,
+                                basestation_data=basestation_dict,
+                                user_data=user_dict,
+                                battery_data=battery_dict,
+                                transmit_power_data=transmit_power_dict)
+        
+        eli.start_simulation(sim_times=sim_times, 
+                             timeStep=timeStep, 
+                             s_mobility=s_mobility,
+                             text_plot=text_plot,
+                             show_plots=config_parameters['show_plots'],
+                             speed_plot=config_parameters['speed_live_plots'])
+        
+        eli.plot_output(sim_times=sim_times,
+                         show_plots=config_parameters['show_plots'])
+
+        if config_parameters['save_output']:
+            eli.save_run(fig_map=fig_map, 
                           sim_times=sim_times, 
                           run_name=run_name, 
                           output_folder=config_parameters['output_folder'])

@@ -7,10 +7,11 @@ from simulator.launch import logger
 from simulator.context_config import Contex_Config
 import simulator.map_utils, simulator.mobility_utils, simulator.user_association_utils, simulator.radio_utils
 
-class PoF_simulation_UC3M(Contex_Config):
+class PoF_simulation_ELi(Contex_Config):
     def start_simulation(self, sim_times, timeStep, s_mobility, text_plot, show_plots: bool = True, speed_plot: float = 0.05):
         logger.info("Starting simulation...")
         start = time.time()
+        # Progress Bar
         with tqdm(total=100, desc='Simulating...') as f:
             for timeIndex in range(len(sim_times)):
                 if f.n > f.total:
