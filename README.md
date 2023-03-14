@@ -10,6 +10,6 @@ This repository contains the code to simulate PoF system, implementing some algo
 
 ## Execute Simulator
 
-1. Go to file: ``main.py``
+1. Go to file: ``run_simulator.py``
 2. Configure simulator and input_parameters
 3. Execute the simulator with function `execute_simulator`

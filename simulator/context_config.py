@@ -229,6 +229,14 @@ class Contex_Config():
         self.fig_throughput_smooth.savefig(os.path.join(plot_folder, f'{run_name}-throughput_smooth.png'))
         self.fig_battery_mean.savefig(os.path.join(plot_folder, f'{run_name}-battery_mean.png'))
 
+        # Close all figures
+        plt.close(fig_map)
+        plt.close(self.fig_cell_occupancy)
+        plt.close(self.fig_cell_consumption)
+        plt.close(self.fig_throughput)
+        plt.close(self.fig_throughput_smooth)
+        plt.close(self.fig_battery_mean)
+
         # Copy user_list.mat [replicability of run]
         user_list_output_mat_path = os.path.join(run_folder, f'{run_name}-user_list.mat')
         scipy.io.savemat(user_list_output_mat_path, {'user_list': self.user_list, 'Simulation_Time': self.Simulation_Time})
