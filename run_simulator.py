@@ -17,7 +17,7 @@ if __name__ == "__main__":
     simulator_config['show_plots'] = True       # Show output plots
     simulator_config['use_nice_setup'] = True
     #simulator_config['output_folder'] = 'parametric_users'
-    simulator_config['algorithm'] = "uc3m"
+    simulator_config['algorithm'] = "eli"
     
     logging.info("Execute simulator...")
     execute_simulator(config_parameters=simulator_config)
