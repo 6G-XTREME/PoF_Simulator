@@ -57,6 +57,7 @@ class PoF_simulation_ELi(Contex_Config):
             self.baseStation_users[timeIndex+1] = np.zeros(self.NMacroCells+self.NFemtoCells)   # Number of users in each base station.
             self.active_Cells[timeIndex+1] = np.zeros(self.NMacroCells+self.NFemtoCells)
             self.overflown_from[timeIndex+1] = np.zeros(self.NMacroCells+self.NFemtoCells)      # Number of users that could not be served in each BS if we had no batteries.
+            self.temporal_association_vector = np.zeros(self.NMacroCells, dtype=int)
         except:
             # Last step of the simulation...
             pass
@@ -186,85 +187,11 @@ class PoF_simulation_ELi(Contex_Config):
         return
     
     def compute_statistics(self, timeIndex, s_mobility):
-        # Throughput WITH batteries
+        
         for userIndex in range(0, len(s_mobility['NB_USERS'])):
-            associated_station = int(self.association_vector[0][userIndex])
-            SINRDLink = simulator.radio_utils.compute_sinr_dl([self.user_list[userIndex]["v_x"][timeIndex], 
-                                                               self.user_list[userIndex]["v_y"][timeIndex]], 
-                                                               self.BaseStations, 
-                                                               associated_station, 
-                                                               self.alpha_loss, 
-                                                               self.PMacroCells, 
-                                                               self.PFemtoCells, 
-                                                               self.NMacroCells, 
-                                                               self.noise)
-            naturalDL = 10**(SINRDLink/10)
-            if associated_station < self.NMacroCells:
-                BW = self.MacroCellDownlinkBW
-                self.X_macro[timeIndex][associated_station] += (BW/self.baseStation_users[timeIndex][associated_station]) * np.log2(1 + naturalDL)
-            else:
-                BW = self.FemtoCellDownlinkBW
-                self.X_femto[timeIndex][associated_station] += (BW/self.baseStation_users[timeIndex][associated_station]) * np.log2(1 + naturalDL)
-
-
-        # Throughput WITHOUT batteries
-        for userIndex in range(0, len(s_mobility['NB_USERS'])):
-            associated_station_overflow = int(self.association_vector_overflow_alternative[0][userIndex])
-            if associated_station_overflow == 0:
-                associated_station = int(self.association_vector[0][userIndex])
-                SINRDLink = simulator.radio_utils.compute_sinr_dl([self.user_list[userIndex]["v_x"][timeIndex],
-                                                                   self.user_list[userIndex]["v_y"][timeIndex]],
-                                                                   self.BaseStations,
-                                                                   associated_station,
-                                                                   self.alpha_loss,
-                                                                   self.PMacroCells,
-                                                                   self.PFemtoCells,
-                                                                   self.NMacroCells,
-                                                                   self.noise)
-                naturalDL = 10**(SINRDLink/10)
-                if associated_station < self.NMacroCells:
-                    BW = self.MacroCellDownlinkBW
-                    self.X_macro_no_batt[timeIndex][associated_station] += (BW / (self.baseStation_users[timeIndex][associated_station] + \
-                                    np.sum(self.association_vector_overflow_alternative == associated_station_overflow))) * np.log2(1 + naturalDL)
-                else:
-                    BW = self.FemtoCellDownlinkBW
-                    # Must '+' to avoid divide by zero, in MATLAB is '-'
-                    self.X_femto_no_batt[timeIndex][associated_station] += (BW/(self.baseStation_users[timeIndex][associated_station] + \
-                        self.overflown_from[timeIndex][associated_station])) * np.log2(1+naturalDL)
-            else:
-                SINRDLink = simulator.radio_utils.compute_sinr_dl([self.user_list[userIndex]["v_x"][timeIndex],
-                                                                   self.user_list[userIndex]["v_y"][timeIndex]],
-                                                                   self.BaseStations,
-                                                                   associated_station_overflow,
-                                                                   self.alpha_loss,
-                                                                   self.PMacroCells,
-                                                                   self.PFemtoCells,
-                                                                   self.NMacroCells,
-                                                                   self.noise)
-                naturalDL = 10**(SINRDLink/10)
-                BW = self.MacroCellDownlinkBW
-                self.X_macro_overflow[timeIndex][associated_station_overflow] += (BW/(self.baseStation_users[timeIndex][int(associated_station_overflow)] + \
-                    np.sum(self.association_vector_overflow_alternative[0] == associated_station_overflow))) * np.log2(1+naturalDL)
-
-        # Throughput with ONLY Macrocells
-        temporal_association_vector = np.zeros(self.NMacroCells, dtype=int)
-        for userIndex in range(0, len(s_mobility['NB_USERS'])):
-            cl = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex],
-                                                                        self.user_list[userIndex]["v_y"][timeIndex]],
-                                                                        self.BaseStations[0:self.NMacroCells, 0:2])
-            temporal_association_vector[cl] += 1
-            SINRDLink = simulator.radio_utils.compute_sinr_dl([self.user_list[userIndex]["v_x"][timeIndex],
-                                                               self.user_list[userIndex]["v_y"][timeIndex]],
-                                                               self.BaseStations,
-                                                               cl,
-                                                               self.alpha_loss,
-                                                               self.PMacroCells,
-                                                               self.PFemtoCells,
-                                                               self.NMacroCells,
-                                                               self.noise)
-            naturalDL = 10**(SINRDLink/10)
-            BW = self.MacroCellDownlinkBW
-            self.X_macro_only[timeIndex][cl] += (BW / temporal_association_vector[cl]) * np.log2(1 + naturalDL)
+            self.calculate_traffic(userIndex=userIndex, timeIndex=timeIndex)
+            self.calculate_traffic_no_battery(userIndex=userIndex, timeIndex=timeIndex)
+            self.calculate_traffic_only_macro(userIndex=userIndex, timeIndex=timeIndex)
 
         # Save metrics to plot_data_Containers
 
@@ -301,4 +228,90 @@ class PoF_simulation_ELi(Contex_Config):
                         # Last step of the simulation...
                         pass
             self.battery_mean_values[timeIndex] = np.mean(self.battery_vector[0])
+            
+            
+    def calculate_traffic(self, userIndex, timeIndex):
+        """ 
+        Throughput WITH batteries
+        """
+        associated_station = int(self.association_vector[0][userIndex])
+        SINRDLink = simulator.radio_utils.compute_sinr_dl([self.user_list[userIndex]["v_x"][timeIndex], 
+                                                               self.user_list[userIndex]["v_y"][timeIndex]], 
+                                                               self.BaseStations, 
+                                                               associated_station, 
+                                                               self.alpha_loss, 
+                                                               self.PMacroCells, 
+                                                               self.PFemtoCells, 
+                                                               self.NMacroCells, 
+                                                               self.noise)
+        naturalDL = 10**(SINRDLink/10)
+        if associated_station < self.NMacroCells:
+            BW = self.MacroCellDownlinkBW
+            self.X_macro[timeIndex][associated_station] += (BW/self.baseStation_users[timeIndex][associated_station]) * np.log2(1 + naturalDL)
+        else:
+            BW = self.FemtoCellDownlinkBW
+            self.X_femto[timeIndex][associated_station] += (BW/self.baseStation_users[timeIndex][associated_station]) * np.log2(1 + naturalDL)
 
+
+    def calculate_traffic_no_battery(self, userIndex, timeIndex):
+        """ 
+        Throughput WITHOUT batteries
+        """ 
+        associated_station_overflow = int(self.association_vector_overflow_alternative[0][userIndex])
+        if associated_station_overflow == 0:
+            associated_station = int(self.association_vector[0][userIndex])
+            SINRDLink = simulator.radio_utils.compute_sinr_dl([self.user_list[userIndex]["v_x"][timeIndex],
+                                                               self.user_list[userIndex]["v_y"][timeIndex]],
+                                                               self.BaseStations,
+                                                               associated_station,
+                                                               self.alpha_loss,
+                                                               self.PMacroCells,
+                                                               self.PFemtoCells,
+                                                               self.NMacroCells,
+                                                               self.noise)
+            naturalDL = 10**(SINRDLink/10)
+            if associated_station < self.NMacroCells:
+                BW = self.MacroCellDownlinkBW
+                self.X_macro_no_batt[timeIndex][associated_station] += (BW / (self.baseStation_users[timeIndex][associated_station] + \
+                                np.sum(self.association_vector_overflow_alternative == associated_station_overflow))) * np.log2(1 + naturalDL)
+            else:
+                BW = self.FemtoCellDownlinkBW
+                # Must '+' to avoid divide by zero, in MATLAB is '-'
+                self.X_femto_no_batt[timeIndex][associated_station] += (BW/(self.baseStation_users[timeIndex][associated_station] + \
+                    self.overflown_from[timeIndex][associated_station])) * np.log2(1+naturalDL)
+        else:
+            SINRDLink = simulator.radio_utils.compute_sinr_dl([self.user_list[userIndex]["v_x"][timeIndex],
+                                                               self.user_list[userIndex]["v_y"][timeIndex]],
+                                                               self.BaseStations,
+                                                               associated_station_overflow,
+                                                               self.alpha_loss,
+                                                               self.PMacroCells,
+                                                               self.PFemtoCells,
+                                                               self.NMacroCells,
+                                                               self.noise)
+            naturalDL = 10**(SINRDLink/10)
+            BW = self.MacroCellDownlinkBW
+            self.X_macro_overflow[timeIndex][associated_station_overflow] += (BW/(self.baseStation_users[timeIndex][int(associated_station_overflow)] + \
+                np.sum(self.association_vector_overflow_alternative[0] == associated_station_overflow))) * np.log2(1+naturalDL)
+
+
+    def calculate_traffic_only_macro(self, userIndex, timeIndex):
+        """ 
+        Throughput with ONLY Macrocells
+        """
+        cl = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex],
+                                                                        self.user_list[userIndex]["v_y"][timeIndex]],
+                                                                        self.BaseStations[0:self.NMacroCells, 0:2])
+        self.temporal_association_vector[cl] += 1
+        SINRDLink = simulator.radio_utils.compute_sinr_dl([self.user_list[userIndex]["v_x"][timeIndex],
+                                                           self.user_list[userIndex]["v_y"][timeIndex]],
+                                                           self.BaseStations,
+                                                           cl,
+                                                           self.alpha_loss,
+                                                           self.PMacroCells,
+                                                           self.PFemtoCells,
+                                                           self.NMacroCells,
+                                                           self.noise)
+        naturalDL = 10**(SINRDLink/10)
+        BW = self.MacroCellDownlinkBW
+        self.X_macro_only[timeIndex][cl] += (BW / self.temporal_association_vector[cl]) * np.log2(1 + naturalDL)

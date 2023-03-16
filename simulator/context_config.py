@@ -19,6 +19,7 @@ class Contex_Config():
     colorsBS: list
     baseStation_users: np.array
     overflown_from: np.array
+    temporal_association_vector: np.array
     
     # User Parameters
     user_list: np.array
