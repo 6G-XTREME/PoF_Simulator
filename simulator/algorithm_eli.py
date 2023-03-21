@@ -23,6 +23,12 @@ class PoF_simulation_ELi(Contex_Config):
         self.X_femto = [np.zeros(self.NMacroCells+self.NFemtoCells) for _ in range(len(sim_times))]
         self.X_femto_no_batt = [np.zeros(self.NMacroCells+self.NFemtoCells) for _ in range(len(sim_times))]
         
+        # Three metrics to save: 
+        # 0. Global system with batteries
+        # 1. Femto without batteries
+        # 2. Only Macro
+        self.X_user = np.zeros((len(sim_times), len(s_mobility['NB_USERS']), 3), dtype=float)
+        
         logger.info("Starting simulation...")
         start = time.time()
         # Progress Bar
@@ -39,7 +45,7 @@ class PoF_simulation_ELi(Contex_Config):
                 text_plot.set_text('Time (sec) = {:.2f}'.format(t))
 
                 self.algorithm_step(timeIndex=timeIndex, timeStep=timeStep, s_mobility=s_mobility)
-                self.compute_statistics(timeIndex=timeIndex, s_mobility=s_mobility)
+                self.compute_statistics(timeIndex=timeIndex)
                 self.update_battery_status(timeIndex=timeIndex, timeStep=timeStep)
                 
                 if show_plots:
@@ -106,6 +112,11 @@ class PoF_simulation_ELi(Contex_Config):
                             # However, draw from Femtocell's battery.
                             self.battery_vector[0, closestBSDownlink] = max(0, self.battery_vector[0, closestBSDownlink] - (timeStep/3600) * self.small_cell_current_draw) 
                             self.baseStation_users[timeIndex][closestBSDownlink] += 1 # Add user.
+                            
+                            # Traffic related:
+                            #self.calculate_traffic(userIndex=userIndex, timeIndex=timeIndex)
+                            #self.calculate_traffic_no_battery(userIndex=userIndex, timeIndex=timeIndex)
+                            #self.calculate_traffic_only_macro(userIndex=userIndex, timeIndex=timeIndex)
                         else:
                             #Associate to closest Macrocell
                             closest_Macro = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex],
@@ -122,7 +133,12 @@ class PoF_simulation_ELi(Contex_Config):
 
                             self.association_vector[0, userIndex] = closest_Macro # Associate.
                             self.active_Cells[timeIndex][closest_Macro] = 1 
-                            self.baseStation_users[timeIndex][closest_Macro] += 1 
+                            self.baseStation_users[timeIndex][closest_Macro] += 1
+                            
+                            # Traffic related:
+                            #self.calculate_traffic(userIndex=userIndex, timeIndex=timeIndex)
+                            #self.calculate_traffic_no_battery(userIndex=userIndex, timeIndex=timeIndex)
+                            #self.calculate_traffic_only_macro(userIndex=userIndex, timeIndex=timeIndex)
                     else:
                         #Yes, turn on with PoF and associate
                         X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
@@ -138,6 +154,11 @@ class PoF_simulation_ELi(Contex_Config):
                         self.active_Cells[timeIndex][closestBSDownlink] = 1 # This cell counts for the PoF budget.
                         self.battery_state[timeIndex][closestBSDownlink] = 0 # No battery usage.
                         self.baseStation_users[timeIndex][closestBSDownlink] += 1 # Add user.
+                        
+                        # Traffic related:
+                        #self.calculate_traffic(userIndex=userIndex, timeIndex=timeIndex)
+                        #self.calculate_traffic_no_battery(userIndex=userIndex, timeIndex=timeIndex)
+                        #self.calculate_traffic_only_macro(userIndex=userIndex, timeIndex=timeIndex)
 
                 else: # Already ON, associate to the femtocell, just add one user.
                     self.association_vector[0, userIndex] = closestBSDownlink # Associate.
@@ -155,6 +176,11 @@ class PoF_simulation_ELi(Contex_Config):
 
                     X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
                     Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
+
+                    # Traffic related:
+                    #self.calculate_traffic(userIndex=userIndex, timeIndex=timeIndex)
+                    #self.calculate_traffic_no_battery(userIndex=userIndex, timeIndex=timeIndex)
+                    #self.calculate_traffic_only_macro(userIndex=userIndex, timeIndex=timeIndex)
 
                     if self.battery_state[timeIndex][closestBSDownlink] == 2.0: # Is Discharging
                         # If using battery (only check == 2 because 3 only happens later at chaging decison)
@@ -182,17 +208,23 @@ class PoF_simulation_ELi(Contex_Config):
                 self.association_vector_overflow_alternative[0, userIndex] = 0                
                 self.active_Cells[timeIndex][closestBSDownlink] = 1
                 self.baseStation_users[timeIndex][closestBSDownlink] += 1 # Add user.
+                
+                # Traffic related:
+                #self.calculate_traffic(userIndex=userIndex, timeIndex=timeIndex)
+                #self.calculate_traffic_no_battery(userIndex=userIndex, timeIndex=timeIndex)
+                #self.calculate_traffic_only_macro(userIndex=userIndex, timeIndex=timeIndex)
          
         # End user allocation in timeIndex instance 
+        
+        # Traffic calculated
+        for userIndex in range(0, len(s_mobility['NB_USERS'])):
+            self.X_user[timeIndex][userIndex][0] = self.calculate_traffic(userIndex=userIndex, timeIndex=timeIndex)
+            self.X_user[timeIndex][userIndex][1] = self.calculate_traffic_no_battery(userIndex=userIndex, timeIndex=timeIndex)
+            self.X_user[timeIndex][userIndex][2] = self.calculate_traffic_only_macro(userIndex=userIndex, timeIndex=timeIndex)
+        
         return
     
-    def compute_statistics(self, timeIndex, s_mobility):
-        
-        for userIndex in range(0, len(s_mobility['NB_USERS'])):
-            self.calculate_traffic(userIndex=userIndex, timeIndex=timeIndex)
-            self.calculate_traffic_no_battery(userIndex=userIndex, timeIndex=timeIndex)
-            self.calculate_traffic_only_macro(userIndex=userIndex, timeIndex=timeIndex)
-
+    def compute_statistics(self, timeIndex):
         # Save metrics to plot_data_Containers
 
         # Number of active Smallcells
@@ -232,7 +264,12 @@ class PoF_simulation_ELi(Contex_Config):
             
     def calculate_traffic(self, userIndex, timeIndex):
         """ 
-        Throughput WITH batteries
+        Throughput WITH batteries given an User and timeIndex
+        
+        Depends of:     association_vector
+                        baseStation_users <---
+                        
+        Returns Traffic of User
         """
         associated_station = int(self.association_vector[0][userIndex])
         SINRDLink = simulator.radio_utils.compute_sinr_dl([self.user_list[userIndex]["v_x"][timeIndex], 
@@ -247,15 +284,24 @@ class PoF_simulation_ELi(Contex_Config):
         naturalDL = 10**(SINRDLink/10)
         if associated_station < self.NMacroCells:
             BW = self.MacroCellDownlinkBW
-            self.X_macro[timeIndex][associated_station] += (BW/self.baseStation_users[timeIndex][associated_station]) * np.log2(1 + naturalDL)
+            X = (BW/self.baseStation_users[timeIndex][associated_station]) * np.log2(1 + naturalDL)
+            self.X_macro[timeIndex][associated_station] += X
         else:
             BW = self.FemtoCellDownlinkBW
-            self.X_femto[timeIndex][associated_station] += (BW/self.baseStation_users[timeIndex][associated_station]) * np.log2(1 + naturalDL)
-
+            X = (BW/self.baseStation_users[timeIndex][associated_station]) * np.log2(1 + naturalDL)
+            self.X_femto[timeIndex][associated_station] += X
+        return X
 
     def calculate_traffic_no_battery(self, userIndex, timeIndex):
         """ 
-        Throughput WITHOUT batteries
+        Throughput WITHOUT batteries given an User and timeIndex
+        
+        Depends of:     association_vector_overflow_alternative
+                        associated_station_overflow
+                        association_vector
+                        baseStation_users <---
+                        
+        Returns Traffic of User
         """ 
         associated_station_overflow = int(self.association_vector_overflow_alternative[0][userIndex])
         if associated_station_overflow == 0:
@@ -272,13 +318,15 @@ class PoF_simulation_ELi(Contex_Config):
             naturalDL = 10**(SINRDLink/10)
             if associated_station < self.NMacroCells:
                 BW = self.MacroCellDownlinkBW
-                self.X_macro_no_batt[timeIndex][associated_station] += (BW / (self.baseStation_users[timeIndex][associated_station] + \
-                                np.sum(self.association_vector_overflow_alternative == associated_station_overflow))) * np.log2(1 + naturalDL)
+                X = (BW / (self.baseStation_users[timeIndex][associated_station] + \
+                        np.sum(self.association_vector_overflow_alternative == associated_station_overflow))) * np.log2(1 + naturalDL)
+                self.X_macro_no_batt[timeIndex][associated_station] += X
             else:
                 BW = self.FemtoCellDownlinkBW
                 # Must '+' to avoid divide by zero, in MATLAB is '-'
-                self.X_femto_no_batt[timeIndex][associated_station] += (BW/(self.baseStation_users[timeIndex][associated_station] + \
-                    self.overflown_from[timeIndex][associated_station])) * np.log2(1+naturalDL)
+                X = (BW/(self.baseStation_users[timeIndex][associated_station] + \
+                        self.overflown_from[timeIndex][associated_station])) * np.log2(1+naturalDL)
+                self.X_femto_no_batt[timeIndex][associated_station] += X
         else:
             SINRDLink = simulator.radio_utils.compute_sinr_dl([self.user_list[userIndex]["v_x"][timeIndex],
                                                                self.user_list[userIndex]["v_y"][timeIndex]],
@@ -291,13 +339,20 @@ class PoF_simulation_ELi(Contex_Config):
                                                                self.noise)
             naturalDL = 10**(SINRDLink/10)
             BW = self.MacroCellDownlinkBW
-            self.X_macro_overflow[timeIndex][associated_station_overflow] += (BW/(self.baseStation_users[timeIndex][int(associated_station_overflow)] + \
-                np.sum(self.association_vector_overflow_alternative[0] == associated_station_overflow))) * np.log2(1+naturalDL)
+            X = (BW/(self.baseStation_users[timeIndex][int(associated_station_overflow)] + \
+                    np.sum(self.association_vector_overflow_alternative[0] == associated_station_overflow))) * np.log2(1+naturalDL)
+            self.X_macro_overflow[timeIndex][associated_station_overflow] += X
+        return X
 
 
     def calculate_traffic_only_macro(self, userIndex, timeIndex):
         """ 
-        Throughput with ONLY Macrocells
+        Throughput with ONLY Macrocells given an User and timeIndex
+        
+        Depends of:     nothing external
+                        temporal_association_vector
+                        
+        Returns Traffic of User
         """
         cl = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex],
                                                                         self.user_list[userIndex]["v_y"][timeIndex]],
@@ -314,4 +369,6 @@ class PoF_simulation_ELi(Contex_Config):
                                                            self.noise)
         naturalDL = 10**(SINRDLink/10)
         BW = self.MacroCellDownlinkBW
-        self.X_macro_only[timeIndex][cl] += (BW / self.temporal_association_vector[cl]) * np.log2(1 + naturalDL)
+        X = (BW / self.temporal_association_vector[cl]) * np.log2(1 + naturalDL)
+        self.X_macro_only[timeIndex][cl] += X
+        return X
