@@ -8,6 +8,15 @@ from simulator.context_config import Contex_Config
 import simulator.map_utils, simulator.mobility_utils, simulator.user_association_utils, simulator.radio_utils
 
 class PoF_simulation_ELi(Contex_Config):
+    # Traffic Vars
+    X_macro: np.array
+    X_macro_only: np.array
+    X_macro_no_batt: np.array
+    X_macro_overflow: np.array
+    X_femto: np.array
+    X_femto_no_batt: np.array
+    X_user : np.array
+    
     def start_simulation(self, sim_times, timeStep, s_mobility, text_plot, show_plots: bool = True, speed_plot: float = 0.05):
         # Settting up some vars
         self.battery_state = [[] for _ in range(len(sim_times))]
@@ -245,21 +254,27 @@ class PoF_simulation_ELi(Contex_Config):
         return
 
     def update_battery_status(self, timeIndex, timeStep):
+        """Legacy function to update battery status
+
+        Args:
+            timeIndex (_type_): Index of simulation times
+            timeStep (_type_): actual simulation step
+        """
         # Decide about battery recharging
-            if self.live_smallcell_consumption[timeIndex] < self.max_energy_consumption:
-                available = self.max_energy_consumption - self.live_smallcell_consumption[timeIndex]
-                I = np.argmin(self.battery_vector[0])    # TODO: why only one battery decision per timeStep?
-                if self.battery_vector[0][I] < self.battery_capacity:
-                    charging_intensity = available / np.mean(self.small_cell_voltage_range)
-                    self.battery_vector[0][I] = min(self.battery_vector[0][I] + charging_intensity * (timeStep/3600), self.battery_capacity)
-                    try:
-                        if self.battery_state[timeIndex][I] == 0.0: self.battery_state[timeIndex+1][I] = 1.0      # If none state, set as charging
-                        elif self.battery_state[timeIndex][I] == 2.0: self.battery_state[timeIndex+1][I] = 3.0    # If discharging, set as charging & discharging
-                        else: self.battery_state[timeIndex+1][I] = self.battery_state[timeIndex]
-                    except:
-                        # Last step of the simulation...
-                        pass
-            self.battery_mean_values[timeIndex] = np.mean(self.battery_vector[0])
+        if self.live_smallcell_consumption[timeIndex] < self.max_energy_consumption:
+            available = self.max_energy_consumption - self.live_smallcell_consumption[timeIndex]
+            I = np.argmin(self.battery_vector[0])    # TODO: why only one battery decision per timeStep?
+            if self.battery_vector[0][I] < self.battery_capacity:
+                charging_intensity = available / np.mean(self.small_cell_voltage_range)
+                self.battery_vector[0][I] = min(self.battery_vector[0][I] + charging_intensity * (timeStep/3600), self.battery_capacity)
+                try:
+                    if self.battery_state[timeIndex][I] == 0.0: self.battery_state[timeIndex+1][I] = 1.0      # If none state, set as charging
+                    elif self.battery_state[timeIndex][I] == 2.0: self.battery_state[timeIndex+1][I] = 3.0    # If discharging, set as charging & discharging
+                    else: self.battery_state[timeIndex+1][I] = self.battery_state[timeIndex]
+                except:
+                    # Last step of the simulation...
+                    pass
+        self.battery_mean_values[timeIndex] = np.mean(self.battery_vector[0])
             
             
     def calculate_traffic(self, userIndex, timeIndex):
@@ -372,3 +387,18 @@ class PoF_simulation_ELi(Contex_Config):
         X = (BW / self.temporal_association_vector[cl]) * np.log2(1 + naturalDL)
         self.X_macro_only[timeIndex][cl] += X
         return X
+    
+    def plot_output(self, sim_times, show_plots: bool = True):
+        # Try to print traffic of a user
+        self.fig_user_traffic, ax = plt.subplots()
+        userIndex = 10
+        metric = 0  # Default traffic
+        user_traffic = np.asarray([self.X_user[t][userIndex][metric] for t in range(len(sim_times))])
+        ax.plot(sim_times, user_traffic/10e6, label='With battery system')
+        ax.legend()
+        ax.set_title(f'User {userIndex} Traffic')
+        ax.set_xlabel('Time [s]')
+        ax.set_ylabel('Throughput [Mb/s]')
+        
+        # Get the context_class method
+        super().plot_output(sim_times=sim_times, show_plots=show_plots)

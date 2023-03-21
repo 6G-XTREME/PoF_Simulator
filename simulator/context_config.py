@@ -61,14 +61,6 @@ class Contex_Config():
     fig_throughput_smooth: Figure
     fig_battery_mean: Figure
     
-    # Traffic Vars
-    X_macro: np.array
-    X_macro_only: np.array
-    X_macro_no_batt: np.array
-    X_macro_overflow: np.array
-    X_femto: np.array
-    X_femto_no_batt: np.array
-    
     def __init__(self, sim_times, s_mobility, basestation_data: dict, user_data: dict, battery_data: dict, transmit_power_data: dict) -> None:
         # BaseStation Parameters
         self.BaseStations = basestation_data['BaseStations']
