@@ -291,6 +291,7 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
     text_plot = ax.text(0, Maplimit, 'Time (sec) = 0')
 
     user_dict = {
+        'number_users': s_mobility["NB_USERS"],
         'user_list': user_list,
         'user_pos_plot': user_pos_plot,
         'user_association_line': user_association_line
@@ -303,16 +304,14 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
     if config_parameters['algorithm'].lower() == 'uc3m':
         logger.info("Using UC3M algorithm...")
         from simulator.algorithm_uc3m import PoF_simulation_UC3M
-        uc3m = PoF_simulation_UC3M(sim_times=sim_times, 
-                                   s_mobility=s_mobility,
+        uc3m = PoF_simulation_UC3M(sim_times=sim_times,
                                    basestation_data=basestation_dict,
                                    user_data=user_dict,
                                    battery_data=battery_dict,
                                    transmit_power_data=transmit_power_dict)
 
         uc3m.start_simulation(sim_times=sim_times, 
-                              timeStep=timeStep, 
-                              s_mobility=s_mobility,
+                              timeStep=timeStep,
                               text_plot=text_plot,
                               show_plots=config_parameters['show_plots'],
                               speed_plot=config_parameters['speed_live_plots'])
@@ -328,16 +327,14 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
     elif config_parameters['algorithm'].lower() == 'eli':
         logger.info("Using E-Lighthouse algorithm...")
         from simulator.algorithm_eli import PoF_simulation_ELi
-        eli = PoF_simulation_ELi(sim_times=sim_times, 
-                                s_mobility=s_mobility,
+        eli = PoF_simulation_ELi(sim_times=sim_times,
                                 basestation_data=basestation_dict,
                                 user_data=user_dict,
                                 battery_data=battery_dict,
                                 transmit_power_data=transmit_power_dict)
         
         eli.start_simulation(sim_times=sim_times, 
-                             timeStep=timeStep, 
-                             s_mobility=s_mobility,
+                             timeStep=timeStep,
                              text_plot=text_plot,
                              show_plots=config_parameters['show_plots'],
                              speed_plot=config_parameters['speed_live_plots'])

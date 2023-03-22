@@ -22,6 +22,7 @@ class Contex_Config():
     temporal_association_vector: np.array
     
     # User Parameters
+    NUsers: int
     user_list: np.array
     user_pos_plot: np.array
     user_association_line: np.array
@@ -57,20 +58,21 @@ class Contex_Config():
     # Figures
     list_figures: list
     
-    def __init__(self, sim_times, s_mobility, basestation_data: dict, user_data: dict, battery_data: dict, transmit_power_data: dict) -> None:
+    def __init__(self, sim_times, basestation_data: dict, user_data: dict, battery_data: dict, transmit_power_data: dict) -> None:
+        # User Parameters
+        self.NUsers = user_data["number_users"]
+        self.user_list = user_data['user_list']
+        self.user_pos_plot = user_data['user_pos_plot']
+        self.user_association_line = user_data['user_association_line']
+        
         # BaseStation Parameters
         self.BaseStations = basestation_data['BaseStations']
         self.Regions = basestation_data['Regions']
         self.NMacroCells = basestation_data['NMacroCells']
         self.NFemtoCells = basestation_data['NFemtoCells']
-        self.association_vector = np.zeros((1, len(s_mobility['NB_USERS'])))
-        self.association_vector_overflow_alternative = np.zeros((1, len(s_mobility['NB_USERS'])))
+        self.association_vector = np.zeros((1, len(self.NUsers)))
+        self.association_vector_overflow_alternative = np.zeros((1, len(self.NUsers)))
         self.colorsBS = basestation_data['colorsBS']
-        
-        # User Parameters
-        self.user_list = user_data['user_list']
-        self.user_pos_plot = user_data['user_pos_plot']
-        self.user_association_line = user_data['user_association_line']
 
         # Power & Battery Parameters
         self.small_cell_consumption_ON = battery_data['small_cell_consumption_ON']
@@ -103,7 +105,7 @@ class Contex_Config():
         self.list_figures = []        
         pass
     
-    def start_simulation(self, sim_times, timeStep, s_mobility, text_plot, show_plots: bool = True, speed_plot: float = 0.05):
+    def start_simulation(self, sim_times, timeStep, text_plot, show_plots: bool = True, speed_plot: float = 0.05):
         pass
     
     def plot_output(self, sim_times, show_plots: bool = True):

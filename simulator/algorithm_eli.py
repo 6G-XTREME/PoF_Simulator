@@ -17,7 +17,7 @@ class PoF_simulation_ELi(Contex_Config):
     X_femto_no_batt: np.array
     X_user : np.array
     
-    def start_simulation(self, sim_times, timeStep, s_mobility, text_plot, show_plots: bool = True, speed_plot: float = 0.05):
+    def start_simulation(self, sim_times, timeStep, text_plot, show_plots: bool = True, speed_plot: float = 0.05):
         # Settting up some vars
         self.battery_state = [[] for _ in range(len(sim_times))]
         self.baseStation_users = [[] for _ in range(len(sim_times))]
@@ -37,7 +37,7 @@ class PoF_simulation_ELi(Contex_Config):
         # 1. Femto without batteries
         # 2. Only Macro
         metrics = 3
-        self.X_user = np.zeros((len(sim_times), len(s_mobility['NB_USERS']), metrics), dtype=float)
+        self.X_user = np.zeros((len(sim_times), len(self.NUsers), metrics), dtype=float)
         
         logger.info("Starting simulation...")
         start = time.time()
@@ -54,7 +54,7 @@ class PoF_simulation_ELi(Contex_Config):
                 t = sim_times[timeIndex]
                 text_plot.set_text('Time (sec) = {:.2f}'.format(t))
 
-                self.algorithm_step(timeIndex=timeIndex, timeStep=timeStep, s_mobility=s_mobility)
+                self.algorithm_step(timeIndex=timeIndex, timeStep=timeStep)
                 self.compute_statistics_for_plots(timeIndex=timeIndex)                          # Prepare derivate data for plots
                 self.update_battery_state(timeIndex=timeIndex, timeStep=timeStep)               # Update battery state for next timeStep
                 
@@ -68,7 +68,7 @@ class PoF_simulation_ELi(Contex_Config):
         return
 
  
-    def algorithm_step(self, timeIndex, timeStep, s_mobility):
+    def algorithm_step(self, timeIndex, timeStep):
         if timeIndex == 0: self.battery_state[timeIndex] = np.zeros(self.NMacroCells+self.NFemtoCells)      # 0 = nothing; 1 = charging; 2 = discharging; 3 = discharging & charging.
         try:
             self.battery_state[timeIndex+1] = np.zeros(self.NMacroCells+self.NFemtoCells)                   # 0 = nothing; 1 = charging; 2 = discharging; 3 = discharging & charging.
@@ -84,7 +84,7 @@ class PoF_simulation_ELi(Contex_Config):
         self.active_Cells[timeIndex] = np.zeros(self.NMacroCells+self.NFemtoCells)
         self.overflown_from[timeIndex] = np.zeros(self.NMacroCells+self.NFemtoCells)      # Number of users that could not be served in each BS if we had no batteries.
         
-        for userIndex in range(0, len(s_mobility['NB_USERS'])): 
+        for userIndex in range(0, len(self.NUsers)): 
             # Update position on plot of User
             self.user_pos_plot[userIndex][0].set_data([self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]])
 
@@ -203,7 +203,7 @@ class PoF_simulation_ELi(Contex_Config):
         # End user allocation in timeIndex instance 
         
         # Traffic calculated to user
-        for userIndex in range(0, len(s_mobility['NB_USERS'])):
+        for userIndex in range(0, len(self.NUsers)):
             self.X_user[timeIndex][userIndex][0] = self.calculate_traffic(userIndex=userIndex, timeIndex=timeIndex)
             self.X_user[timeIndex][userIndex][1] = self.calculate_traffic_no_battery(userIndex=userIndex, timeIndex=timeIndex)
             self.X_user[timeIndex][userIndex][2] = self.calculate_traffic_only_macro(userIndex=userIndex, timeIndex=timeIndex)
@@ -379,28 +379,32 @@ class PoF_simulation_ELi(Contex_Config):
         # User Traffic 
         fig_user_traffic, ax = plt.subplots()
         self.list_figures.append((fig_user_traffic, "user-traffic"))    # In Order to save the figure on output folder
-        userIndex = 10
+        
         metric = 0  # Default traffic
-        user_traffic = np.asarray([self.X_user[t][userIndex][metric] for t in range(len(sim_times))])
-        ax.plot(sim_times, user_traffic/10e6, label='With battery system')
+        for user in range(0, 30):
+            user_traffic = np.asarray([self.X_user[t][user][metric] for t in range(len(sim_times))])
+            ax.plot(sim_times, user_traffic/10e6, label=f'User {user}')
         ax.legend()
-        ax.set_title(f'User {userIndex} Traffic')
+        ax.set_title(f'Traffic for each user')
         ax.set_xlabel('Time [s]')
         ax.set_ylabel('Throughput [Mb/s]')
         
         # Batteries in use for each timeStep
         battery_charging = []
         for timeIndex in self.battery_state:
-            # battery charging == 1 or 3
-            count_3 = np.count_nonzero(timeIndex == 3.0)
-            count_1 = np.count_nonzero(timeIndex == 1.0)
-            battery_charging.append(count_3 + count_1)
+            # 0 = nothing; 1 = charging; 2 = discharging; 3 = discharging & charging.
+            #count_3 = np.count_nonzero(timeIndex == 3.0)
+            #count_1 = np.count_nonzero(timeIndex == 1.0)
+            count_2 = np.count_nonzero(timeIndex == 2.0)
+            #battery_charging.append(count_3 + count_1)
+            battery_charging.append(count_2)
+            
             
         fig_battery_charging, ax = plt.subplots()
-        self.list_figures.append((fig_battery_charging, "charging-cells"))    # In Order to save the figure on output folder
-        ax.plot(sim_times, battery_charging, label="Charging Cells")
+        self.list_figures.append((fig_battery_charging, "discharging-cells"))    # In Order to save the figure on output folder
+        ax.plot(sim_times, battery_charging, label="Discharging Cells")
         ax.legend()
-        ax.set_title("Charging Cells")
+        ax.set_title("Discharging Cells")
         ax.set_xlabel('Time [s]')
         ax.set_ylabel('Number of cells')
         

@@ -8,7 +8,7 @@ from simulator.context_config import Contex_Config
 import simulator.map_utils, simulator.mobility_utils, simulator.user_association_utils, simulator.radio_utils
 
 class PoF_simulation_UC3M(Contex_Config):
-    def start_simulation(self, sim_times, timeStep, s_mobility, text_plot, show_plots: bool = True, speed_plot: float = 0.05):
+    def start_simulation(self, sim_times, timeStep, text_plot, show_plots: bool = True, speed_plot: float = 0.05):
         logger.info("Starting simulation...")
         start = time.time()
         with tqdm(total=100, desc='Simulating...') as f:
@@ -23,8 +23,8 @@ class PoF_simulation_UC3M(Contex_Config):
                 t = sim_times[timeIndex]
                 text_plot.set_text('Time (sec) = {:.2f}'.format(t))
 
-                self.algorithm_step(timeIndex=timeIndex, timeStep=timeStep, s_mobility=s_mobility)
-                self.compute_statistics(timeIndex=timeIndex, s_mobility=s_mobility)
+                self.algorithm_step(timeIndex=timeIndex, timeStep=timeStep)
+                self.compute_statistics(timeIndex=timeIndex)
                 self.update_battery_status(timeIndex=timeIndex, timeStep=timeStep)
                 
                 if show_plots:
@@ -36,13 +36,13 @@ class PoF_simulation_UC3M(Contex_Config):
         logger.info(f"Elapsed time: {np.round(time.time() - start, decimals=4)} seconds.")
         return
         
-    def algorithm_step(self, timeIndex, timeStep, s_mobility):
+    def algorithm_step(self, timeIndex, timeStep):
         self.battery_state = np.zeros(self.NMacroCells+self.NFemtoCells)       # 0 = nothing; 1 = charging; 2 = discharging; 3 = discharging & charging.
         self.baseStation_users = np.zeros(self.NMacroCells+self.NFemtoCells)   # Number of users in each base station.
         self.active_Cells = np.zeros(self.NMacroCells+self.NFemtoCells)
         self.overflown_from = np.zeros(self.NMacroCells+self.NFemtoCells)      # Number of users that could not be served in each BS if we had no batteries.
         
-        for userIndex in range(0, len(s_mobility['NB_USERS'])): 
+        for userIndex in range(0, len(self.NUsers)): 
             # Update position on plot of User
             self.user_pos_plot[userIndex][0].set_data([self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]])
 
@@ -160,10 +160,10 @@ class PoF_simulation_UC3M(Contex_Config):
                 
         return
     
-    def compute_statistics(self, timeIndex, s_mobility):
+    def compute_statistics(self, timeIndex):
         # Throughput WITH batteries
         total_DL_Throughput = 0
-        for userIndex in range(0, len(s_mobility['NB_USERS'])):
+        for userIndex in range(0, len(self.NUsers)):
             SINRDLink = simulator.radio_utils.compute_sinr_dl([self.user_list[userIndex]["v_x"][timeIndex], 
                                                                self.user_list[userIndex]["v_y"][timeIndex]], 
                                                                self.BaseStations, 
@@ -183,7 +183,7 @@ class PoF_simulation_UC3M(Contex_Config):
 
         # Throughput WITHOUT batteries
         total_DL_Throughput_overflow_alternative = 0
-        for userIndex in range(0, len(s_mobility['NB_USERS'])):
+        for userIndex in range(0, len(self.NUsers)):
             if self.association_vector_overflow_alternative[0][userIndex] == 0.0:
                 SINRDLink = simulator.radio_utils.compute_sinr_dl([self.user_list[userIndex]["v_x"][timeIndex],
                                                                    self.user_list[userIndex]["v_y"][timeIndex]],
@@ -223,7 +223,7 @@ class PoF_simulation_UC3M(Contex_Config):
         # Throughput with ONLY Macrocells
         total_DL_Throughput_only_Macros = 0
         temporal_association_vector = np.zeros(self.NMacroCells, dtype=int)
-        for userIndex in range(0, len(s_mobility['NB_USERS'])):
+        for userIndex in range(0, len(self.NUsers)):
             cl = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex],
                                                                         self.user_list[userIndex]["v_y"][timeIndex]],
                                                                         self.BaseStations[0:self.NMacroCells, 0:2])
