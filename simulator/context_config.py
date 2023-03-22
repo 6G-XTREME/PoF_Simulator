@@ -55,11 +55,7 @@ class Contex_Config():
     battery_mean_values: np.array
     
     # Figures
-    fig_cell_occupancy: Figure
-    fig_cell_consumption: Figure
-    fig_throughput: Figure
-    fig_throughput_smooth: Figure
-    fig_battery_mean: Figure
+    list_figures: list
     
     def __init__(self, sim_times, s_mobility, basestation_data: dict, user_data: dict, battery_data: dict, transmit_power_data: dict) -> None:
         # BaseStation Parameters
@@ -103,7 +99,8 @@ class Contex_Config():
         self.live_smallcell_occupancy = np.zeros(len(sim_times))
         self.live_smallcell_overflow = np.zeros(len(sim_times))
         
-        self.Simulation_Time = sim_times[-1]        
+        self.Simulation_Time = sim_times[-1]
+        self.list_figures = []        
         pass
     
     def start_simulation(self, sim_times, timeStep, s_mobility, text_plot, show_plots: bool = True, speed_plot: float = 0.05):
@@ -111,7 +108,8 @@ class Contex_Config():
     
     def plot_output(self, sim_times, show_plots: bool = True):
         # 1
-        self.fig_cell_occupancy, ax = plt.subplots()
+        fig_cell_occupancy, ax = plt.subplots()
+        self.list_figures.append((fig_cell_occupancy, "cell_occupancy"))
         ax.axhline(y=self.NFemtoCells, color='r', label='Total Small cells')
         ax.plot(sim_times, self.live_smallcell_occupancy, 'g', label='Small cells being used')
         ax.plot(sim_times, self.live_smallcell_overflow, 'b', label='Small cells overflowed')
@@ -121,7 +119,8 @@ class Contex_Config():
         ax.set_title('Number of small cells under use')
 
         # 2
-        self.fig_cell_consumption, ax = plt.subplots()
+        fig_cell_consumption, ax = plt.subplots()
+        self.list_figures.append((fig_cell_consumption, "cell_consumption"))
         ax.axhline(y=self.small_cell_consumption_ON * self.NFemtoCells, color='r', label='Total always ON consumption [W]')
         ax.plot(sim_times, self.live_smallcell_consumption, 'g', label='Live energy consumption [W]')
         #ax.text(1, small_cell_consumption_ON * NFemtoCells - 1, f"Energy consumption (Active Femtocells): {small_cell_consumption_ON * NFemtoCells - 1} W")
@@ -131,7 +130,8 @@ class Contex_Config():
         ax.set_title('Live energy consumption')
 
         # 3
-        self.fig_throughput, ax = plt.subplots()
+        fig_throughput, ax = plt.subplots()
+        self.list_figures.append((fig_throughput, "throughput"))
         ax.plot(sim_times, self.live_throughput/10e6, label='With battery system')
         ax.plot(sim_times, self.live_throughput_NO_BATTERY/10e6, 'r--', label='Without battery system')
         ax.plot(sim_times, self.live_throughput_only_Macros/10e6, 'g:.', label='Only Macrocells')
@@ -144,7 +144,8 @@ class Contex_Config():
         #SMA_WINDOW = input_parameters['SMA_WINDOW']
         SMA_WINDOW = 5
         timeIndex = len(sim_times)
-        self.fig_throughput_smooth, ax = plt.subplots()
+        fig_throughput_smooth, ax = plt.subplots()
+        self.list_figures.append((fig_throughput_smooth, "throughput_smooth"))
         X = sim_times[timeIndex-(len(self.live_throughput)-(SMA_WINDOW-1))+1:timeIndex]/3600
         Y = np.convolve(self.live_throughput/10e6, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
         ax.plot(X, Y[:-1], label='With battery system')
@@ -169,7 +170,8 @@ class Contex_Config():
         #ax.set_title('Live battery state')
 
         # 5
-        self.fig_battery_mean, ax = plt.subplots()
+        fig_battery_mean, ax = plt.subplots()
+        self.list_figures.append((fig_battery_mean, "battery_mean"))
         ax.plot(sim_times, self.battery_mean_values, label='Battery mean capacity')
         ax.axhline(y=3.3, color='r',label="Max. voltage battery")
         ax.set_xlabel('Time [s]')
@@ -224,19 +226,11 @@ class Contex_Config():
     
         # Save figures to output folder
         fig_map.savefig(os.path.join(plot_folder, f'{run_name}-map.png'))
-        self.fig_cell_occupancy.savefig(os.path.join(plot_folder, f'{run_name}-cell_occupancy.png'))
-        self.fig_cell_consumption.savefig(os.path.join(plot_folder, f'{run_name}-cell_consumption.png'))
-        self.fig_throughput.savefig(os.path.join(plot_folder, f'{run_name}-throughput.png'))
-        self.fig_throughput_smooth.savefig(os.path.join(plot_folder, f'{run_name}-throughput_smooth.png'))
-        self.fig_battery_mean.savefig(os.path.join(plot_folder, f'{run_name}-battery_mean.png'))
-
-        # Close all figures
         plt.close(fig_map)
-        plt.close(self.fig_cell_occupancy)
-        plt.close(self.fig_cell_consumption)
-        plt.close(self.fig_throughput)
-        plt.close(self.fig_throughput_smooth)
-        plt.close(self.fig_battery_mean)
+        
+        for fig in self.list_figures:
+            fig[0].savefig(os.path.join(plot_folder, f'{run_name}-{fig[1]}.png'))
+            plt.close(fig[0])
 
         # Copy user_list.mat [replicability of run]
         user_list_output_mat_path = os.path.join(run_folder, f'{run_name}-user_list.mat')
@@ -255,6 +249,9 @@ class Contex_Config():
         pass
     
     def update_live_plots(self):
+        """
+            On MATLAB was implemented, but on Python throws an error
+        """
         #CHECK
         #live_occupancy_plot.set_data(sim_times[:timeIndex], live_smallcell_occupancy)
         #max_occupancy_plot.set_data([0, sim_times[timeIndex]], [NFemtoCells, NFemtoCells])
