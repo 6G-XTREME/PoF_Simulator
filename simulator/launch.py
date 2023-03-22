@@ -291,7 +291,7 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
     text_plot = ax.text(0, Maplimit, 'Time (sec) = 0')
 
     user_dict = {
-        'number_users': s_mobility["NB_USERS"],
+        'users': s_mobility["NB_USERS"],
         'user_list': user_list,
         'user_pos_plot': user_pos_plot,
         'user_association_line': user_association_line

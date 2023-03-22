@@ -60,7 +60,7 @@ class Contex_Config():
     
     def __init__(self, sim_times, basestation_data: dict, user_data: dict, battery_data: dict, transmit_power_data: dict) -> None:
         # User Parameters
-        self.NUsers = user_data["number_users"]
+        self.NUsers = user_data["users"]
         self.user_list = user_data['user_list']
         self.user_pos_plot = user_data['user_pos_plot']
         self.user_association_line = user_data['user_association_line']
@@ -119,6 +119,8 @@ class Contex_Config():
         #ax.axhline(y=numberOfLasers-1, label=f"Max. Lasers:")
         ax.legend()
         ax.set_title('Number of small cells under use')
+        ax.set_xlabel('Time [s]')
+        ax.set_ylabel('Number of cells')
 
         # 2
         fig_cell_consumption, ax = plt.subplots()
@@ -130,6 +132,8 @@ class Contex_Config():
         #ax.text(1, small_cell_consumption_ON * NFemtoCells - 5, f"Energy consumption (Total Femtocells): {small_cell_consumption_ON * NFemtoCells - 5} W")
         ax.legend()
         ax.set_title('Live energy consumption')
+        ax.set_xlabel('Time [s]')
+        ax.set_ylabel('Number of cells')
 
         # 3
         fig_throughput, ax = plt.subplots()
