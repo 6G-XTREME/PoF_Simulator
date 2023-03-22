@@ -96,7 +96,8 @@ class PoF_simulation_ELi(Contex_Config):
                 if self.baseStation_users[timeIndex][closestBSDownlink] == 0: # If inactive
                     # Can I turn it on with PoF?
                     active_femto = np.sum(self.active_Cells[timeIndex][self.NMacroCells:])
-                    current_watts = (active_femto * self.small_cell_consumption_ON) + ((self.NFemtoCells - active_femto) * self.small_cell_consumption_SLEEP)
+                    battery_femto = np.count_nonzero(self.battery_state[timeIndex][self.NMacroCells:] == 2.0)   # TODO: Ask Javier
+                    current_watts = (active_femto * self.small_cell_consumption_ON) + ((self.NFemtoCells - (active_femto + battery_femto)) * self.small_cell_consumption_SLEEP)
                     if current_watts >= (self.max_energy_consumption - self.small_cell_consumption_ON + self.small_cell_consumption_SLEEP): # No, I cannot. Check battery.
 
                         # Check if we can use Femtocell's battery
@@ -118,7 +119,7 @@ class PoF_simulation_ELi(Contex_Config):
                             self.overflown_from[timeIndex][closestBSDownlink] += 1
 
                             # Legacy comment on MATLAB:
-                            #active_Cells[closestBSDownlink] = 1 # This cell does not count for the overall PoF power budget.
+                            #self.active_Cells[timeIndex][closestBSDownlink] = 1 # This cell does not count for the overall PoF power budget.
                             self.battery_state[timeIndex][closestBSDownlink] = 2.0 # Discharge battery.
                             # However, draw from Femtocell's battery.
                             self.battery_vector[0, closestBSDownlink] = max(0, self.battery_vector[0, closestBSDownlink] - (timeStep/3600) * self.small_cell_current_draw) 
@@ -243,6 +244,7 @@ class PoF_simulation_ELi(Contex_Config):
         """
         # Decide about battery recharging
         if self.live_smallcell_consumption[timeIndex] < self.max_energy_consumption:
+            # Asign available energy to charge a cell battery
             available = self.max_energy_consumption - self.live_smallcell_consumption[timeIndex]
             I = np.argmin(self.battery_vector[0])    # TODO: why only one battery decision per timeStep?
             if self.battery_vector[0][I] < self.battery_capacity:
