@@ -402,15 +402,15 @@ class PoF_simulation_ELi(Contex_Config):
             sim_times (_type_): _description_
             show_plots (bool, optional): _description_. Defaults to True.
         """
-        # User Traffic 
+        # User Traffic
         fig_user_traffic, ax = plt.subplots()
         self.list_figures.append((fig_user_traffic, "user-traffic"))    # In Order to save the figure on output folder
         
         metric = 0  # Default traffic
-        for user in range(0, 30):
+        for user in range(0, len(self.NUsers)):
             user_traffic = np.asarray([self.X_user[t][user][metric] for t in range(len(sim_times))])
             ax.plot(sim_times, user_traffic/10e6, label=f'User {user}')
-        ax.legend()
+        ax.legend(fontsize='x-small', ncols=3)
         ax.set_title(f'Traffic for each user')
         ax.set_xlabel('Time [s]')
         ax.set_ylabel('Throughput [Mb/s]')

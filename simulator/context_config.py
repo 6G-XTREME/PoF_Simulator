@@ -1,9 +1,7 @@
 import numpy as np
 import pandas as pd
 import scipy.io, os
-import matplotlib.figure as Figure
 import matplotlib.pyplot as plt
-
 from simulator.launch import logger
 
 class Contex_Config():
