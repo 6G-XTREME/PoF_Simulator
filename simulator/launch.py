@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 logging.getLogger("PIL.PngImagePlugin").setLevel(logging.WARNING)
 
-def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMETERS, config_parameters: dict = CONFIG_PARAMETERS):
+def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMETERS, config_parameters: dict = CONFIG_PARAMETERS, custom_parameters: dict = {}):
     if run_name == "":
         run_name = str(uuid.uuid4())[:8]
     logger.info(f"Run_name: {run_name}")
@@ -327,11 +327,13 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
     elif config_parameters['algorithm'].lower() == 'eli':
         logger.info("Using E-Lighthouse algorithm...")
         from simulator.algorithm_eli import PoF_simulation_ELi
+        
         eli = PoF_simulation_ELi(sim_times=sim_times,
                                 basestation_data=basestation_dict,
                                 user_data=user_dict,
                                 battery_data=battery_dict,
-                                transmit_power_data=transmit_power_dict)
+                                transmit_power_data=transmit_power_dict,
+                                elighthouse_parameters=custom_parameters)
         
         eli.start_simulation(sim_times=sim_times, 
                              timeStep=timeStep,

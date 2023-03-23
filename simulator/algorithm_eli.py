@@ -8,6 +8,9 @@ from simulator.context_config import Contex_Config
 import simulator.map_utils, simulator.mobility_utils, simulator.user_association_utils, simulator.radio_utils
 
 class PoF_simulation_ELi(Contex_Config):
+    user_report_position: int       # TimeStep between user new position report
+    user_closest_bs: np.array       # To Save previous closestBS
+    
     # Traffic Vars
     X_macro: np.array
     X_macro_only: np.array
@@ -17,12 +20,26 @@ class PoF_simulation_ELi(Contex_Config):
     X_femto_no_batt: np.array
     X_user : np.array
     
+    def __init__(self, sim_times, basestation_data: dict, user_data: dict, battery_data: dict, transmit_power_data: dict, elighthouse_parameters: dict) -> None:
+        try:
+            if elighthouse_parameters['user_report_position'] > 0 and elighthouse_parameters['user_report_position'] < 100:
+                self.user_report_position = elighthouse_parameters['user_report_position']
+            else:
+                self.user_report_position = 1
+        except:
+            # On error, load default custom parameters
+            self.user_report_position = 1
+        
+        super().__init__(sim_times=sim_times, basestation_data=basestation_data, user_data=user_data, battery_data=battery_data, transmit_power_data=transmit_power_data)
+    
     def start_simulation(self, sim_times, timeStep, text_plot, show_plots: bool = True, speed_plot: float = 0.05):
         # Settting up some vars
         self.battery_state = [[] for _ in range(len(sim_times))]
         self.baseStation_users = [[] for _ in range(len(sim_times))]
         self.active_Cells = [[] for _ in range(len(sim_times))]
         self.overflown_from = [[] for _ in range(len(sim_times))]
+        
+        self.user_closest_bs = np.zeros((len(sim_times), len(self.NUsers)))
         
         # Traffic global vars
         self.X_macro = np.zeros((len(sim_times), self.NMacroCells))
@@ -89,7 +106,14 @@ class PoF_simulation_ELi(Contex_Config):
             self.user_pos_plot[userIndex][0].set_data([self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]])
 
             # Search serving base station
-            closestBSDownlink = simulator.map_utils.search_closest_bs([self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]], self.Regions)
+            if ((timeIndex % self.user_report_position) == 0):
+                # New Position Report
+                closestBSDownlink = simulator.map_utils.search_closest_bs([self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]], self.Regions)
+            else:
+                # Use previous position know
+                closestBSDownlink = int(self.user_closest_bs[timeIndex-1][userIndex])
+            # Update the actual BS
+            self.user_closest_bs[timeIndex][userIndex] = closestBSDownlink
             
             # If closest is a Femtocell and it is sleeping (it has no users), then, check total energy consumption
             if closestBSDownlink > self.NMacroCells:
