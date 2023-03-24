@@ -11,6 +11,7 @@ class PoF_simulation_ELi(Contex_Config):
     user_report_position: int       # TimeStep between user new position report
     user_closest_bs: np.array       # To Save previous closestBS
     startup_max_tokens: int         # Max tokens to count down to BS count as active
+    poweroff_max_tokens: int        # TimeSteps to poweroff a cell
     
     starting_up_femto: np.array     # Save the token state
     started_up_femto: np.array      # Array of FemtoCell ON
@@ -23,6 +24,10 @@ class PoF_simulation_ELi(Contex_Config):
     X_femto: np.array
     X_femto_no_batt: np.array
     X_user : np.array
+    
+    output_throughput: np.array
+    output_throughput_no_batt: np.array
+    output_throughput_only_macro: np.array
     
     def __init__(self, sim_times, basestation_data: dict, user_data: dict, battery_data: dict, transmit_power_data: dict, elighthouse_parameters: dict) -> None:
         try:
@@ -37,10 +42,17 @@ class PoF_simulation_ELi(Contex_Config):
                 self.startup_max_tokens = elighthouse_parameters['startup_max_tokens']
             else:
                 self.startup_max_tokens = 1
+               
+            # Number of timeSlots to Poweroff a non used Cell
+            if elighthouse_parameters['poweroff_unused_cell'] > 0 and elighthouse_parameters['poweroff_unused_cell'] < 10:
+                self.poweroff_max_tokens = elighthouse_parameters['poweroff_unused_cell']
+            else:
+                self.poweroff_max_tokens = 1
         except:
             # On error, load default custom parameters
             self.user_report_position = 1
             self.startup_max_tokens = 1
+            self.poweroff_max_tokens = 1
         
         super().__init__(sim_times=sim_times, basestation_data=basestation_data, user_data=user_data, battery_data=battery_data, transmit_power_data=transmit_power_data)
     
@@ -69,6 +81,11 @@ class PoF_simulation_ELi(Contex_Config):
         # 2. Only Macro
         metrics = 3
         self.X_user = np.zeros((len(sim_times), len(self.NUsers), metrics), dtype=float)
+        
+        # Init new plot vars
+        self.output_throughput = np.zeros((2, len(sim_times)))          # 0: macro, 1: femto
+        self.output_throughput_no_batt = np.zeros((3, len(sim_times)))    # 0: macro 1: femto 2: overflow
+        self.output_throughput_only_macro = np.zeros(len(sim_times))    # 0: macro
         
         logger.info("Starting simulation...")
         start = time.time()
@@ -331,17 +348,17 @@ class PoF_simulation_ELi(Contex_Config):
          
         # End user allocation in timeIndex instance 
         
-        # TODO: re-check
         # Given the list of started femto, check if have user already, if not, shutdown
-        #for femto in range(0, len(self.started_up_femto)):
-        #    try:
-        #        if self.baseStation_users[timeIndex][self.started_up_femto[femto]] == 0:
-        #            # No user found in this timeIndex
-        #            # Powering off the femto
-        #            self.started_up_femto = self.started_up_femto.remove(self.started_up_femto[femto])
-        #    except: 
-        #        # Startep up femto is empty, zero cells are on
-        #        pass
+        if timeIndex % self.poweroff_max_tokens == 0:   # Each two cycles, poweroff cells
+            for femto in range(0, len(self.started_up_femto)):
+                try:
+                    if self.baseStation_users[timeIndex][self.started_up_femto[femto]] == 0:
+                        # No user found in this timeIndex
+                        # Powering off the femto
+                        self.started_up_femto.remove(self.started_up_femto[femto])
+                except: 
+                    # Startep up femto is empty, zero cells are on
+                    pass
         
         # Reduce the token bucket for starting up a BaseStation
         for femto in range(0,len(self.starting_up_femto)):
@@ -383,8 +400,14 @@ class PoF_simulation_ELi(Contex_Config):
             + (self.NFemtoCells - self.live_smallcell_occupancy[timeIndex]) * self.small_cell_consumption_SLEEP)
 
         # Update system throughput
-        # TODO: new agg plots for each live
-        self.live_throughput[timeIndex] = np.sum(self.X_macro[timeIndex]) + np.sum(self.X_femto[timeIndex])  
+        self.output_throughput[0][timeIndex] = np.sum(self.X_macro[timeIndex])
+        self.output_throughput[1][timeIndex] = np.sum(self.X_femto[timeIndex])
+        self.output_throughput_no_batt[0][timeIndex] = np.sum(self.X_macro_no_batt[timeIndex])
+        self.output_throughput_no_batt[1][timeIndex] = np.sum(self.X_femto_no_batt[timeIndex])
+        self.output_throughput_no_batt[2][timeIndex] = np.sum(self.X_macro_overflow[timeIndex])
+        self.output_throughput_only_macro[timeIndex] = np.sum(self.X_macro_only[timeIndex])
+        
+        self.live_throughput[timeIndex] = np.sum(self.X_macro[timeIndex]) + np.sum(self.X_femto[timeIndex])
         self.live_throughput_NO_BATTERY[timeIndex] = np.sum(self.X_macro_no_batt[timeIndex]) + np.sum(self.X_femto_no_batt[timeIndex]) + np.sum(self.X_macro_overflow[timeIndex]) 
         self.live_throughput_only_Macros[timeIndex] = np.sum(self.X_macro_only[timeIndex])
         return
@@ -564,6 +587,39 @@ class PoF_simulation_ELi(Contex_Config):
         ax.set_title("Discharging Battery Cells")
         ax.set_xlabel('Time [s]')
         ax.set_ylabel('Number of cells')
+        
+        # New Figures
+        ## Throughput
+        fig_throughput, ax = plt.subplots()
+        self.list_figures.append((fig_throughput, 'output-throughput'))
+        ax.plot(sim_times, self.output_throughput[0], label="Macro Cells")
+        ax.plot(sim_times, self.output_throughput[1], label="Femto Cells")
+        ax.plot(sim_times, self.live_throughput, label="Total")
+        ax.legend()
+        ax.set_title("Throughput Downlink. System with batteries")
+        ax.set_xlabel("Time [s]")
+        ax.set_ylabel('Throughput [Mb/s]')
+        
+        ## Throughput no battery
+        fig_throughput_no_batt, ax = plt.subplots()
+        self.list_figures.append((fig_throughput_no_batt, 'output-throughput-no-batt'))
+        ax.plot(sim_times, self.output_throughput_no_batt[0], label="Macro Cells")
+        ax.plot(sim_times, self.output_throughput_no_batt[1], label="Femto Cells")
+        ax.plot(sim_times, self.output_throughput_no_batt[2], label="Femto Cells overflow")
+        ax.plot(sim_times, self.live_throughput_NO_BATTERY, label="Total")
+        ax.legend()
+        ax.set_title("Throughput Downlink. System without batteries")
+        ax.set_xlabel("Time [s]")
+        ax.set_ylabel('Throughput [Mb/s]')
+        
+        ## Only Macro
+        fig_throughput_only_macro, ax = plt.subplots()
+        self.list_figures.append((fig_throughput_only_macro, 'output-throughput-only-macro'))
+        ax.plot(sim_times, self.output_throughput_only_macro, label="Macro Cells")
+        ax.legend()
+        ax.set_title("Throughput Downlink. System with only Macro Cells")
+        ax.set_xlabel("Time [s]")
+        ax.set_ylabel('Throughput [Mb/s]')
         
         # Get the context_class method
         super().plot_output(sim_times=sim_times, show_plots=show_plots)
