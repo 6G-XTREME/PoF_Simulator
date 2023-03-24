@@ -10,6 +10,10 @@ import simulator.map_utils, simulator.mobility_utils, simulator.user_association
 class PoF_simulation_ELi(Contex_Config):
     user_report_position: int       # TimeStep between user new position report
     user_closest_bs: np.array       # To Save previous closestBS
+    startup_max_tokens: int         # Max tokens to count down to BS count as active
+    
+    starting_up_femto: np.array     # Save the token state
+    started_up_femto: np.array      # Array of FemtoCell ON
     
     # Traffic Vars
     X_macro: np.array
@@ -22,13 +26,21 @@ class PoF_simulation_ELi(Contex_Config):
     
     def __init__(self, sim_times, basestation_data: dict, user_data: dict, battery_data: dict, transmit_power_data: dict, elighthouse_parameters: dict) -> None:
         try:
-            if elighthouse_parameters['user_report_position'] > 0 and elighthouse_parameters['user_report_position'] < 100:
+            # Number of timeSlots that user should wait to re-send the position
+            if elighthouse_parameters['user_report_position'] > 0 and elighthouse_parameters['user_report_position'] < 20:
                 self.user_report_position = elighthouse_parameters['user_report_position']
             else:
-                self.user_report_position = 1
+                self.user_report_position = 1   # For each timeStep, the user report his position
+            
+            # Number of timeSlots to startup a femtocell 
+            if elighthouse_parameters['startup_max_tokens'] > 0 and elighthouse_parameters['startup_max_tokens'] < 10:
+                self.startup_max_tokens = elighthouse_parameters['startup_max_tokens']
+            else:
+                self.startup_max_tokens = 1
         except:
             # On error, load default custom parameters
             self.user_report_position = 1
+            self.startup_max_tokens = 1
         
         super().__init__(sim_times=sim_times, basestation_data=basestation_data, user_data=user_data, battery_data=battery_data, transmit_power_data=transmit_power_data)
     
@@ -40,6 +52,8 @@ class PoF_simulation_ELi(Contex_Config):
         self.overflown_from = [[] for _ in range(len(sim_times))]
         
         self.user_closest_bs = np.zeros((len(sim_times), len(self.NUsers)))
+        self.starting_up_femto = np.zeros(self.NMacroCells + self.NFemtoCells)
+        self.started_up_femto = []
         
         # Traffic global vars
         self.X_macro = np.zeros((len(sim_times), self.NMacroCells))
@@ -86,7 +100,14 @@ class PoF_simulation_ELi(Contex_Config):
 
  
     def algorithm_step(self, timeIndex, timeStep):
+        """ Algorithm Logic to execute in each timeStep of the simulation
+
+        Args:
+            timeIndex (int): 
+            timeStep (float): 
+        """
         if timeIndex == 0: self.battery_state[timeIndex] = np.zeros(self.NMacroCells+self.NFemtoCells)      # 0 = nothing; 1 = charging; 2 = discharging; 3 = discharging & charging.
+        if self.started_up_femto is None: self.started_up_femto = []                                        # The case that, all the started femto go to off
         try:
             self.battery_state[timeIndex+1] = np.zeros(self.NMacroCells+self.NFemtoCells)                   # 0 = nothing; 1 = charging; 2 = discharging; 3 = discharging & charging.
             self.baseStation_users[timeIndex+1] = np.zeros(self.NMacroCells+self.NFemtoCells)               # Number of users in each base station.
@@ -126,28 +147,59 @@ class PoF_simulation_ELi(Contex_Config):
 
                         # Check if we can use Femtocell's battery
                         if self.battery_vector[0, closestBSDownlink] > (timeStep/3600) * self.small_cell_current_draw:
-                            X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
-                            Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
                             
+                            # Check if is booting Up!
+                            if (self.starting_up_femto[closestBSDownlink] > 0 and self.starting_up_femto[closestBSDownlink] <= self.startup_max_tokens):
+                                # On Process to startup, using backup...
+                                self.active_Cells[timeIndex][closestBSDownlink] = 0     # This cell does not count for the overall PoF power budget.
+                                self.battery_state[timeIndex][closestBSDownlink] = 2.0  # Discharge battery.
+                            # Check if already booted
+                            elif closestBSDownlink in self.started_up_femto:
+                                X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
+                                Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
+                            
+                                self.user_association_line[userIndex].set_data(X, Y)
+                                self.user_association_line[userIndex].set_color('green')
+                                self.user_association_line[userIndex].set_linestyle('--')
+                                self.user_association_line[userIndex].set_linewidth(3)
+                                self.association_vector[0, userIndex] = closestBSDownlink # Associate.
+
+                                # Alternative if we had no batteries would be...
+                                self.association_vector_overflow_alternative[0, userIndex] = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex], 
+                                                                                                                                                    self.user_list[userIndex]["v_y"][timeIndex]], 
+                                                                                                                                                    self.BaseStations[0:self.NMacroCells, 0:2])
+                            
+                                self.overflown_from[timeIndex][closestBSDownlink] += 1
+
+                                self.active_Cells[timeIndex][closestBSDownlink] = 0     # This cell does not count for the overall PoF power budget.
+                                self.battery_state[timeIndex][closestBSDownlink] = 2.0  # Discharge battery.
+                                # However, draw from Femtocell's battery.
+                                self.battery_vector[0, closestBSDownlink] = max(0, self.battery_vector[0, closestBSDownlink] - (timeStep/3600) * self.small_cell_current_draw) 
+                                self.baseStation_users[timeIndex][closestBSDownlink] += 1 # Add user.
+                                continue
+                            else:
+                                # Not started, should startup
+                                self.starting_up_femto[closestBSDownlink] = self.startup_max_tokens       # Init Bucket for this closest BS
+                        
+                                self.active_Cells[timeIndex][closestBSDownlink] = 0     # This cell does not count for the overall PoF power budget.
+                                self.battery_state[timeIndex][closestBSDownlink] = 2.0  # Discharge battery.
+                            
+                            # Associate User to closest Macro
+                            closest_Macro = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex],
+                                                                                                    self.user_list[userIndex]["v_y"][timeIndex]],
+                                                                                                    self.BaseStations[0:self.NMacroCells, 0:2])
+                        
+                            X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closest_Macro, 0]]
+                            Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closest_Macro, 1]]
+                        
                             self.user_association_line[userIndex].set_data(X, Y)
-                            self.user_association_line[userIndex].set_color('green')
+                            self.user_association_line[userIndex].set_color('orange')
                             self.user_association_line[userIndex].set_linestyle('--')
-                            self.user_association_line[userIndex].set_linewidth(3)
-                            self.association_vector[0, userIndex] = closestBSDownlink # Associate.
-
-                            # Alternative if we had no batteries would be...
-                            self.association_vector_overflow_alternative[0, userIndex] = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex], 
-                                                                                                                                                self.user_list[userIndex]["v_y"][timeIndex]], 
-                                                                                                                                                self.BaseStations[0:self.NMacroCells, 0:2])
-                            
-                            self.overflown_from[timeIndex][closestBSDownlink] += 1
-
-                            # Legacy comment on MATLAB:
-                            #self.active_Cells[timeIndex][closestBSDownlink] = 1 # This cell does not count for the overall PoF power budget.
-                            self.battery_state[timeIndex][closestBSDownlink] = 2.0 # Discharge battery.
-                            # However, draw from Femtocell's battery.
-                            self.battery_vector[0, closestBSDownlink] = max(0, self.battery_vector[0, closestBSDownlink] - (timeStep/3600) * self.small_cell_current_draw) 
-                            self.baseStation_users[timeIndex][closestBSDownlink] += 1 # Add user.
+                            self.user_association_line[userIndex].set_linewidth(0.5)
+                        
+                            self.association_vector[0, userIndex] = closest_Macro # Associate.
+                            self.active_Cells[timeIndex][closest_Macro] = 1 
+                            self.baseStation_users[timeIndex][closest_Macro] += 1
                         else:
                             # Associate to closest Macrocell
                             closest_Macro = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex],
@@ -166,50 +218,102 @@ class PoF_simulation_ELi(Contex_Config):
                             self.active_Cells[timeIndex][closest_Macro] = 1 
                             self.baseStation_users[timeIndex][closest_Macro] += 1
                     else:
-                        # Yes, turn on with PoF and associate
+                        # Yes, turn on with PoF and try to associate
+                        
+                        # Check if BS is already on or not started
+                        if (self.starting_up_femto[closestBSDownlink] > 0 and self.starting_up_femto[closestBSDownlink] <= self.startup_max_tokens):
+                            # On Process to startup, using backup...
+                            self.active_Cells[timeIndex][closestBSDownlink] = 1     # This cell counts for the PoF budget.
+                            self.battery_state[timeIndex][closestBSDownlink] = 0.0  # No battery usage.
+                        elif closestBSDownlink in self.started_up_femto:
+                            # Femto on! Yes, associate
+                            X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
+                            Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
+
+                            self.user_association_line[userIndex].set_data(X, Y)
+                            self.user_association_line[userIndex].set_color(self.colorsBS[closestBSDownlink])
+                            self.user_association_line[userIndex].set_linestyle('-')
+                            self.user_association_line[userIndex].set_linewidth(0.5)
+
+                            self.association_vector[0, userIndex] = closestBSDownlink       # Associate.
+                            self.association_vector_overflow_alternative[0, userIndex] = 0  # I can use PoF. Having batteries makes no difference in this case. Alternative is not needed.
+                            self.active_Cells[timeIndex][closestBSDownlink] = 1             # This cell counts for the PoF budget.
+                            self.battery_state[timeIndex][closestBSDownlink] = 0.0          # No battery usage.
+                            self.baseStation_users[timeIndex][closestBSDownlink] += 1       # Add user.
+                            continue 
+                        else:
+                            # Not started, should startup
+                            self.starting_up_femto[closestBSDownlink] = self.startup_max_tokens       # Init Bucket for this closest BS
+                        
+                            self.active_Cells[timeIndex][closestBSDownlink] = 1 # This cell counts for the PoF budget.
+                            self.battery_state[timeIndex][closestBSDownlink] = 0.0 # No battery usage.
+                            
+                        # Associate User to closest Macro
+                        closest_Macro = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex],
+                                                                                               self.user_list[userIndex]["v_y"][timeIndex]],
+                                                                                               self.BaseStations[0:self.NMacroCells, 0:2])
+                        
+                        X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closest_Macro, 0]]
+                        Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closest_Macro, 1]]
+                        
+                        self.user_association_line[userIndex].set_data(X, Y)
+                        self.user_association_line[userIndex].set_color('orange')
+                        self.user_association_line[userIndex].set_linestyle('--')
+                        self.user_association_line[userIndex].set_linewidth(0.5)
+                        
+                        self.association_vector[0, userIndex] = closest_Macro # Associate.
+                        self.active_Cells[timeIndex][closest_Macro] = 1 
+                        self.baseStation_users[timeIndex][closest_Macro] += 1
+
+                else: # Already ON, associate to the femtocell, just add one user.
+                    # Check if femto cell is booting up... (token bucket its zero if already booted)
+                    if self.starting_up_femto[closestBSDownlink] == 0:
+                        self.association_vector[0, userIndex] = closestBSDownlink # Associate.
+
+                        if self.battery_state[timeIndex][closestBSDownlink] == 2.0: # Is Discharging
+                            # If we had no batteries, this user would have been gone to the closest macrocell. 
+                            # Search "overflow" alternative and add 1 to the "kicked" users of this femtocell in the hypothetical case we had no batteries installed. 
+                            self.association_vector_overflow_alternative[0, userIndex] = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex], 
+                                                                                                                                                self.user_list[userIndex]["v_y"][timeIndex]], 
+                                                                                                                                                self.BaseStations[0:self.NMacroCells, 0:2])
+                            self.overflown_from[timeIndex][closestBSDownlink] += 1
+                        else:
+                            self.association_vector_overflow_alternative[0, userIndex] = 0
+                        self.baseStation_users[timeIndex][closestBSDownlink] += 1 # Add user.
+
                         X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
                         Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
 
-                        self.user_association_line[userIndex].set_data(X, Y)
-                        self.user_association_line[userIndex].set_color(self.colorsBS[closestBSDownlink])
-                        self.user_association_line[userIndex].set_linestyle('-')
-                        self.user_association_line[userIndex].set_linewidth(0.5)
+                        if self.battery_state[timeIndex][closestBSDownlink] == 2.0: # Is Discharging
+                            # If using battery (only check == 2 because 3 only happens later at chaging decison)
+                            self.user_association_line[userIndex].set_data(X, Y)
+                            self.user_association_line[userIndex].set_color('green')
+                            self.user_association_line[userIndex].set_linestyle('--')
+                            self.user_association_line[userIndex].set_linewidth(3)
 
-                        self.association_vector[0, userIndex] = closestBSDownlink # Associate.
-                        self.association_vector_overflow_alternative[0, userIndex] = 0 # I can use PoF. Having batteries makes no difference in this case. Alternative is not needed.
-                        self.active_Cells[timeIndex][closestBSDownlink] = 1 # This cell counts for the PoF budget.
-                        self.battery_state[timeIndex][closestBSDownlink] = 0.0 # No battery usage.
-                        self.baseStation_users[timeIndex][closestBSDownlink] += 1 # Add user.
-
-                else: # Already ON, associate to the femtocell, just add one user.
-                    self.association_vector[0, userIndex] = closestBSDownlink # Associate.
-
-                    if self.battery_state[timeIndex][closestBSDownlink] == 2.0: # Is Discharging
-                        # If we had no batteries, this user would have been gone to the closest macrocell. 
-                        # Search "overflow" alternative and add 1 to the "kicked" users of this femtocell in the hypothetical case we had no batteries installed. 
-                        self.association_vector_overflow_alternative[0, userIndex] = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex], 
-                                                                                                                                            self.user_list[userIndex]["v_y"][timeIndex]], 
-                                                                                                                                            self.BaseStations[0:self.NMacroCells, 0:2])
-                        self.overflown_from[timeIndex][closestBSDownlink] += 1
+                        else: # Is Charging
+                            self.user_association_line[userIndex].set_data(X, Y)
+                            self.user_association_line[userIndex].set_color(self.colorsBS[closestBSDownlink])
+                            self.user_association_line[userIndex].set_linestyle('-')
+                            self.user_association_line[userIndex].set_linewidth(0.5)
                     else:
-                        self.association_vector_overflow_alternative[0, userIndex] = 0
-                    self.baseStation_users[timeIndex][closestBSDownlink] += 1 # Add user.
-
-                    X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
-                    Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
-
-                    if self.battery_state[timeIndex][closestBSDownlink] == 2.0: # Is Discharging
-                        # If using battery (only check == 2 because 3 only happens later at chaging decison)
+                        # Token bucket isnt zero, so still booting up
+                        # Associate user with closest MacroCell
+                        closest_Macro = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex],
+                                                                                               self.user_list[userIndex]["v_y"][timeIndex]],
+                                                                                               self.BaseStations[0:self.NMacroCells, 0:2])
+                        
+                        X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closest_Macro, 0]]
+                        Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closest_Macro, 1]]
+                        
                         self.user_association_line[userIndex].set_data(X, Y)
-                        self.user_association_line[userIndex].set_color('green')
+                        self.user_association_line[userIndex].set_color('orange')
                         self.user_association_line[userIndex].set_linestyle('--')
-                        self.user_association_line[userIndex].set_linewidth(3)
-
-                    else: # Is Charging
-                        self.user_association_line[userIndex].set_data(X, Y)
-                        self.user_association_line[userIndex].set_color(self.colorsBS[closestBSDownlink])
-                        self.user_association_line[userIndex].set_linestyle('-')
                         self.user_association_line[userIndex].set_linewidth(0.5)
+                        
+                        self.association_vector[0, userIndex] = closest_Macro # Associate.
+                        self.active_Cells[timeIndex][closest_Macro] = 1 
+                        self.baseStation_users[timeIndex][closest_Macro] += 1
 
             else: # Associate to a Macrocell
                 X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
@@ -226,6 +330,32 @@ class PoF_simulation_ELi(Contex_Config):
                 self.baseStation_users[timeIndex][closestBSDownlink] += 1 # Add user.
          
         # End user allocation in timeIndex instance 
+        
+        # TODO: re-check
+        # Given the list of started femto, check if have user already, if not, shutdown
+        #for femto in range(0, len(self.started_up_femto)):
+        #    try:
+        #        if self.baseStation_users[timeIndex][self.started_up_femto[femto]] == 0:
+        #            # No user found in this timeIndex
+        #            # Powering off the femto
+        #            self.started_up_femto = self.started_up_femto.remove(self.started_up_femto[femto])
+        #    except: 
+        #        # Startep up femto is empty, zero cells are on
+        #        pass
+        
+        # Reduce the token bucket for starting up a BaseStation
+        for femto in range(0,len(self.starting_up_femto)):
+            if self.starting_up_femto[femto] > 0:
+                # Reduce Token Bucket
+                if self.starting_up_femto[femto] == 1:
+                    # Add to started femto
+                    try:
+                        self.started_up_femto.append(femto)    
+                    except:
+                        self.started_up_femto = []
+                        self.started_up_femto.append(femto)
+                # Reduce token
+                self.starting_up_femto[femto] = self.starting_up_femto[femto] - 1    
         
         # Traffic calculated to user
         for userIndex in range(0, len(self.NUsers)):
@@ -253,8 +383,9 @@ class PoF_simulation_ELi(Contex_Config):
             + (self.NFemtoCells - self.live_smallcell_occupancy[timeIndex]) * self.small_cell_consumption_SLEEP)
 
         # Update system throughput
-        self.live_throughput[timeIndex] = np.sum(self.X_macro[timeIndex]) + np.sum(self.X_femto[timeIndex])
-        self.live_throughput_NO_BATTERY[timeIndex] = np.sum(self.X_macro_no_batt[timeIndex]) + np.sum(self.X_femto_no_batt[timeIndex]) + np.sum(self.X_macro_overflow[timeIndex])
+        # TODO: new agg plots for each live
+        self.live_throughput[timeIndex] = np.sum(self.X_macro[timeIndex]) + np.sum(self.X_femto[timeIndex])  
+        self.live_throughput_NO_BATTERY[timeIndex] = np.sum(self.X_macro_no_batt[timeIndex]) + np.sum(self.X_femto_no_batt[timeIndex]) + np.sum(self.X_macro_overflow[timeIndex]) 
         self.live_throughput_only_Macros[timeIndex] = np.sum(self.X_macro_only[timeIndex])
         return
 
@@ -290,7 +421,7 @@ class PoF_simulation_ELi(Contex_Config):
         """ Throughput WITH batteries given an User and timeIndex
         
         Depends of:     association_vector
-                        baseStation_users <---
+                        baseStation_users
                         
         Returns Traffic of User
         """
@@ -322,7 +453,7 @@ class PoF_simulation_ELi(Contex_Config):
         Depends of:     association_vector_overflow_alternative
                         associated_station_overflow
                         association_vector
-                        baseStation_users <---
+                        baseStation_users
                         
         Returns Traffic of User
         """ 
@@ -430,7 +561,7 @@ class PoF_simulation_ELi(Contex_Config):
         self.list_figures.append((fig_battery_charging, "discharging-cells"))    # In Order to save the figure on output folder
         ax.plot(sim_times, battery_charging, label="Discharging Cells")
         ax.legend()
-        ax.set_title("Discharging Cells")
+        ax.set_title("Discharging Battery Cells")
         ax.set_xlabel('Time [s]')
         ax.set_ylabel('Number of cells')
         

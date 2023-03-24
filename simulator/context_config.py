@@ -130,7 +130,7 @@ class Contex_Config():
         ax.legend()
         ax.set_title('Live energy consumption')
         ax.set_xlabel('Time [s]')
-        ax.set_ylabel('Number of cells')
+        ax.set_ylabel('Power consumption (Watts)')
 
         # 3
         fig_throughput, ax = plt.subplots()
@@ -145,7 +145,7 @@ class Contex_Config():
 
         # 3, filtered one
         #SMA_WINDOW = input_parameters['SMA_WINDOW']
-        SMA_WINDOW = 5
+        SMA_WINDOW = 5  # TODO: Ask Javier
         timeIndex = len(sim_times)
         fig_throughput_smooth, ax = plt.subplots()
         self.list_figures.append((fig_throughput_smooth, "throughput_smooth"))
