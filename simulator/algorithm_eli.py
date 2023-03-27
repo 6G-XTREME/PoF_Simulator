@@ -1,20 +1,23 @@
 import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-import time
+import time, random
 
 from simulator.launch import logger
 from simulator.context_config import Contex_Config
 import simulator.map_utils, simulator.mobility_utils, simulator.user_association_utils, simulator.radio_utils
 
 class PoF_simulation_ELi(Contex_Config):
-    user_report_position: int       # TimeStep between user new position report
-    user_closest_bs: np.array       # To Save previous closestBS
-    startup_max_tokens: int         # Max tokens to count down to BS count as active
-    poweroff_max_tokens: int        # TimeSteps to poweroff a cell
+    user_report_position: int                   # TimeStep between user new position report
+    user_report_position_next_time: np.array    # Next TimeStep to report position (with random)
+    user_closest_bs: np.array                   # To Save previous closestBS
+    startup_max_tokens: int                     # Max tokens to count down to BS count as active
+    poweroff_max_tokens: int                    # TimeSteps to poweroff a cell
     
     starting_up_femto: np.array     # Save the token state
     started_up_femto: np.array      # Array of FemtoCell ON
+    
+    # todo add units
     
     # Traffic Vars
     X_macro: np.array
@@ -30,6 +33,9 @@ class PoF_simulation_ELi(Contex_Config):
     output_throughput_only_macro: np.array
     
     def __init__(self, sim_times, basestation_data: dict, user_data: dict, battery_data: dict, transmit_power_data: dict, elighthouse_parameters: dict) -> None:
+        # Set seed for random
+        random.seed(150)
+        
         try:
             # Number of timeSlots that user should wait to re-send the position
             if elighthouse_parameters['user_report_position'] > 0 and elighthouse_parameters['user_report_position'] < 20:
@@ -63,6 +69,7 @@ class PoF_simulation_ELi(Contex_Config):
         self.active_Cells = [[] for _ in range(len(sim_times))]
         self.overflown_from = [[] for _ in range(len(sim_times))]
         
+        self.user_report_position_next_time = [self.user_report_position for _ in range(len(self.NUsers))]
         self.user_closest_bs = np.zeros((len(sim_times), len(self.NUsers)))
         self.starting_up_femto = np.zeros(self.NMacroCells + self.NFemtoCells)
         self.started_up_femto = []
@@ -144,9 +151,10 @@ class PoF_simulation_ELi(Contex_Config):
             self.user_pos_plot[userIndex][0].set_data([self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]])
 
             # Search serving base station
-            if ((timeIndex % self.user_report_position) == 0):
+            if (timeIndex == 0 or timeIndex == self.user_report_position_next_time[userIndex]):
                 # New Position Report
                 closestBSDownlink = simulator.map_utils.search_closest_bs([self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]], self.Regions)
+                self.user_report_position_next_time[userIndex] += random.randint(1, self.user_report_position+1)
             else:
                 # Use previous position know
                 closestBSDownlink = int(self.user_closest_bs[timeIndex-1][userIndex])
