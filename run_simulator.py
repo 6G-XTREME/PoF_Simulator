@@ -9,17 +9,17 @@ logging.basicConfig(format='%(asctime)s %(levelname)s:%(module)s:%(funcName)s: %
 if __name__ == "__main__":
     logging.info("Configuring input_parameters & config_simulator...")
     simulator_input = INPUT_PARAMETERS.copy()   # Retrieve the default input parameters
-    #simulator_input['Simulation_Time'] = 5*60
+    #simulator_input['Simulation_Time'] = 60*60
     #simulator_input['Users'] = 50
     
     simulator_config = CONFIG_PARAMETERS.copy() # Retrieve the default config of the simulator
     simulator_config['use_user_list'] = True    # For validate MATLAB output. Always the same execution. Fixed Simulation Time
-    #simulator_config['speed_live_plots'] = 0.001
+    simulator_config['speed_live_plots'] = 0.001
     simulator_config['save_output'] = False      # Save the run output on output folder
     simulator_config['show_plots'] = True       # Show output plots
     simulator_config['use_nice_setup'] = True
     #simulator_config['output_folder'] = 'parametric_users'
-    simulator_config['algorithm'] = "eli"
+    simulator_config['algorithm'] = "elighthouse"
     
     # Custom Parameters E-Lighthouse
     custom_config = {}

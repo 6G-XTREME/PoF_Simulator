@@ -587,7 +587,6 @@ class PoF_simulation_ELi(Contex_Config):
             #battery_charging.append(count_3 + count_1)
             battery_charging.append(count_2)
             
-            
         fig_battery_charging, ax = plt.subplots()
         self.list_figures.append((fig_battery_charging, "discharging-cells"))    # In Order to save the figure on output folder
         ax.plot(sim_times, battery_charging, label="Discharging Cells")
@@ -595,6 +594,17 @@ class PoF_simulation_ELi(Contex_Config):
         ax.set_title("Discharging Battery Cells")
         ax.set_xlabel('Time [s]')
         ax.set_ylabel('Number of cells')
+        
+        # Battery capacity
+        fig_batt_capacity, ax = plt.subplots()
+        self.list_figures.append((fig_batt_capacity, "batt-capacity")) 
+        ax.axhline(y=3300, color='r',label="Max. capacity")
+        for bar in range(0, len(self.battery_vector[0])):
+            ax.bar(bar, self.battery_vector[0][bar]*1000)
+        ax.legend()
+        ax.set_title("Battery Capacity")
+        ax.set_xlabel("Femto cell number")
+        ax.set_ylabel("Capacity [mAh]")
         
         # New Figures
         ## Throughput

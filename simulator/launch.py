@@ -324,9 +324,9 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
                           sim_times=sim_times, 
                           run_name=run_name, 
                           output_folder=config_parameters['output_folder'])
-    elif config_parameters['algorithm'].lower() == 'eli':
+    elif config_parameters['algorithm'].lower() == 'elighthouse':
         logger.info("Using E-Lighthouse algorithm...")
-        from simulator.algorithm_eli import PoF_simulation_ELi
+        from simulator.algorithm_elighthouse import PoF_simulation_ELi
         
         eli = PoF_simulation_ELi(sim_times=sim_times,
                                 basestation_data=basestation_dict,
