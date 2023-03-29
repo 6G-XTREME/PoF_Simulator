@@ -299,7 +299,8 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
                              speed_plot=config_parameters['speed_live_plots'])
         
         eli.plot_output(sim_times=sim_times,
-                         show_plots=config_parameters['show_plots'])
+                         show_plots=config_parameters['show_plots'],
+                         timeStep=timeStep)
 
         if config_parameters['save_output']:
             eli.save_run(fig_map=fig_map, 

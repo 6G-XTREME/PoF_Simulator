@@ -17,6 +17,11 @@ class PoF_simulation_ELighthouse(Contex_Config):
     starting_up_femto: np.array     # Save the token state
     started_up_femto: np.array      # Array of FemtoCell ON
     
+    is_in_femto: np.array                   # Save if user is in femto area, served or not
+    timeIndex_first_battery_dead: int       
+    dead_batteries: list                    # Save the batteries that already died
+    timeIndex_last_battery_dead: int
+    
     # Traffic Vars
     X_macro_bps: np.array
     X_macro_only_bps: np.array
@@ -71,6 +76,11 @@ class PoF_simulation_ELighthouse(Contex_Config):
         self.user_closest_bs = np.zeros((len(sim_times), len(self.NUsers)))
         self.starting_up_femto = np.zeros(self.NMacroCells + self.NFemtoCells)
         self.started_up_femto = []
+        
+        self.is_in_femto = np.zeros((len(self.NUsers), len(sim_times)), dtype=int)
+        self.timeIndex_first_battery_dead = 0
+        self.dead_batteries = []
+        self.timeIndex_last_battery_dead = 0
         
         # Traffic global vars
         self.X_macro_bps = np.zeros((len(sim_times), self.NMacroCells))
@@ -178,6 +188,7 @@ class PoF_simulation_ELighthouse(Contex_Config):
                                 self.battery_state[timeIndex][closestBSDownlink] = 2.0  # Discharge battery.
                             # Check if already booted
                             elif closestBSDownlink in self.started_up_femto:
+                                # Yes! Femto is booted
                                 X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
                                 Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
                             
@@ -194,6 +205,7 @@ class PoF_simulation_ELighthouse(Contex_Config):
                             
                                 self.overflown_from[timeIndex][closestBSDownlink] += 1
 
+                                self.is_in_femto[userIndex][timeIndex] = 1              # User is associated with femto
                                 self.active_Cells[timeIndex][closestBSDownlink] = 0     # This cell does not count for the overall PoF power budget.
                                 self.battery_state[timeIndex][closestBSDownlink] = 2.0  # Discharge battery.
                                 # However, draw from Femtocell's battery.
@@ -220,7 +232,8 @@ class PoF_simulation_ELighthouse(Contex_Config):
                             self.user_association_line[userIndex].set_linestyle('--')
                             self.user_association_line[userIndex].set_linewidth(0.5)
                         
-                            self.association_vector[0, userIndex] = closest_Macro # Associate.
+                            self.association_vector[0, userIndex] = closest_Macro   # Associate.
+                            self.is_in_femto[userIndex][timeIndex] = 2              # In Femto area, but associate with macro
                             self.active_Cells[timeIndex][closest_Macro] = 1 
                             self.baseStation_users[timeIndex][closest_Macro] += 1
                         else:
@@ -238,6 +251,7 @@ class PoF_simulation_ELighthouse(Contex_Config):
                             self.user_association_line[userIndex].set_linewidth(2)
 
                             self.association_vector[0, userIndex] = closest_Macro # Associate.
+                            self.is_in_femto[userIndex][timeIndex] = 2              # In Femto area, but associate with macro
                             self.active_Cells[timeIndex][closest_Macro] = 1 
                             self.baseStation_users[timeIndex][closest_Macro] += 1
                     else:
@@ -260,6 +274,7 @@ class PoF_simulation_ELighthouse(Contex_Config):
 
                             self.association_vector[0, userIndex] = closestBSDownlink       # Associate.
                             self.association_vector_overflow_alternative[0, userIndex] = 0  # I can use PoF. Having batteries makes no difference in this case. Alternative is not needed.
+                            self.is_in_femto[userIndex][timeIndex] = 1                      # User is associated with femto
                             self.active_Cells[timeIndex][closestBSDownlink] = 1             # This cell counts for the PoF budget.
                             self.battery_state[timeIndex][closestBSDownlink] = 0.0          # No battery usage.
                             self.baseStation_users[timeIndex][closestBSDownlink] += 1       # Add user.
@@ -284,14 +299,16 @@ class PoF_simulation_ELighthouse(Contex_Config):
                         self.user_association_line[userIndex].set_linestyle('--')
                         self.user_association_line[userIndex].set_linewidth(0.5)
                         
-                        self.association_vector[0, userIndex] = closest_Macro # Associate.
+                        self.association_vector[0, userIndex] = closest_Macro   # Associate.
+                        self.is_in_femto[userIndex][timeIndex] = 2              # In Femto area, but associate with macro
                         self.active_Cells[timeIndex][closest_Macro] = 1 
                         self.baseStation_users[timeIndex][closest_Macro] += 1
 
                 else: # Already ON, associate to the femtocell, just add one user.
                     # Check if femto cell is booting up... (token bucket its zero if already booted)
                     if self.starting_up_femto[closestBSDownlink] == 0:
-                        self.association_vector[0, userIndex] = closestBSDownlink # Associate.
+                        self.association_vector[0, userIndex] = closestBSDownlink   # Associate.
+                        self.is_in_femto[userIndex][timeIndex] = 1                  # User in Femto area and associated with that cell
 
                         if self.battery_state[timeIndex][closestBSDownlink] == 2.0: # Is Discharging
                             # If we had no batteries, this user would have been gone to the closest macrocell. 
@@ -334,7 +351,8 @@ class PoF_simulation_ELighthouse(Contex_Config):
                         self.user_association_line[userIndex].set_linestyle('--')
                         self.user_association_line[userIndex].set_linewidth(0.5)
                         
-                        self.association_vector[0, userIndex] = closest_Macro # Associate.
+                        self.association_vector[0, userIndex] = closest_Macro   # Associate.
+                        self.is_in_femto[userIndex][timeIndex] = 2              # User in femto area, but not associated
                         self.active_Cells[timeIndex][closest_Macro] = 1 
                         self.baseStation_users[timeIndex][closest_Macro] += 1
 
@@ -349,8 +367,8 @@ class PoF_simulation_ELighthouse(Contex_Config):
 
                 self.association_vector[0, userIndex] = closestBSDownlink # Associate.
                 self.association_vector_overflow_alternative[0, userIndex] = 0                
-                self.active_Cells[timeIndex][closestBSDownlink] = 1
-                self.baseStation_users[timeIndex][closestBSDownlink] += 1 # Add user.
+                self.active_Cells[timeIndex][closestBSDownlink] = 0         # User not in area of femtocell
+                self.baseStation_users[timeIndex][closestBSDownlink] += 1   # Add user.
          
         # End user allocation in timeIndex instance 
         
@@ -444,7 +462,20 @@ class PoF_simulation_ELighthouse(Contex_Config):
                     # Last step of the simulation...
                     pass
         self.battery_mean_values[timeIndex] = np.mean(self.battery_vector[0])
-            
+        
+        # Check if battery is dead [Only femtocells]
+        for batt in range(self.NMacroCells, len(self.battery_vector[0])):
+            battery_capacity = round(self.battery_vector[0][batt], 2)
+            if battery_capacity == 0:
+                if self.timeIndex_first_battery_dead == 0:
+                    # First battery dead
+                    self.timeIndex_first_battery_dead = timeIndex
+                    self.dead_batteries.append(batt)
+                else:
+                    # Already found the first battery_dead
+                    if not batt in self.dead_batteries:
+                        self.timeIndex_last_battery_dead = timeIndex
+                        self.dead_batteries.append(batt)
             
     def calculate_traffic(self, userIndex, timeIndex):
         """ Throughput WITH batteries given an User and timeIndex
@@ -555,13 +586,30 @@ class PoF_simulation_ELighthouse(Contex_Config):
         self.X_macro_only_bps[timeIndex][cl] += X
         return X
     
-    def plot_output(self, sim_times, show_plots: bool = True):
+    def plot_output(self, sim_times, timeStep, show_plots: bool = True):
         """ Override Show Plot Output
 
         Args:
             sim_times (_type_): _description_
             show_plots (bool, optional): _description_. Defaults to True.
         """
+        # Battery dead
+        if self.timeIndex_first_battery_dead != 0:
+            # First
+            print(f"First Battery dead at timeIndex: {self.timeIndex_first_battery_dead} ({(self.timeIndex_first_battery_dead*timeStep)/60} min)")
+            # Last
+            print(f"Last Battery dead at timeIndex: {self.timeIndex_last_battery_dead} ({(self.timeIndex_last_battery_dead*timeStep)/60} min)")
+        
+        # TODO: What user? Aggregated? Mean? Ask Javier
+        # Print % time in femto area for X user
+        user = 2 
+        # Served
+        per_served_associated =  round((np.count_nonzero(self.is_in_femto[user] == 1) / len(self.is_in_femto[user])) * 100, 3)
+        print(f"Porcentaje de tiempo en el area de una femto y asociado a ella: {per_served_associated}")
+        time_in_femto =  round(((np.count_nonzero(self.is_in_femto[user] == 1) + np.count_nonzero(self.is_in_femto[user] == 2))  / len(self.is_in_femto[user])) * 100, 3)
+        print(f"Porcentaje de tiempo dentro del area de la femto: {time_in_femto}")
+        print(f"Porcentaje de tiempo dentro del area de la femto pero asociado a una macro: {time_in_femto - per_served_associated}")
+        
         # User Traffic
         fig_user_traffic, ax = plt.subplots()
         self.list_figures.append((fig_user_traffic, "user-traffic"))    # In Order to save the figure on output folder

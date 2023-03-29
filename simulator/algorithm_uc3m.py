@@ -263,7 +263,7 @@ class PoF_simulation_UC3M(Contex_Config):
         # Decide about battery recharging
             if self.live_smallcell_consumption[timeIndex] < self.max_energy_consumption:
                 available = self.max_energy_consumption - self.live_smallcell_consumption[timeIndex]
-                I = np.argmin(self.battery_vector[0])    # TODO: why only one battery decision per timeStep?
+                I = np.argmin(self.battery_vector[0])    
                 if self.battery_vector[0][I] < self.battery_capacity:
                     charging_intensity = available / np.mean(self.small_cell_voltage_range)
                     self.battery_vector[0][I] = min(self.battery_vector[0][I] + charging_intensity * (timeStep/3600), self.battery_capacity)
