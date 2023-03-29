@@ -11,6 +11,53 @@ from math import pi, sqrt
 from simulator.bcolors import bcolors
 from simulator.polygon_cut import polyclip
 from shapely.geometry import Point, GeometryCollection, MultiPolygon, Polygon
+import matplotlib.pyplot as plt
+from matplotlib.patches import Polygon as MplPolygon
+
+def create_regions(Npoints, BaseStations, ax, alpha_loss, config_parameters):
+    _WholeRegion = Polygon([(0,0), (0,1000), (1000,1000),(1000, 0), (0,0)])
+    _UnsoldRegion = _WholeRegion
+    Regions = {}
+        
+    for k in range(Npoints-1,-1,-1):
+        _Region = _UnsoldRegion
+        for j in range(0,Npoints):
+            if (j<k):
+                if(BaseStations[k,2] != BaseStations[j,2]):
+                    _resp = apollonius_circle_path_loss(BaseStations[k][:2], BaseStations[j][:2], BaseStations[k][2], BaseStations[j][2], alpha_loss)
+                    _Circ = get_circle(_resp)
+
+                    _Reg2 = Polygon(_Circ)
+                    if not _Reg2.is_valid:
+                        _Reg2 = _Reg2.buffer(0)
+                    _Region = _Region.intersection(_Reg2)
+                else:
+                    _R = get_dominance_area(BaseStations[k][:2], BaseStations[j][:2])
+                    _Region = _Region.intersection(_R)
+
+            Regions[k] = _Region
+            
+        if isinstance(_Region, GeometryCollection):
+            for geom in _Region.geoms:
+                if isinstance(geom, Polygon):
+                    _polygon = MplPolygon(geom.exterior.coords, facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
+                    ax.add_patch(_polygon)
+                    
+        elif isinstance(_Region, MultiPolygon):
+            col = np.random.rand(3)
+            for _Reg in _Region.geoms:
+                _polygon = MplPolygon(_Reg.exterior.coords, facecolor=col, alpha=0.5, edgecolor=None)
+                ax.add_patch(_polygon)
+        else:
+            _polygon = MplPolygon(_Region.exterior.coords, facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
+            ax.add_patch(_polygon)
+            
+        _UnsoldRegion = _UnsoldRegion.difference(_Region)
+
+        # Slow down for the viewer
+        if config_parameters['show_plots']:
+            plt.pause(config_parameters['speed_live_plots'])       
+    return Regions
 
 def apollonius_circle_path_loss (P1, P2, w1, w2, alpha):
     try:
@@ -68,9 +115,6 @@ def get_dominance_area(P1, P2):
         # _a = _c[:,0]
         # _b = _c[:,1]
         return _polygon
-    
-    return _a, _b
-
 
 def get_euclidean_distance(X, Y):
     return sqrt((X[0]-Y[0])**2 + (X[1]-Y[1])**2)
@@ -78,7 +122,6 @@ def get_euclidean_distance(X, Y):
 def perpendicular_bisector(P1, P2):
     _xmed = (P1[0] + P2[0])/2
     _ymed = (P1[1] + P2[1])/2
-    _med = (_xmed, _ymed)
 
     _a = -1/((P2[1] - P1[1])/(P2[0] - P1[0]))
     _b = _ymed - (_a*_xmed)

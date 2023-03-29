@@ -5,8 +5,6 @@ __maintainer__ = "Jose-Manuel Martinez-Caro"
 __email__ = "jmmartinez@e-lighthouse.com"
 __status__ = "Working on"
 
-from shapely.geometry import Polygon, GeometryCollection, MultiPolygon
-from matplotlib.patches import Polygon as MplPolygon
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.io, uuid, logging
@@ -169,54 +167,13 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
         logger.error(bcolors.FAIL + 'Error importing the printing the BSs' + bcolors.ENDC)
         logger.error(e)
 
-    # Setup Regions!
     try:
-        _WholeRegion = Polygon([(0,0), (0,1000), (1000,1000),(1000, 0), (0,0)])
-        _UnsoldRegion = _WholeRegion
-        Regions = {}
-        
-        for k in range(Npoints-1,-1,-1):
-            logger.debug('-- k: ' + str(k))
-            _Region = _UnsoldRegion
-            for j in range(0,Npoints):
-                if (j<k):
-
-                    if(BaseStations[k,2] != BaseStations[j,2]):
-                        _resp = simulator.map_utils.apollonius_circle_path_loss(BaseStations[k][:2], BaseStations[j][:2], BaseStations[k][2], BaseStations[j][2], alpha_loss)
-                        _Circ = simulator.map_utils.get_circle(_resp)
-
-                        _Reg2 = Polygon(_Circ)
-                        if not _Reg2.is_valid:
-                            _Reg2 = _Reg2.buffer(0)
-                        _Region = _Region.intersection(_Reg2)
-                    else:
-                        _R = simulator.map_utils.get_dominance_area(BaseStations[k][:2], BaseStations[j][:2])
-                        _Region = _Region.intersection(_R)
-
-            Regions[k] = _Region
-            
-            if isinstance(_Region, GeometryCollection):
-                for geom in _Region.geoms:
-                    if isinstance(geom, Polygon):
-                        _polygon = MplPolygon(geom.exterior.coords, facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
-                        ax.add_patch(_polygon)
-            elif isinstance(_Region, MultiPolygon):
-                col = np.random.rand(3)
-                logger.debug('MultiPolygon here!')
-                for _Reg in _Region.geoms:
-                    _polygon = MplPolygon(_Reg.exterior.coords, facecolor=col, alpha=0.5, edgecolor=None)
-                    ax.add_patch(_polygon)
-
-            else:
-                _polygon = MplPolygon(_Region.exterior.coords, facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
-                ax.add_patch(_polygon)
-
-            _UnsoldRegion = _UnsoldRegion.difference(_Region)
-            
-
-            # Slow down for the viewer
-            if config_parameters['show_plots']:
-                plt.pause(config_parameters['speed_live_plots'])    
+        # Setup Regions!
+        Regions = simulator.map_utils.create_regions(Npoints=Npoints, 
+                                                     BaseStations=BaseStations, 
+                                                     ax=ax, 
+                                                     alpha_loss=alpha_loss, 
+                                                     config_parameters=config_parameters)
    
         basestation_dict = {
             'BaseStations': BaseStations,
@@ -326,14 +283,14 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
                           output_folder=config_parameters['output_folder'])
     elif config_parameters['algorithm'].lower() == 'elighthouse':
         logger.info("Using E-Lighthouse algorithm...")
-        from simulator.algorithm_elighthouse import PoF_simulation_ELi
+        from simulator.algorithm_elighthouse import PoF_simulation_ELighthouse
         
-        eli = PoF_simulation_ELi(sim_times=sim_times,
-                                basestation_data=basestation_dict,
-                                user_data=user_dict,
-                                battery_data=battery_dict,
-                                transmit_power_data=transmit_power_dict,
-                                elighthouse_parameters=custom_parameters)
+        eli = PoF_simulation_ELighthouse(sim_times=sim_times,
+                                        basestation_data=basestation_dict,
+                                        user_data=user_dict,
+                                        battery_data=battery_dict,
+                                        transmit_power_data=transmit_power_dict,
+                                        elighthouse_parameters=custom_parameters)
         
         eli.start_simulation(sim_times=sim_times, 
                              timeStep=timeStep,

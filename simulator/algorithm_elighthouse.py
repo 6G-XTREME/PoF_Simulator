@@ -7,7 +7,7 @@ from simulator.launch import logger
 from simulator.context_config import Contex_Config
 import simulator.map_utils, simulator.mobility_utils, simulator.user_association_utils, simulator.radio_utils
 
-class PoF_simulation_ELi(Contex_Config):
+class PoF_simulation_ELighthouse(Contex_Config):
     user_report_position: int                   # TimeStep between user new position report
     user_report_position_next_time: np.array    # Next TimeStep to report position (with random)
     user_closest_bs: np.array                   # To Save previous closestBS
@@ -17,16 +17,14 @@ class PoF_simulation_ELi(Contex_Config):
     starting_up_femto: np.array     # Save the token state
     started_up_femto: np.array      # Array of FemtoCell ON
     
-    # todo add units
-    
     # Traffic Vars
-    X_macro: np.array
-    X_macro_only: np.array
-    X_macro_no_batt: np.array
-    X_macro_overflow: np.array
-    X_femto: np.array
-    X_femto_no_batt: np.array
-    X_user : np.array
+    X_macro_bps: np.array
+    X_macro_only_bps: np.array
+    X_macro_no_batt_bps: np.array
+    X_macro_overflow_bps: np.array
+    X_femto_bps: np.array
+    X_femto_no_batt_bps: np.array
+    X_user_bps: np.array
     
     output_throughput: np.array
     output_throughput_no_batt: np.array
@@ -75,12 +73,12 @@ class PoF_simulation_ELi(Contex_Config):
         self.started_up_femto = []
         
         # Traffic global vars
-        self.X_macro = np.zeros((len(sim_times), self.NMacroCells))
-        self.X_macro_only = np.zeros((len(sim_times), self.NMacroCells))
-        self.X_macro_no_batt = np.zeros((len(sim_times), self.NMacroCells))
-        self.X_macro_overflow = np.zeros((len(sim_times), self.NMacroCells))
-        self.X_femto = np.zeros((len(sim_times), self.NMacroCells+self.NFemtoCells))
-        self.X_femto_no_batt = np.zeros((len(sim_times), self.NMacroCells+self.NFemtoCells))
+        self.X_macro_bps = np.zeros((len(sim_times), self.NMacroCells))
+        self.X_macro_only_bps = np.zeros((len(sim_times), self.NMacroCells))
+        self.X_macro_no_batt_bps = np.zeros((len(sim_times), self.NMacroCells))
+        self.X_macro_overflow_bps = np.zeros((len(sim_times), self.NMacroCells))
+        self.X_femto_bps = np.zeros((len(sim_times), self.NMacroCells+self.NFemtoCells))
+        self.X_femto_no_batt_bps = np.zeros((len(sim_times), self.NMacroCells+self.NFemtoCells))
         
         # Three metrics to save: 
         # 0. Global system with batteries
@@ -154,7 +152,7 @@ class PoF_simulation_ELi(Contex_Config):
             if (timeIndex == 0 or timeIndex == self.user_report_position_next_time[userIndex]):
                 # New Position Report
                 closestBSDownlink = simulator.map_utils.search_closest_bs([self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]], self.Regions)
-                self.user_report_position_next_time[userIndex] += random.randint(1, self.user_report_position+1)
+                if (timeIndex != 0): self.user_report_position_next_time[userIndex] += random.randint(1, self.user_report_position+1)
             else:
                 # Use previous position know
                 closestBSDownlink = int(self.user_closest_bs[timeIndex-1][userIndex])
@@ -166,7 +164,7 @@ class PoF_simulation_ELi(Contex_Config):
                 if self.baseStation_users[timeIndex][closestBSDownlink] == 0: # If inactive
                     # Can I turn it on with PoF?
                     active_femto = np.sum(self.active_Cells[timeIndex][self.NMacroCells:])
-                    battery_femto = np.count_nonzero(self.battery_state[timeIndex][self.NMacroCells:] == 2.0)   # TODO: Ask Javier
+                    battery_femto = np.count_nonzero(self.battery_state[timeIndex][self.NMacroCells:] == 2.0)   # Battery Cells doesnt count for current_watts budget
                     current_watts = (active_femto * self.small_cell_consumption_ON) + ((self.NFemtoCells - (active_femto + battery_femto)) * self.small_cell_consumption_SLEEP)
                     if current_watts >= (self.max_energy_consumption - self.small_cell_consumption_ON + self.small_cell_consumption_SLEEP): # No, I cannot. Check battery.
 
@@ -408,16 +406,16 @@ class PoF_simulation_ELi(Contex_Config):
             + (self.NFemtoCells - self.live_smallcell_occupancy[timeIndex]) * self.small_cell_consumption_SLEEP)
 
         # Update system throughput
-        self.output_throughput[0][timeIndex] = np.sum(self.X_macro[timeIndex])
-        self.output_throughput[1][timeIndex] = np.sum(self.X_femto[timeIndex])
-        self.output_throughput_no_batt[0][timeIndex] = np.sum(self.X_macro_no_batt[timeIndex])
-        self.output_throughput_no_batt[1][timeIndex] = np.sum(self.X_femto_no_batt[timeIndex])
-        self.output_throughput_no_batt[2][timeIndex] = np.sum(self.X_macro_overflow[timeIndex])
-        self.output_throughput_only_macro[timeIndex] = np.sum(self.X_macro_only[timeIndex])
+        self.output_throughput[0][timeIndex] = np.sum(self.X_macro_bps[timeIndex])
+        self.output_throughput[1][timeIndex] = np.sum(self.X_femto_bps[timeIndex])
+        self.output_throughput_no_batt[0][timeIndex] = np.sum(self.X_macro_no_batt_bps[timeIndex])
+        self.output_throughput_no_batt[1][timeIndex] = np.sum(self.X_femto_no_batt_bps[timeIndex])
+        self.output_throughput_no_batt[2][timeIndex] = np.sum(self.X_macro_overflow_bps[timeIndex])
+        self.output_throughput_only_macro[timeIndex] = np.sum(self.X_macro_only_bps[timeIndex])
         
-        self.live_throughput[timeIndex] = np.sum(self.X_macro[timeIndex]) + np.sum(self.X_femto[timeIndex])
-        self.live_throughput_NO_BATTERY[timeIndex] = np.sum(self.X_macro_no_batt[timeIndex]) + np.sum(self.X_femto_no_batt[timeIndex]) + np.sum(self.X_macro_overflow[timeIndex]) 
-        self.live_throughput_only_Macros[timeIndex] = np.sum(self.X_macro_only[timeIndex])
+        self.live_throughput[timeIndex] = np.sum(self.X_macro_bps[timeIndex]) + np.sum(self.X_femto_bps[timeIndex])
+        self.live_throughput_NO_BATTERY[timeIndex] = np.sum(self.X_macro_no_batt_bps[timeIndex]) + np.sum(self.X_femto_no_batt_bps[timeIndex]) + np.sum(self.X_macro_overflow_bps[timeIndex]) 
+        self.live_throughput_only_Macros[timeIndex] = np.sum(self.X_macro_only_bps[timeIndex])
         return
 
 
@@ -432,7 +430,7 @@ class PoF_simulation_ELi(Contex_Config):
         if self.live_smallcell_consumption[timeIndex] < self.max_energy_consumption:
             # Asign available energy to charge a cell battery
             available = self.max_energy_consumption - self.live_smallcell_consumption[timeIndex]
-            I = np.argmin(self.battery_vector[0])    # TODO: why only one battery decision per timeStep?
+            I = np.argmin(self.battery_vector[0])    # One decision for eachTimeStep -> Because we can concentrate the laser power
             if self.battery_vector[0][I] < self.battery_capacity:
                 charging_intensity = available / np.mean(self.small_cell_voltage_range)
                 self.battery_vector[0][I] = min(self.battery_vector[0][I] + charging_intensity * (timeStep/3600), self.battery_capacity)
@@ -470,11 +468,11 @@ class PoF_simulation_ELi(Contex_Config):
         if associated_station < self.NMacroCells:
             BW = self.MacroCellDownlinkBW
             X = (BW/self.baseStation_users[timeIndex][associated_station]) * np.log2(1 + naturalDL)
-            self.X_macro[timeIndex][associated_station] += X
+            self.X_macro_bps[timeIndex][associated_station] += X
         else:
             BW = self.FemtoCellDownlinkBW
             X = (BW/self.baseStation_users[timeIndex][associated_station]) * np.log2(1 + naturalDL)
-            self.X_femto[timeIndex][associated_station] += X
+            self.X_femto_bps[timeIndex][associated_station] += X
         return X
 
 
@@ -505,13 +503,13 @@ class PoF_simulation_ELi(Contex_Config):
                 BW = self.MacroCellDownlinkBW
                 X = (BW / (self.baseStation_users[timeIndex][associated_station] + \
                         np.sum(self.association_vector_overflow_alternative == associated_station_overflow))) * np.log2(1 + naturalDL)
-                self.X_macro_no_batt[timeIndex][associated_station] += X
+                self.X_macro_no_batt_bps[timeIndex][associated_station] += X
             else:
                 BW = self.FemtoCellDownlinkBW
                 # Must '+' to avoid divide by zero, in MATLAB is '-'
                 X = (BW/(self.baseStation_users[timeIndex][associated_station] + \
                         self.overflown_from[timeIndex][associated_station])) * np.log2(1+naturalDL)
-                self.X_femto_no_batt[timeIndex][associated_station] += X
+                self.X_femto_no_batt_bps[timeIndex][associated_station] += X
         else:
             SINRDLink = simulator.radio_utils.compute_sinr_dl([self.user_list[userIndex]["v_x"][timeIndex],
                                                                self.user_list[userIndex]["v_y"][timeIndex]],
@@ -526,7 +524,7 @@ class PoF_simulation_ELi(Contex_Config):
             BW = self.MacroCellDownlinkBW
             X = (BW/(self.baseStation_users[timeIndex][int(associated_station_overflow)] + \
                     np.sum(self.association_vector_overflow_alternative[0] == associated_station_overflow))) * np.log2(1+naturalDL)
-            self.X_macro_overflow[timeIndex][associated_station_overflow] += X
+            self.X_macro_overflow_bps[timeIndex][associated_station_overflow] += X
         return X
 
 
@@ -554,7 +552,7 @@ class PoF_simulation_ELi(Contex_Config):
         naturalDL = 10**(SINRDLink/10)
         BW = self.MacroCellDownlinkBW
         X = (BW / self.temporal_association_vector[cl]) * np.log2(1 + naturalDL)
-        self.X_macro_only[timeIndex][cl] += X
+        self.X_macro_only_bps[timeIndex][cl] += X
         return X
     
     def plot_output(self, sim_times, show_plots: bool = True):
@@ -600,7 +598,8 @@ class PoF_simulation_ELi(Contex_Config):
         self.list_figures.append((fig_batt_capacity, "batt-capacity")) 
         ax.axhline(y=3300, color='r',label="Max. capacity")
         for bar in range(0, len(self.battery_vector[0])):
-            ax.bar(bar, self.battery_vector[0][bar]*1000)
+            if bar >= self.NMacroCells:
+                ax.bar(int(bar), self.battery_vector[0][bar]*1000)
         ax.legend()
         ax.set_title("Battery Capacity")
         ax.set_xlabel("Femto cell number")
@@ -610,9 +609,9 @@ class PoF_simulation_ELi(Contex_Config):
         ## Throughput
         fig_throughput, ax = plt.subplots()
         self.list_figures.append((fig_throughput, 'output-throughput'))
-        ax.plot(sim_times, self.output_throughput[0], label="Macro Cells")
-        ax.plot(sim_times, self.output_throughput[1], label="Femto Cells")
-        ax.plot(sim_times, self.live_throughput, label="Total")
+        ax.plot(sim_times, self.output_throughput[0]/10e6, label="Macro Cells")
+        ax.plot(sim_times, self.output_throughput[1]/10e6, label="Femto Cells")
+        ax.plot(sim_times, self.live_throughput/10e6, label="Total")
         ax.legend()
         ax.set_title("Throughput Downlink. System with batteries")
         ax.set_xlabel("Time [s]")
@@ -621,10 +620,10 @@ class PoF_simulation_ELi(Contex_Config):
         ## Throughput no battery
         fig_throughput_no_batt, ax = plt.subplots()
         self.list_figures.append((fig_throughput_no_batt, 'output-throughput-no-batt'))
-        ax.plot(sim_times, self.output_throughput_no_batt[0], label="Macro Cells")
-        ax.plot(sim_times, self.output_throughput_no_batt[1], label="Femto Cells")
-        ax.plot(sim_times, self.output_throughput_no_batt[2], label="Femto Cells overflow")
-        ax.plot(sim_times, self.live_throughput_NO_BATTERY, label="Total")
+        ax.plot(sim_times, self.output_throughput_no_batt[0]/10e6, label="Macro Cells")
+        ax.plot(sim_times, self.output_throughput_no_batt[1]/10e6, label="Femto Cells")
+        ax.plot(sim_times, self.output_throughput_no_batt[2]/10e6, label="Femto Cells overflow")
+        ax.plot(sim_times, self.live_throughput_NO_BATTERY/10e6, label="Total")
         ax.legend()
         ax.set_title("Throughput Downlink. System without batteries")
         ax.set_xlabel("Time [s]")
@@ -633,7 +632,7 @@ class PoF_simulation_ELi(Contex_Config):
         ## Only Macro
         fig_throughput_only_macro, ax = plt.subplots()
         self.list_figures.append((fig_throughput_only_macro, 'output-throughput-only-macro'))
-        ax.plot(sim_times, self.output_throughput_only_macro, label="Macro Cells")
+        ax.plot(sim_times, self.output_throughput_only_macro/10e6, label="Macro Cells")
         ax.legend()
         ax.set_title("Throughput Downlink. System with only Macro Cells")
         ax.set_xlabel("Time [s]")
