@@ -599,16 +599,32 @@ class PoF_simulation_ELighthouse(Contex_Config):
             print(f"First Battery dead at timeIndex: {self.timeIndex_first_battery_dead} ({(self.timeIndex_first_battery_dead*timeStep)/60} min)")
             # Last
             print(f"Last Battery dead at timeIndex: {self.timeIndex_last_battery_dead} ({(self.timeIndex_last_battery_dead*timeStep)/60} min)")
+            # Count Remaining battery
+            remaining_batt = np.count_nonzero(np.round(self.battery_vector[0])) - self.NMacroCells
+            print(f"Remaining batteries {remaining_batt} of {len(self.battery_vector[0]) - self.NMacroCells}.")
         
-        # TODO: What user? Aggregated? Mean? Ask Javier
-        # Print % time in femto area for X user
-        user = 2 
-        # Served
-        per_served_associated =  round((np.count_nonzero(self.is_in_femto[user] == 1) / len(self.is_in_femto[user])) * 100, 3)
-        print(f"Porcentaje de tiempo en el area de una femto y asociado a ella: {per_served_associated}")
-        time_in_femto =  round(((np.count_nonzero(self.is_in_femto[user] == 1) + np.count_nonzero(self.is_in_femto[user] == 2))  / len(self.is_in_femto[user])) * 100, 3)
-        print(f"Porcentaje de tiempo dentro del area de la femto: {time_in_femto}")
-        print(f"Porcentaje de tiempo dentro del area de la femto pero asociado a una macro: {time_in_femto - per_served_associated}")
+        # Compute %'s
+        # self.is_in_femto -> 1 == associated with femto, -> 2 == associated with macro, -> 0 == no on femto area
+        sum_served_femto = 0    # % that a user is in femto area, and its associated
+        sum_in_area = 0         # % that a user is in femto area (associated or not)          
+        sum_time_served = 0     # % that user is in femto and its has been associated with a femto                
+        for user in range(0, len(self.NUsers)):
+            t_served_femto = np.count_nonzero(self.is_in_femto[user] == 1)
+            sum_served_femto += (t_served_femto) / (len(sim_times))
+            t_in_area = np.count_nonzero(self.is_in_femto[user] == 1) + np.count_nonzero(self.is_in_femto[user] == 2)
+            sum_in_area += (t_in_area) / (len(sim_times))
+            try:
+                sum_time_served += (t_served_femto) / (t_in_area)
+            except:
+                sum_time_served += 0
+
+        per_served_femto = np.round(((1/len(self.NUsers)) * sum_served_femto) * 100, 3)
+        per_in_area = np.round(((1/len(self.NUsers)) * sum_in_area) * 100, 3)
+        per_time_served = np.round(((1/len(self.NUsers)) * sum_time_served) * 100, 3)
+        
+        print(f"Porcentaje en area y servido por femto: {per_served_femto} %")
+        print(f"Porcentaje en area de femto: {per_in_area} %")
+        print(f"Porcentaje dentro del tiempo, en el que un usuario esta en cobertura y esta asociado a la femto : {per_time_served} %")
         
         # User Traffic
         fig_user_traffic, ax = plt.subplots()
