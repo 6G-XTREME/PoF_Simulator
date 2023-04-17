@@ -1,7 +1,8 @@
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-import time, random
+import time, random, os
 
 from simulator.launch import logger
 from simulator.context_config import Contex_Config
@@ -22,6 +23,16 @@ class PoF_simulation_ELighthouse(Contex_Config):
     dead_batteries: list                    # Save the batteries that already died
     timeIndex_last_battery_dead: int
     
+    # Percentage Vars
+    per_served_femto: float
+    per_in_area: float
+    per_time_served: float
+    
+    # Battery Vars
+    first_batt_dead_s: float
+    last_batt_dead_s: float
+    remaining_batt: int
+    
     # Traffic Vars
     X_macro_bps: np.array
     X_macro_only_bps: np.array
@@ -37,7 +48,7 @@ class PoF_simulation_ELighthouse(Contex_Config):
     
     def __init__(self, sim_times, basestation_data: dict, user_data: dict, battery_data: dict, transmit_power_data: dict, elighthouse_parameters: dict) -> None:
         # Set seed for random
-        random.seed(150)
+        #random.seed(150)
         
         try:
             # Number of timeSlots that user should wait to re-send the position
@@ -593,15 +604,14 @@ class PoF_simulation_ELighthouse(Contex_Config):
             sim_times (_type_): _description_
             show_plots (bool, optional): _description_. Defaults to True.
         """
-        # Battery dead
+        # Battery dead?
         if self.timeIndex_first_battery_dead != 0:
-            # First
-            print(f"First Battery dead at timeIndex: {self.timeIndex_first_battery_dead} ({(self.timeIndex_first_battery_dead*timeStep)/60} min)")
-            # Last
-            print(f"Last Battery dead at timeIndex: {self.timeIndex_last_battery_dead} ({(self.timeIndex_last_battery_dead*timeStep)/60} min)")
-            # Count Remaining battery
-            remaining_batt = np.count_nonzero(np.round(self.battery_vector[0])) - self.NMacroCells
-            print(f"Remaining batteries {remaining_batt} of {len(self.battery_vector[0]) - self.NMacroCells}.")
+            self.first_batt_dead_s = (self.timeIndex_first_battery_dead*timeStep)
+            self.last_batt_dead_s = (self.timeIndex_last_battery_dead*timeStep)
+            self.remaining_batt = np.count_nonzero(np.round(self.battery_vector[0])) - self.NMacroCells
+            logger.info(f"Last Battery dead at timeIndex: {self.timeIndex_last_battery_dead} ({self.last_batt_dead_s/60} min)")
+            logger.info(f"First Battery dead at timeIndex: {self.timeIndex_first_battery_dead} ({self.first_batt_dead_s/60} min)")
+            logger.info(f"Remaining batteries {self.remaining_batt} of {len(self.battery_vector[0]) - self.NMacroCells}.")
         
         # Compute %'s
         # self.is_in_femto -> 1 == associated with femto, -> 2 == associated with macro, -> 0 == no on femto area
@@ -618,13 +628,13 @@ class PoF_simulation_ELighthouse(Contex_Config):
             except:
                 sum_time_served += 0
 
-        per_served_femto = np.round(((1/len(self.NUsers)) * sum_served_femto) * 100, 3)
-        per_in_area = np.round(((1/len(self.NUsers)) * sum_in_area) * 100, 3)
-        per_time_served = np.round(((1/len(self.NUsers)) * sum_time_served) * 100, 3)
+        self.per_served_femto = np.round(((1/len(self.NUsers)) * sum_served_femto) * 100, 3)
+        self.per_in_area = np.round(((1/len(self.NUsers)) * sum_in_area) * 100, 3)
+        self.per_time_served = np.round(((1/len(self.NUsers)) * sum_time_served) * 100, 3)
         
-        print(f"Porcentaje en area y servido por femto: {per_served_femto} %")
-        print(f"Porcentaje en area de femto: {per_in_area} %")
-        print(f"Porcentaje dentro del tiempo, en el que un usuario esta en cobertura y esta asociado a la femto : {per_time_served} %")
+        logger.info(f"% in area & served by femto: {self.per_served_femto} %")
+        logger.info(f"% in area of femto: {self.per_in_area} %")
+        logger.info(f"% of inside time, when user is in area and associated with femto : {self.per_time_served} %")
         
         # User Traffic
         fig_user_traffic, ax = plt.subplots()
@@ -704,3 +714,38 @@ class PoF_simulation_ELighthouse(Contex_Config):
         
         # Get the context_class method
         super().plot_output(sim_times=sim_times, show_plots=show_plots)
+        
+    def save_run(self, fig_map, sim_times, run_name, output_folder):
+        # Legacy algorithm save
+        super().save_run(fig_map, sim_times, run_name, output_folder)
+        
+        # Retrieve the app paths
+        root_folder = os.path.abspath(__file__ + os.sep + os.pardir + os.sep + os.pardir)
+        
+        if output_folder != None:
+            output_folder = os.path.join(root_folder, 'output', output_folder)
+        else:
+            output_folder = os.path.join(root_folder, 'output')
+        run_folder = os.path.join(output_folder, run_name)
+        data_folder = os.path.join(run_folder, 'data')
+        csv = os.path.join(data_folder, f'{run_name}-output.csv')
+        json = os.path.join(data_folder, f'{run_name}-output.json')
+
+        # Read CSV and add the new parameters to save!
+        df_update = pd.read_csv(csv)
+        df_update = df_update.assign(per_served_femto=self.per_served_femto)
+        df_update = df_update.assign(per_in_area=self.per_in_area)
+        df_update = df_update.assign(per_time_served=self.per_time_served)
+        try:
+            df_update = df_update.assign(first_batt_dead=self.first_batt_dead_s)
+            df_update = df_update.assign(last_batt_dead=self.last_batt_dead_s)
+            df_update = df_update.assign(remaining_batt=self.remaining_batt)
+
+            df_update = df_update.rename(columns={'first_batt_dead': 'first_batt_dead[s]',
+                                                  'last_batt_dead': 'last_batt_dead[s]'})
+        except:
+            pass
+        
+        # Save to CSV & JSON        
+        df_update.to_csv(csv, index=False)
+        df_update.to_json(json, orient="index", indent=4)
