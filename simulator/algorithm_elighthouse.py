@@ -481,6 +481,7 @@ class PoF_simulation_ELighthouse(Contex_Config):
                 if self.timeIndex_first_battery_dead == 0:
                     # First battery dead
                     self.timeIndex_first_battery_dead = timeIndex
+                    self.timeIndex_last_battery_dead = timeIndex
                     self.dead_batteries.append(batt)
                 else:
                     # Already found the first battery_dead

@@ -11,24 +11,8 @@ BATCH_NAME = 'batch-2'
 logging.basicConfig(format='%(asctime)s %(levelname)s:%(module)s:%(funcName)s: %(message)s', 
                     level=logging.INFO)     # Change level to DEBUG if needed
 
-def run_batch_simulation(name=BATCH_NAME, batch_steps=BATCHS):
+def run_batch_simulation(simulator_input, simulator_config, custom_config, batch_steps=BATCHS):
     logging.info("Running simulation with batch mode!")
-    
-    # Setup config!
-    simulator_input = INPUT_PARAMETERS.copy()
-    simulator_input['Simulation_Time'] = 40*60
-    simulator_input['Users'] = 50
-    
-    simulator_config = CONFIG_PARAMETERS.copy()
-    simulator_config['save_output'] = True      # Save the run output on output folder
-    simulator_config['show_plots'] = False      # Show output plots
-    simulator_config['output_folder'] = name
-    simulator_config['algorithm'] = "elighthouse"
-    
-    custom_config = {}
-    custom_config['user_report_position'] = 4   # For each four timeSteps, the users updates position
-    custom_config['startup_max_tokens'] = 2     # TimeSlots to startup a FemtoCell
-    custom_config['poweroff_unused_cell'] = 2   # TimeSlots to poweroff an unused Cell
     
     logging.info("Starting simulation...")
     start = time.time()
@@ -69,4 +53,23 @@ def compute_mean_result(simulator_config):
     logging.info("Batch simulation complete!")
 
 if __name__ == "__main__":
-    run_batch_simulation()
+    
+    # Setup config!
+    simulator_input = INPUT_PARAMETERS.copy()
+    simulator_input['Simulation_Time'] = 0.5*60
+    simulator_input['Users'] = 50
+    
+    simulator_config = CONFIG_PARAMETERS.copy()
+    simulator_config['save_output'] = True      # Save the run output on output folder
+    simulator_config['show_plots'] = False      # Show output plots
+    simulator_config['output_folder'] = BATCH_NAME
+    simulator_config['algorithm'] = "elighthouse"
+    
+    custom_config = {}
+    custom_config['user_report_position'] = 4   # For each four timeSteps, the users updates position
+    custom_config['startup_max_tokens'] = 2     # TimeSlots to startup a FemtoCell
+    custom_config['poweroff_unused_cell'] = 2   # TimeSlots to poweroff an unused Cell
+    
+    run_batch_simulation(simulator_input=simulator_input,
+                         simulator_config=simulator_config,
+                         custom_config=custom_config)
