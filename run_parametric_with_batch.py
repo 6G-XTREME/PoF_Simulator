@@ -5,11 +5,11 @@ import pandas as pd
 from simulator.launch import INPUT_PARAMETERS, CONFIG_PARAMETERS
 from run_batch import run_batch_simulation
 
-BATCH_STEPS = 10
+BATCH_STEPS = 20
 PARAMETER = "Users"
 NAME = PARAMETER.lower() + "-parametric"
-VALUES_TO_VISIT = [30, 60, 80]  # p.e Users
-SIMULATION_TIME = 20             # in minutes
+VALUES_TO_VISIT = [30, 60, 90, 120, 160, 180]   # p.e Users
+SIMULATION_TIME = 30                            # in minutes
 
 logging.basicConfig(format='%(asctime)s %(levelname)s:%(module)s:%(funcName)s: %(message)s', 
                     level=logging.INFO)     # Change level to DEBUG if needed
@@ -21,9 +21,10 @@ def run_parametric():
         logging.error("Unable to start simulation, a parametric simulation exists with that name.")
         raise Exception
     
-    # Setup config!
+    # Default config!
     simulator_input = INPUT_PARAMETERS.copy()
     simulator_input['Simulation_Time'] = SIMULATION_TIME*60
+    simulator_input['Users'] = 90
     
     simulator_config = CONFIG_PARAMETERS.copy()
     simulator_config['save_output'] = True      # Save the run output on output folder
@@ -32,12 +33,13 @@ def run_parametric():
     simulator_config['algorithm'] = "elighthouse"
     
     custom_config = {}
-    custom_config['user_report_position'] = 4   # For each four timeSteps, the users updates position
-    custom_config['startup_max_tokens'] = 2     # TimeSlots to startup a FemtoCell
-    custom_config['poweroff_unused_cell'] = 2   # TimeSlots to poweroff an unused Cell
+    custom_config['user_report_position'] = 8   # For each four timeSteps, the users updates position
+    custom_config['startup_max_tokens'] = 8     # TimeSlots to startup a FemtoCell
+    custom_config['poweroff_unused_cell'] = 8   # TimeSlots to poweroff an unused Cell
     
     for pos in range(0, len(VALUES_TO_VISIT)):
         simulator_input[PARAMETER] = VALUES_TO_VISIT[pos]
+        custom_config[PARAMETER] = VALUES_TO_VISIT[pos]
         simulator_config['output_folder'] = NAME + "-" + str(pos)
         
         run_batch_simulation(simulator_input=simulator_input,

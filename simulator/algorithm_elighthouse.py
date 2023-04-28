@@ -52,19 +52,19 @@ class PoF_simulation_ELighthouse(Contex_Config):
         
         try:
             # Number of timeSlots that user should wait to re-send the position
-            if elighthouse_parameters['user_report_position'] > 0 and elighthouse_parameters['user_report_position'] < 20:
+            if elighthouse_parameters['user_report_position'] >= 0 and elighthouse_parameters['user_report_position'] < 100:
                 self.user_report_position = elighthouse_parameters['user_report_position']
             else:
                 self.user_report_position = 1   # For each timeStep, the user report his position
             
             # Number of timeSlots to startup a femtocell 
-            if elighthouse_parameters['startup_max_tokens'] > 0 and elighthouse_parameters['startup_max_tokens'] < 10:
+            if elighthouse_parameters['startup_max_tokens'] >= 0 and elighthouse_parameters['startup_max_tokens'] < 100:
                 self.startup_max_tokens = elighthouse_parameters['startup_max_tokens']
             else:
                 self.startup_max_tokens = 1
                
             # Number of timeSlots to Poweroff a non used Cell
-            if elighthouse_parameters['poweroff_unused_cell'] > 0 and elighthouse_parameters['poweroff_unused_cell'] < 10:
+            if elighthouse_parameters['poweroff_unused_cell'] >= 0 and elighthouse_parameters['poweroff_unused_cell'] < 100:
                 self.poweroff_max_tokens = elighthouse_parameters['poweroff_unused_cell']
             else:
                 self.poweroff_max_tokens = 1
@@ -425,10 +425,10 @@ class PoF_simulation_ELighthouse(Contex_Config):
         """
 
         # Number of active Smallcells
-        self.live_smallcell_occupancy[timeIndex] = np.count_nonzero(self.active_Cells[timeIndex][self.NMacroCells:])
+        self.live_smallcell_occupancy[timeIndex] = np.count_nonzero(self.active_Cells[timeIndex][self.NMacroCells:]) + 1    # +1 in order to match MATLAB
 
         # Cells that overflow
-        self.live_smallcell_overflow[timeIndex] = np.count_nonzero(self.overflown_from[timeIndex][self.NMacroCells:])
+        self.live_smallcell_overflow[timeIndex] = np.count_nonzero(self.overflown_from[timeIndex][self.NMacroCells:]) + 1   # +1 in order to match MATLAB
 
         # Total consumption
         self.live_smallcell_consumption[timeIndex] = (self.live_smallcell_occupancy[timeIndex] * self.small_cell_consumption_ON 

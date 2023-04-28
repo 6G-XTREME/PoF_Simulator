@@ -9,23 +9,23 @@ logging.basicConfig(format='%(asctime)s %(levelname)s:%(module)s:%(funcName)s: %
 if __name__ == "__main__":
     logging.info("Configuring input_parameters & config_simulator...")
     simulator_input = INPUT_PARAMETERS.copy()   # Retrieve the default input parameters
-    #simulator_input['Simulation_Time'] = 30*60
-    #simulator_input['Users'] = 50
+    simulator_input['Simulation_Time'] = 30*60  
+    simulator_input['Users'] = 90
     
     simulator_config = CONFIG_PARAMETERS.copy() # Retrieve the default config of the simulator
-    simulator_config['use_user_list'] = True    # For validate MATLAB output. Always the same execution. Fixed Simulation Time
+    #simulator_config['use_user_list'] = True    # For validate MATLAB output. Always the same execution. Fixed Simulation Time
     simulator_config['speed_live_plots'] = 0.001
-    simulator_config['save_output'] = False      # Save the run output on output folder
-    simulator_config['show_plots'] = True       # Show output plots
+    simulator_config['save_output'] = True      # Save the run output on output folder
+    simulator_config['show_plots'] = False       # Show output plots
     simulator_config['use_nice_setup'] = True
-    #simulator_config['output_folder'] = 'parametric_users'
+    simulator_config['output_folder'] = 'simulation_test'
     simulator_config['algorithm'] = "elighthouse"
     
     # Custom Parameters E-Lighthouse
     custom_config = {}
-    custom_config['user_report_position'] = 4   # For each four timeSteps, the users updates position
-    custom_config['startup_max_tokens'] = 2     # TimeSlots to startup a FemtoCell
-    custom_config['poweroff_unused_cell'] = 2   # TimeSlots to poweroff an unused Cell
+    custom_config['user_report_position'] = 8   # For each four timeSteps, the users updates position
+    custom_config['startup_max_tokens'] = 8     # TimeSlots to startup a FemtoCell
+    custom_config['poweroff_unused_cell'] = 8   # TimeSlots to poweroff an unused Cell
     
     logging.info("Execute simulator...")
     #execute_simulator(config_parameters=simulator_config, custom_parameters=custom_config)
