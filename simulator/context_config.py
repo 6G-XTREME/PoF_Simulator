@@ -1,3 +1,10 @@
+__author__ = "Gabriel Otero Perez (gaoterop@it.uc3m.es), Jose-Manuel Martinez-Caro (jmmartinez@e-lighthouse.com), Enrique Fernandez Sanchez (efernandez@e-lighthouse.com)"
+__credits__ = ["Gabriel Otero Perez", "Jose-Manuel Martinez-Caro", "Enrique Fernandez Sanchez"]
+__version__ = "1.1"
+__maintainer__ = "Jose-Manuel Martinez-Caro"
+__email__ = "jmmartinez@e-lighthouse.com"
+__status__ = "Validated"
+
 import numpy as np
 import pandas as pd
 import scipy.io, os
@@ -139,32 +146,32 @@ class Contex_Config():
         ax.plot(sim_times, self.live_throughput_NO_BATTERY/10e6, 'r--', label='Without battery system')
         ax.plot(sim_times, self.live_throughput_only_Macros/10e6, 'g:.', label='Only Macrocells')
         ax.legend()
-        ax.set_title('Live system throughput')
+        ax.set_title('Live system throughput [un-smooth]')
         ax.set_xlabel('Time [s]')
         ax.set_ylabel('Throughput [Mb/s]')
 
         # 3, filtered one
         #SMA_WINDOW = input_parameters['SMA_WINDOW']
-        SMA_WINDOW = 5  # TODO: Ask Javier
+        SMA_WINDOW = 5  
         timeIndex = len(sim_times)
         fig_throughput_smooth, ax = plt.subplots()
         self.list_figures.append((fig_throughput_smooth, "throughput_smooth"))
-        X = sim_times[timeIndex-(len(self.live_throughput)-(SMA_WINDOW-1))+1:timeIndex]/3600
+        X = sim_times[timeIndex-(len(self.live_throughput)-(SMA_WINDOW-1))+1:timeIndex]/60
         Y = np.convolve(self.live_throughput/10e6, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
-        ax.plot(X, Y[:-1], label='With battery system')
+        ax.plot(X, Y[:-1], label='Using PoF & batteries')
 
-        X = sim_times[timeIndex-(len(self.live_throughput_NO_BATTERY)-(SMA_WINDOW-1))+1:timeIndex]/3600
+        X = sim_times[timeIndex-(len(self.live_throughput_NO_BATTERY)-(SMA_WINDOW-1))+1:timeIndex]/60
         Y = np.convolve(self.live_throughput_NO_BATTERY/10e6, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
-        ax.plot(X, Y[:-1], 'r--', label='Without battery system')
+        ax.plot(X, Y[:-1], 'r--', label='Using PoF')
 
-        X = sim_times[timeIndex-(len(self.live_throughput_only_Macros)-(SMA_WINDOW-1))+1:timeIndex]/3600 
+        X = sim_times[timeIndex-(len(self.live_throughput_only_Macros)-(SMA_WINDOW-1))+1:timeIndex]/60
         Y = np.convolve(self.live_throughput_only_Macros/10e6, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
-        ax.plot(X, Y[:-1], 'g--o', label='Only Macrocells')
+        ax.plot(X, Y[:-1], 'g--o', label='Only macrocells')
 
         ax.legend()
-        ax.set_title('Live system throughput [smooth]')
-        ax.set_xlabel('Time (hours)')
-        ax.set_ylabel('Throughput (Mb/s)')
+        ax.set_title('Live system throughput')
+        ax.set_xlabel('Time (min)')
+        ax.set_ylabel('Throughput [mbps]')
 
         # 4
         #fig, ax = plt.subplots()

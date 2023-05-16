@@ -1,23 +1,30 @@
-# PoF_Simulation
+# PoF Polling Simulator
 
-This repository contains the code to simulate PoF system, implementing some algorithms of decisions in order to experiment with differents behaviour of the system.
+Este repositorio contiene el código asociado para la simulación de un contexto de red telealimentado con PoF Polling, usando algoritmos de tipo DRCA (Dynamic Resource and Cell Allocation) para el provisionamiento y asignación de los recursos disponibles. 
 
-## Features
-* Execute legacy algorithm for PoF (developed with MATLAB and converted to Python)
-* Save simulation data (csv, plots and experiment data)
-* Execute the simulator headless
-* System ready to do batch simulations
+## Características
+* Implementado dos entornos de simulación:
+    1. Entorno Legacy, que corresponde con la adaptación del código de MATLAB de la versión preliminar de PoF Polling.
+    2. Entorno Evolved, que corresponde con una mejora del entorno legacy. Centrado principalmente en la modularidad del código para poder ejecutar correctamente tantos los algoritmos basados en el entorno legacy, como aquellos algoritmos que quieran usar el entorno Evolved.
 
-## Execute Simulator
+* Permite guardar los datos de simulación (CSV, gráficos y variables para replicabilidad)
+* Permite ejecutar simulaciones de manera "headless" y autónoma.
+* Permite la ejecución de simulaciones por "batchs", de modo que la salida de la simulación será la media de los batchs realizados.
 
-1. Go to file: ``run_simulator.py``
-2. Configure simulator and input_parameters
-3. Execute the simulator with function `execute_simulator`
+## Ejecución del simulador.
 
-## E-Lighthouse Algorithm
+1. Ir al archivo: ``run_simulator.py``
+2. Configurar simulador y sus parámetros de entrada
+3. El simulador se ejecutará utilizando la función: `execute_simulator`
 
-### Resumen de los cambios realizados respecto UC3M
-Partiendo del algoritmo propuesto por UC3M en MATLAB, se han realizado una serie de modificaciones/extensiones que permiten mejorar el funcionamiento final del simulador, haciendolo mucho más cercano al funcionamiento real del entorno a simular. Las características añadidas son:
+Otras maneras de ejecutar el simulador:
+* Archivo: `run_batch.py`. Objetivo: ejecutar una simulación con batch
+* Archivo: `run_parametric_with_batch.py`. Objetivo: ejecutar una simulación paramétrica con simulaciones batch.
+
+## Algoritmo DRCA E-Lighthouse
+
+### Resumen de los cambios realizados respecto algoritmo DRCA Legacy
+Partiendo del algoritmo propuesto en MATLAB, se han realizado una serie de modificaciones/extensiones que permiten mejorar el funcionamiento final del simulador, haciendolo mucho más cercano al funcionamiento real del entorno a simular. Las características añadidas son:
 
 * Añadido concepto de tráfico. Ahora se almacenan los tráficos de los diferentes usuarios para cada instante temporal.
 

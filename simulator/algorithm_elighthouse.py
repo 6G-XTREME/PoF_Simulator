@@ -1,3 +1,10 @@
+__author__ = "Enrique Fernandez Sanchez (efernandez@e-lighthouse.com)"
+__credits__ = ["Enrique Fernandez Sanchez"]
+__version__ = "1.1"
+__maintainer__ = "Enrique Fernandez Sanchez"
+__email__ = "efernandez@e-lighthouse.com"
+__status__ = "Validated"
+
 import numpy as np
 import pandas as pd
 from tqdm import tqdm

@@ -3,7 +3,7 @@ __credits__ = ["Gabriel Otero Perez", "Jose-Manuel Martinez-Caro"]
 __version__ = "1.0.1"
 __maintainer__ = "Jose-Manuel Martinez-Caro"
 __email__ = "jmmartinez@e-lighthouse.com"
-__status__ = "Working on"
+__status__ = "Validated"
 
 import operator
 
