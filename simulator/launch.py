@@ -7,7 +7,7 @@ __status__ = "Validated"
 
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy.io, uuid, logging
+import scipy.io, uuid, logging, sys
 
 from simulator.bcolors import bcolors
 import simulator.map_utils, simulator.mobility_utils, simulator.user_association_utils, simulator.radio_utils
@@ -54,7 +54,7 @@ logger = logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 logging.getLogger("PIL.PngImagePlugin").setLevel(logging.WARNING)
 
-def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMETERS, config_parameters: dict = CONFIG_PARAMETERS, custom_parameters: dict = {}):
+def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name: str = "", input_parameters: dict = INPUT_PARAMETERS, config_parameters: dict = CONFIG_PARAMETERS, custom_parameters: dict = {}):
     if run_name == "":
         run_name = str(uuid.uuid4())[:8]
     logger.info(f"Run_name: {run_name}")
@@ -106,6 +106,7 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
     except Exception as e:
         logger.error(bcolors.FAIL + 'Error importing parameters into local variables' + bcolors.ENDC)
         logger.error(e)
+        sys.exit(0)
     
     if config_parameters['use_user_list']:
         logger.info("Using defined 'user_list', overriding Simulation Time to 50s...")
@@ -153,15 +154,24 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
 
     try:
         colorsBS = np.zeros((Npoints, 3))
-        fig_map, ax = plt.subplots()
-        plt.axis([0, Maplimit, 0, Maplimit])
+        if canvas_widget is None: 
+            fig_map, ax = plt.subplots()
+            plt.axis([0, Maplimit, 0, Maplimit])
+        else:
+            canvas_widget.figure.clf()
+            ax = canvas_widget.figure.add_subplot(111)
+            ax.set_xlim(0, Maplimit)
+            ax.set_ylim(0, Maplimit)
         for a in range(0,Npoints):
             colorsBS[a] = np.random.uniform(size=3, low=0, high=1)
             ax.plot(BaseStations[a,0], BaseStations[a,1], 'o',color = colorsBS[a])
             ax.text(BaseStations[a,0], BaseStations[a,1], 'P'+str(a) , ha='center', va='bottom')
 
         if config_parameters['show_plots']:
-            plt.show(block=False)
+            if canvas_widget is None: 
+                plt.show(block=False) 
+            else: 
+                canvas_widget.draw() 
 
     except Exception as e:
         logger.error(bcolors.FAIL + 'Error importing the printing the BSs' + bcolors.ENDC)
@@ -173,7 +183,8 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
                                                      BaseStations=BaseStations, 
                                                      ax=ax, 
                                                      alpha_loss=alpha_loss, 
-                                                     config_parameters=config_parameters)
+                                                     config_parameters=config_parameters,
+                                                     canvas_widget=canvas_widget)
    
         basestation_dict = {
             'BaseStations': BaseStations,
@@ -184,7 +195,8 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
         }
     except Exception as e:
         logger.error(bcolors.FAIL + 'Error plotting the BSs coverage' + bcolors.ENDC)
-        logger.error(e)    
+        logger.error(e)
+        sys.exit(0)  
 
     sim_input = {
         'V_POSITION_X_INTERVAL': [0, Maplimit],                         # (m)
@@ -255,7 +267,10 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
     }
 
     if config_parameters['show_plots']:
-        plt.show(block=False)
+        if canvas_widget is None :
+            plt.show(block=False)
+        else:
+            canvas_widget.draw()
 
     # Start the simulation!
     if config_parameters['algorithm'].lower() == 'uc3m':
@@ -271,7 +286,9 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
                               timeStep=timeStep,
                               text_plot=text_plot,
                               show_plots=config_parameters['show_plots'],
-                              speed_plot=config_parameters['speed_live_plots'])
+                              speed_plot=config_parameters['speed_live_plots'],
+                              canvas_widget=canvas_widget,
+                              progressbar_widget=progressbar_widget)
 
         uc3m.plot_output(sim_times=sim_times,
                          show_plots=config_parameters['show_plots'])
@@ -296,7 +313,9 @@ def execute_simulator(run_name: str = "", input_parameters: dict = INPUT_PARAMET
                              timeStep=timeStep,
                              text_plot=text_plot,
                              show_plots=config_parameters['show_plots'],
-                             speed_plot=config_parameters['speed_live_plots'])
+                             speed_plot=config_parameters['speed_live_plots'],
+                             canvas_widget=canvas_widget,
+                             progressbar_widget=progressbar_widget)
         
         eli.plot_output(sim_times=sim_times,
                          show_plots=config_parameters['show_plots'],

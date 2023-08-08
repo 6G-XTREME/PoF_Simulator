@@ -14,7 +14,7 @@ from shapely.geometry import Point, GeometryCollection, MultiPolygon, Polygon
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon as MplPolygon
 
-def create_regions(Npoints, BaseStations, ax, alpha_loss, config_parameters):
+def create_regions(Npoints, BaseStations, ax, alpha_loss, config_parameters, canvas_widget):
     _WholeRegion = Polygon([(0,0), (0,1000), (1000,1000),(1000, 0), (0,0)])
     _UnsoldRegion = _WholeRegion
     Regions = {}
@@ -56,7 +56,10 @@ def create_regions(Npoints, BaseStations, ax, alpha_loss, config_parameters):
 
         # Slow down for the viewer
         if config_parameters['show_plots']:
-            plt.pause(config_parameters['speed_live_plots'])       
+            if canvas_widget is None:
+                plt.pause(config_parameters['speed_live_plots'])
+            else:
+                canvas_widget.draw()
     return Regions
 
 def apollonius_circle_path_loss (P1, P2, w1, w2, alpha):

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>899</width>
-    <height>804</height>
+    <width>950</width>
+    <height>821</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -19,8 +19,8 @@
      <rect>
       <x>0</x>
       <y>0</y>
-      <width>881</width>
-      <height>721</height>
+      <width>941</width>
+      <height>761</height>
      </rect>
     </property>
     <property name="sizePolicy">
@@ -75,6 +75,9 @@
           <property name="alignment">
            <set>Qt::AlignCenter</set>
           </property>
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
          </widget>
         </widget>
        </item>
@@ -103,6 +106,9 @@
           </property>
           <property name="alignment">
            <set>Qt::AlignCenter</set>
+          </property>
+          <property name="readOnly">
+           <bool>true</bool>
           </property>
          </widget>
         </widget>
@@ -133,6 +139,9 @@
           <property name="alignment">
            <set>Qt::AlignCenter</set>
           </property>
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
          </widget>
         </widget>
        </item>
@@ -157,10 +166,13 @@
            <enum>Qt::LeftToRight</enum>
           </property>
           <property name="text">
-           <string>3.3</string>
+           <string>0.7</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignCenter</set>
+          </property>
+          <property name="readOnly">
+           <bool>true</bool>
           </property>
          </widget>
         </widget>
@@ -186,10 +198,13 @@
            <enum>Qt::LeftToRight</enum>
           </property>
           <property name="text">
-           <string>0.7</string>
+           <string>0.05</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignCenter</set>
+          </property>
+          <property name="readOnly">
+           <bool>true</bool>
           </property>
          </widget>
         </widget>
@@ -220,6 +235,9 @@
           <property name="alignment">
            <set>Qt::AlignCenter</set>
           </property>
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
          </widget>
         </widget>
        </item>
@@ -248,6 +266,9 @@
           </property>
           <property name="alignment">
            <set>Qt::AlignCenter</set>
+          </property>
+          <property name="readOnly">
+           <bool>true</bool>
           </property>
          </widget>
         </widget>
@@ -278,6 +299,9 @@
           <property name="alignment">
            <set>Qt::AlignCenter</set>
           </property>
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
          </widget>
         </widget>
        </item>
@@ -286,12 +310,12 @@
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
          </property>
-         <widget class="QLabel" name="small_cell_consumption_sleep_label_12">
+         <widget class="QLabel" name="alpha_loss_label">
           <property name="text">
            <string>Alpha losses</string>
           </property>
          </widget>
-         <widget class="QLineEdit" name="small_cell_consumption_sleep_edit_12">
+         <widget class="QLineEdit" name="alpha_loss_edit">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
             <horstretch>0</horstretch>
@@ -307,6 +331,9 @@
           <property name="alignment">
            <set>Qt::AlignCenter</set>
           </property>
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
          </widget>
         </widget>
        </item>
@@ -315,12 +342,12 @@
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
          </property>
-         <widget class="QLabel" name="small_cell_consumption_sleep_label_6">
+         <widget class="QLabel" name="PMacroCells_label">
           <property name="text">
            <string>Power MacroCell (in Watts)</string>
           </property>
          </widget>
-         <widget class="QLineEdit" name="small_cell_consumption_sleep_edit_6">
+         <widget class="QLineEdit" name="PMacroCells_edit">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
             <horstretch>0</horstretch>
@@ -336,6 +363,9 @@
           <property name="alignment">
            <set>Qt::AlignCenter</set>
           </property>
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
          </widget>
         </widget>
        </item>
@@ -344,12 +374,12 @@
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
          </property>
-         <widget class="QLabel" name="small_cell_consumption_sleep_label_7">
+         <widget class="QLabel" name="PFemtoCells_label">
           <property name="text">
            <string>Power FemtoCell (in Watts)</string>
           </property>
          </widget>
-         <widget class="QLineEdit" name="small_cell_consumption_sleep_edit_7">
+         <widget class="QLineEdit" name="PFemtoCells_edit">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
             <horstretch>0</horstretch>
@@ -364,6 +394,9 @@
           </property>
           <property name="alignment">
            <set>Qt::AlignCenter</set>
+          </property>
+          <property name="readOnly">
+           <bool>true</bool>
           </property>
          </widget>
         </widget>
@@ -373,12 +406,12 @@
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
          </property>
-         <widget class="QLabel" name="small_cell_consumption_sleep_label_8">
+         <widget class="QLabel" name="PDevice_label">
           <property name="text">
            <string>Power Device (in Watts)</string>
           </property>
          </widget>
-         <widget class="QLineEdit" name="small_cell_consumption_sleep_edit_8">
+         <widget class="QLineEdit" name="PDevice_edit">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
             <horstretch>0</horstretch>
@@ -394,6 +427,9 @@
           <property name="alignment">
            <set>Qt::AlignCenter</set>
           </property>
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
          </widget>
         </widget>
        </item>
@@ -402,12 +438,12 @@
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
          </property>
-         <widget class="QLabel" name="small_cell_consumption_sleep_label_9">
+         <widget class="QLabel" name="MacroCellDownlinkBW_label">
           <property name="text">
            <string>Bandwidth Downlink MacroCell (in bytes)</string>
           </property>
          </widget>
-         <widget class="QLineEdit" name="small_cell_consumption_sleep_edit_9">
+         <widget class="QLineEdit" name="MacroCellDownlinkBW_edit">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
             <horstretch>0</horstretch>
@@ -423,6 +459,9 @@
           <property name="alignment">
            <set>Qt::AlignCenter</set>
           </property>
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
          </widget>
         </widget>
        </item>
@@ -431,12 +470,12 @@
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
          </property>
-         <widget class="QLabel" name="small_cell_consumption_sleep_label_10">
+         <widget class="QLabel" name="FemtoCellDownlinkBW_label">
           <property name="text">
            <string>Bandwidth Downlink FemtoCell (in bytes)</string>
           </property>
          </widget>
-         <widget class="QLineEdit" name="small_cell_consumption_sleep_edit_10">
+         <widget class="QLineEdit" name="FemtoCellDownlinkBW_edit">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
             <horstretch>0</horstretch>
@@ -452,47 +491,213 @@
           <property name="alignment">
            <set>Qt::AlignCenter</set>
           </property>
-         </widget>
-        </widget>
-       </item>
-       <item>
-        <widget class="QSplitter" name="splitter_18">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <widget class="QLabel" name="small_cell_consumption_sleep_label_11">
-          <property name="text">
-           <string>Alpha losses</string>
-          </property>
-         </widget>
-         <widget class="QLineEdit" name="small_cell_consumption_sleep_edit_11">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="layoutDirection">
-           <enum>Qt::LeftToRight</enum>
-          </property>
-          <property name="text">
-           <string>4</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignCenter</set>
+          <property name="readOnly">
+           <bool>true</bool>
           </property>
          </widget>
         </widget>
        </item>
       </layout>
      </widget>
+     <widget class="QGroupBox" name="use_user_list_groupBox">
+      <property name="geometry">
+       <rect>
+        <x>470</x>
+        <y>10</y>
+        <width>411</width>
+        <height>331</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Configuration</string>
+      </property>
+      <widget class="QWidget" name="">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>30</y>
+         <width>391</width>
+         <height>297</height>
+        </rect>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout_3">
+        <item>
+         <widget class="QSplitter" name="splitter_21">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <widget class="QLabel" name="algorithm_label">
+           <property name="text">
+            <string>DRCA Algorithm</string>
+           </property>
+          </widget>
+          <widget class="QComboBox" name="algorithm_comboBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="currentText">
+            <string>E-Lighthouse</string>
+           </property>
+           <item>
+            <property name="text">
+             <string>UC3M</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>E-Lighthouse</string>
+            </property>
+           </item>
+          </widget>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="use_nice_setup_checkBox">
+          <property name="text">
+           <string>Use defined basestation positions</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="use_user_list_checkBox">
+          <property name="text">
+           <string>Validate DRCA with .mat file</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="show_plots_checkBox">
+          <property name="text">
+           <string>Show plots figures</string>
+          </property>
+          <property name="checked">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="save_output_checkBox">
+          <property name="text">
+           <string>Save output data</string>
+          </property>
+          <property name="checked">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSplitter" name="splitter_22">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <widget class="QLabel" name="output_folder_label">
+           <property name="text">
+            <string>Output folder (relative path)</string>
+           </property>
+          </widget>
+          <widget class="QLineEdit" name="output_folder_edit">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="layoutDirection">
+            <enum>Qt::LeftToRight</enum>
+           </property>
+           <property name="text">
+            <string>./output</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </widget>
+        </item>
+        <item>
+         <widget class="Line" name="line">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSplitter" name="splitter_18">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <widget class="QLabel" name="user_report_position_label">
+           <property name="text">
+            <string>Time slots to user report a new position</string>
+           </property>
+          </widget>
+          <widget class="QSpinBox" name="user_report_position_spinBox">
+           <property name="value">
+            <number>8</number>
+           </property>
+          </widget>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSplitter" name="splitter_23">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <widget class="QLabel" name="startup_max_tokens_label">
+           <property name="text">
+            <string>Time slots to count cell as power on</string>
+           </property>
+          </widget>
+          <widget class="QSpinBox" name="startup_max_tokens_spinBox">
+           <property name="value">
+            <number>8</number>
+           </property>
+          </widget>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSplitter" name="splitter_24">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <widget class="QLabel" name="poweroff_unused_cell_label">
+           <property name="text">
+            <string>Time slots without users to poweroff a cell</string>
+           </property>
+          </widget>
+          <widget class="QSpinBox" name="poweroff_unused_cell_spinBox">
+           <property name="value">
+            <number>8</number>
+           </property>
+          </widget>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+     <widget class="QWidget" name="figure" native="true">
+      <property name="geometry">
+       <rect>
+        <x>460</x>
+        <y>380</y>
+        <width>471</width>
+        <height>341</height>
+       </rect>
+      </property>
+     </widget>
      <widget class="QWidget" name="">
       <property name="geometry">
        <rect>
         <x>9</x>
         <y>12</y>
-        <width>596</width>
-        <height>97</height>
+        <width>451</width>
+        <height>101</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -516,7 +721,7 @@
              </sizepolicy>
             </property>
             <property name="text">
-             <string>30</string>
+             <string>2</string>
             </property>
             <property name="alignment">
              <set>Qt::AlignCenter</set>
@@ -561,7 +766,7 @@
            </property>
            <widget class="QLabel" name="NMacroCells_label">
             <property name="text">
-             <string>Macro</string>
+             <string>Macrocells</string>
             </property>
            </widget>
            <widget class="QLineEdit" name="NMacroCells_edit">
@@ -572,7 +777,7 @@
              </sizepolicy>
             </property>
             <property name="text">
-             <string>180</string>
+             <string>3</string>
             </property>
             <property name="alignment">
              <set>Qt::AlignCenter</set>
@@ -587,7 +792,7 @@
            </property>
            <widget class="QLabel" name="NFemtoCells_label">
             <property name="text">
-             <string>Femto</string>
+             <string>Femtocells</string>
             </property>
            </widget>
            <widget class="QLineEdit" name="NFemtoCells_edit">
@@ -598,7 +803,7 @@
              </sizepolicy>
             </property>
             <property name="text">
-             <string>180</string>
+             <string>20</string>
             </property>
             <property name="alignment">
              <set>Qt::AlignCenter</set>
@@ -643,6 +848,29 @@
        </item>
       </layout>
      </widget>
+     <widget class="QSplitter" name="splitter_25">
+      <property name="geometry">
+       <rect>
+        <x>470</x>
+        <y>350</y>
+        <width>391</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <widget class="QPushButton" name="run_pushButton">
+       <property name="text">
+        <string>Run simulation</string>
+       </property>
+      </widget>
+      <widget class="QProgressBar" name="simulation_progressBar">
+       <property name="value">
+        <number>0</number>
+       </property>
+      </widget>
+     </widget>
     </widget>
     <widget class="QWidget" name="tab_2">
      <attribute name="title">
@@ -656,7 +884,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>899</width>
+     <width>950</width>
      <height>24</height>
     </rect>
    </property>

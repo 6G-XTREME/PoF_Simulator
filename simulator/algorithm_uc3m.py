@@ -15,7 +15,7 @@ from simulator.context_config import Contex_Config
 import simulator.map_utils, simulator.mobility_utils, simulator.user_association_utils, simulator.radio_utils
 
 class PoF_simulation_UC3M(Contex_Config):
-    def start_simulation(self, sim_times, timeStep, text_plot, show_plots: bool = True, speed_plot: float = 0.05):
+    def start_simulation(self, sim_times, timeStep, text_plot, canvas_widget, progressbar_widget, show_plots: bool = True, speed_plot: float = 0.05):
         logger.info("Starting simulation...")
         start = time.time()
         with tqdm(total=100, desc='Simulating...') as f:
@@ -24,8 +24,9 @@ class PoF_simulation_UC3M(Contex_Config):
                     break
 
                 # Update progress bar and message
+                stage = timeIndex * 100 / len(sim_times)+1
                 f.update(100 / len(sim_times))
-                f.set_description("%.2f %% completed..." % (timeIndex * 100 / len(sim_times)+1))
+                f.set_description("%.2f %% completed..." % (stage))
 
                 t = sim_times[timeIndex]
                 text_plot.set_text('Time (sec) = {:.2f}'.format(t))
@@ -34,9 +35,14 @@ class PoF_simulation_UC3M(Contex_Config):
                 self.compute_statistics(timeIndex=timeIndex)
                 self.update_battery_status(timeIndex=timeIndex, timeStep=timeStep)
                 
+                if progressbar_widget is not None: 
+                    progressbar_widget.setValue(int(stage))
+                
                 if show_plots:
-                    plt.draw()
-                    plt.pause(speed_plot)
+                    if canvas_widget is None:
+                        plt.draw()
+                    else:
+                        canvas_widget.draw()
                 
         # Finished
         logger.info("Simulation complete!")

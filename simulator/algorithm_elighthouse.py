@@ -83,7 +83,7 @@ class PoF_simulation_ELighthouse(Contex_Config):
         
         super().__init__(sim_times=sim_times, basestation_data=basestation_data, user_data=user_data, battery_data=battery_data, transmit_power_data=transmit_power_data)
     
-    def start_simulation(self, sim_times, timeStep, text_plot, show_plots: bool = True, speed_plot: float = 0.05):
+    def start_simulation(self, sim_times, timeStep, text_plot, progressbar_widget, canvas_widget, show_plots: bool = True, speed_plot: float = 0.05):
         # Settting up some vars
         self.battery_state = [[] for _ in range(len(sim_times))]
         self.baseStation_users = [[] for _ in range(len(sim_times))]
@@ -129,8 +129,9 @@ class PoF_simulation_ELighthouse(Contex_Config):
                     break
 
                 # Update progress bar and message
+                stage = timeIndex * 100 / len(sim_times)+1
                 f.update(100 / len(sim_times))
-                f.set_description("%.2f %% completed..." % (timeIndex * 100 / len(sim_times)+1))
+                f.set_description("%.2f %% completed..." % (stage))
 
                 t = sim_times[timeIndex]
                 text_plot.set_text('Time (sec) = {:.2f}'.format(t))
@@ -139,9 +140,14 @@ class PoF_simulation_ELighthouse(Contex_Config):
                 self.compute_statistics_for_plots(timeIndex=timeIndex)                          # Prepare derivate data for plots
                 self.update_battery_state(timeIndex=timeIndex, timeStep=timeStep)               # Update battery state for next timeStep
                 
+                if progressbar_widget is not None: 
+                    progressbar_widget.setValue(int(stage))
+                
                 if show_plots:
-                    plt.draw()
-                    plt.pause(speed_plot)
+                    if canvas_widget is None:
+                        plt.draw()
+                    else:
+                        canvas_widget.draw()
                 
         # Finished
         logger.info("Simulation complete!")
