@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>950</width>
-    <height>821</height>
+    <width>1160</width>
+    <height>797</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -19,8 +19,8 @@
      <rect>
       <x>0</x>
       <y>0</y>
-      <width>941</width>
-      <height>761</height>
+      <width>1151</width>
+      <height>731</height>
      </rect>
     </property>
     <property name="sizePolicy">
@@ -40,9 +40,9 @@
       <property name="geometry">
        <rect>
         <x>10</x>
-        <y>120</y>
-        <width>451</width>
-        <height>535</height>
+        <y>160</y>
+        <width>421</width>
+        <height>511</height>
        </rect>
       </property>
       <property name="title">
@@ -152,7 +152,7 @@
          </property>
          <widget class="QLabel" name="small_cell_consumption_on_label">
           <property name="text">
-           <string>Femtocell consumption when ON</string>
+           <string>Femtocell consumption when ON (in Watts)</string>
           </property>
          </widget>
          <widget class="QLineEdit" name="small_cell_consumption_on_edit">
@@ -184,7 +184,7 @@
          </property>
          <widget class="QLabel" name="small_cell_consumption_sleep_label">
           <property name="text">
-           <string>Femtocell consumption when SLEEP</string>
+           <string>Femtocell consumption when SLEEP (in Watts)</string>
           </property>
          </widget>
          <widget class="QLineEdit" name="small_cell_consumption_sleep_edit">
@@ -499,25 +499,38 @@
        </item>
       </layout>
      </widget>
-     <widget class="QGroupBox" name="use_user_list_groupBox">
+     <widget class="QGroupBox" name="configuration_parameters_groupBox">
       <property name="geometry">
        <rect>
-        <x>470</x>
-        <y>10</y>
-        <width>411</width>
-        <height>331</height>
+        <x>440</x>
+        <y>420</y>
+        <width>691</width>
+        <height>248</height>
        </rect>
       </property>
       <property name="title">
        <string>Configuration</string>
       </property>
+      <widget class="Line" name="line">
+       <property name="geometry">
+        <rect>
+         <x>331</x>
+         <y>31</y>
+         <width>16</width>
+         <height>186</height>
+        </rect>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+      </widget>
       <widget class="QWidget" name="">
        <property name="geometry">
         <rect>
-         <x>10</x>
-         <y>30</y>
-         <width>391</width>
-         <height>297</height>
+         <x>12</x>
+         <y>31</y>
+         <width>313</width>
+         <height>186</height>
         </rect>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -543,12 +556,12 @@
            </property>
            <item>
             <property name="text">
-             <string>UC3M</string>
+             <string>E-Lighthouse</string>
             </property>
            </item>
            <item>
             <property name="text">
-             <string>E-Lighthouse</string>
+             <string>UC3M</string>
             </property>
            </item>
           </widget>
@@ -574,10 +587,10 @@
         <item>
          <widget class="QCheckBox" name="show_plots_checkBox">
           <property name="text">
-           <string>Show plots figures</string>
+           <string>Show extra plots figures</string>
           </property>
           <property name="checked">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
          </widget>
         </item>
@@ -612,7 +625,7 @@
             <enum>Qt::LeftToRight</enum>
            </property>
            <property name="text">
-            <string>./output</string>
+            <string/>
            </property>
            <property name="alignment">
             <set>Qt::AlignCenter</set>
@@ -620,13 +633,18 @@
           </widget>
          </widget>
         </item>
-        <item>
-         <widget class="Line" name="line">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-         </widget>
-        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="">
+       <property name="geometry">
+        <rect>
+         <x>350</x>
+         <y>32</y>
+         <width>334</width>
+         <height>101</height>
+        </rect>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout_2">
         <item>
          <widget class="QSplitter" name="splitter_18">
           <property name="orientation">
@@ -668,7 +686,7 @@
           </property>
           <widget class="QLabel" name="poweroff_unused_cell_label">
            <property name="text">
-            <string>Time slots without users to poweroff a cell</string>
+            <string>Time slots to poweroff a unused cell</string>
            </property>
           </widget>
           <widget class="QSpinBox" name="poweroff_unused_cell_spinBox">
@@ -684,23 +702,23 @@
      <widget class="QWidget" name="figure" native="true">
       <property name="geometry">
        <rect>
-        <x>460</x>
-        <y>380</y>
-        <width>471</width>
-        <height>341</height>
+        <x>490</x>
+        <y>10</y>
+        <width>621</width>
+        <height>411</height>
        </rect>
       </property>
      </widget>
-     <widget class="QWidget" name="">
+     <widget class="QWidget" name="layoutWidget">
       <property name="geometry">
        <rect>
-        <x>9</x>
-        <y>12</y>
+        <x>10</x>
+        <y>50</y>
         <width>451</width>
         <height>101</height>
        </rect>
       </property>
-      <layout class="QVBoxLayout" name="verticalLayout_2">
+      <layout class="QVBoxLayout" name="general_config_layout">
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout">
          <item>
@@ -848,11 +866,11 @@
        </item>
       </layout>
      </widget>
-     <widget class="QSplitter" name="splitter_25">
+     <widget class="QSplitter" name="runSimulation">
       <property name="geometry">
        <rect>
-        <x>470</x>
-        <y>350</y>
+        <x>10</x>
+        <y>10</y>
         <width>391</width>
         <height>31</height>
        </rect>
@@ -884,7 +902,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>950</width>
+     <width>1160</width>
      <height>24</height>
     </rect>
    </property>

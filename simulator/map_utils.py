@@ -58,8 +58,8 @@ def create_regions(Npoints, BaseStations, ax, alpha_loss, config_parameters, can
         if config_parameters['show_plots']:
             if canvas_widget is None:
                 plt.pause(config_parameters['speed_live_plots'])
-            else:
-                canvas_widget.draw()
+        if canvas_widget is not None: 
+            canvas_widget.draw() 
     return Regions
 
 def apollonius_circle_path_loss (P1, P2, w1, w2, alpha):

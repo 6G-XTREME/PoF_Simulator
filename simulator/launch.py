@@ -160,6 +160,7 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         else:
             canvas_widget.figure.clf()
             ax = canvas_widget.figure.add_subplot(111)
+            fig_map = ax.figure
             ax.set_xlim(0, Maplimit)
             ax.set_ylim(0, Maplimit)
         for a in range(0,Npoints):
@@ -169,9 +170,9 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
 
         if config_parameters['show_plots']:
             if canvas_widget is None: 
-                plt.show(block=False) 
-            else: 
-                canvas_widget.draw() 
+                plt.show(block=False)  
+        if canvas_widget is not None: 
+            canvas_widget.draw() 
 
     except Exception as e:
         logger.error(bcolors.FAIL + 'Error importing the printing the BSs' + bcolors.ENDC)

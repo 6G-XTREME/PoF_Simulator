@@ -146,8 +146,8 @@ class PoF_simulation_ELighthouse(Contex_Config):
                 if show_plots:
                     if canvas_widget is None:
                         plt.draw()
-                    else:
-                        canvas_widget.draw()
+                if canvas_widget is not None: 
+                    canvas_widget.draw() 
                 
         # Finished
         logger.info("Simulation complete!")
