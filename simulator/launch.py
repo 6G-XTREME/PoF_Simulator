@@ -106,7 +106,7 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
     except Exception as e:
         logger.error(bcolors.FAIL + 'Error importing parameters into local variables' + bcolors.ENDC)
         logger.error(e)
-        sys.exit(0)
+        return
     
     if config_parameters['use_user_list']:
         logger.info("Using defined 'user_list', overriding Simulation Time to 50s...")
@@ -126,6 +126,7 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         except Exception as e:
             logger.error(bcolors.FAIL + 'Error importing the nice_setup.mat' + bcolors.ENDC)
             logger.error(e)
+            return
     else:   
         # Generate random distribution of BaseStations
         try:
@@ -151,6 +152,7 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         except Exception as e:
             logger.error(bcolors.FAIL + 'Error calculating intermediate variables' + bcolors.ENDC)
             logger.error(e)
+            return
 
     try:
         colorsBS = np.zeros((Npoints, 3))
@@ -177,6 +179,7 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
     except Exception as e:
         logger.error(bcolors.FAIL + 'Error importing the printing the BSs' + bcolors.ENDC)
         logger.error(e)
+        return
 
     try:
         # Setup Regions!

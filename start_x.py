@@ -1,9 +1,11 @@
+import os
 import sys
 import logging
 from PySide6 import QtWidgets, QtCore
 from PySide6.QtUiTools import QUiLoader
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 
 from simulator.launch import execute_simulator
 
@@ -40,15 +42,30 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
         # Set the central widget for the QMainWindow
         self.setCentralWidget(self.ui)
         # Set the window title and initial size to match the loaded UI
-        self.setWindowTitle("PoF Simulator v0.1")
+        self.setWindowTitle("Power over Fiber (PoF) Polling Simulator - E-Lighthouse")
         # Set the window size to match the specified geometry in Qt Designer
         self.setGeometry(self.ui.geometry())
+        
         self.long_task_thread = None
+        self.output_folder_path = "./output"
         
         # Connections
         self.ui.edit_simulator_input_checkBox.toggled.connect(self.toggle_editing_input_parameters)
+        self.ui.use_nice_setup_checkBox.toggled.connect(self.toggle_editing_cells)
         self.ui.run_pushButton.clicked.connect(self.run_simulation_button)
         
+        # Actions
+        menu_bar = self.findChild(QtWidgets.QMenuBar, "menubar")
+        menu_figures = menu_bar.findChild(QtWidgets.QMenu, "menuFigures")
+        menu_help = menu_bar.findChild(QtWidgets.QMenu, "menuHelp")
+        action_close_figures = menu_figures.addAction("Close All Figures")
+        action_close_figures.triggered.connect(self.close_all_figures)
+        action_about = menu_help.addAction("About")
+        action_about.triggered.connect(self.show_help)
+        action_exit = menu_help.addAction("Exit")
+        action_exit.triggered.connect(self.exit)
+        
+        # Save progress bar for later
         self.simulation_progressbar = self.findChild(QtWidgets.QWidget, "simulation_progressBar")
         
         ## MatPlotLib Things
@@ -83,13 +100,93 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
         self.ui.run_pushButton.setEnabled(True)
         logging.info("UI: simulation done")
         
-    def toggle_editing_input_parameters(self, state):
-        self.ui.battery_capacity_edit.setReadOnly(state)
-        # Apply style sheet to change appearance when disabled
-        if state:
-            self.ui.battery_capacity_edit.setStyleSheet("QLineEdit:disabled { background-color: #2e2e2e; color: #808080; }")
+        if self.ui.save_output_checkBox.isChecked():
+            # Find the new folder created
+            message = f"Simulation had finished. The simulation data has been saved inside: output/{self.get_last_created_output_folder()}"
         else:
-            self.ui.battery_capacity_edit.setStyleSheet("")  # Clear style sheet
+            message = "Simulation had finished."
+        
+        # Show a message box when the long-running task finishes
+        QtWidgets.QMessageBox.information(self, "Simulation finished", message)
+    
+    def toggle_editing_cells(self, state):
+        self.ui.NMacroCells_edit.setReadOnly(state)
+        self.ui.NFemtoCells_edit.setReadOnly(state)
+        if state:
+            self.ui.NMacroCells_edit.setText("3")
+            self.ui.NFemtoCells_edit.setText("20")
+      
+    def toggle_editing_input_parameters(self, state):
+        checked = not state
+        disabled_stylesheet = "QLineEdit:disabled { background-color: #2e2e2e; color: #808080; }"
+        self.ui.battery_capacity_edit.setReadOnly(checked)
+        self.ui.small_cell_voltage_min_edit.setReadOnly(checked)
+        self.ui.small_cell_voltage_max_edit.setReadOnly(checked)
+        self.ui.battery_capacity_edit.setReadOnly(checked)
+        self.ui.small_cell_consumption_on_edit.setReadOnly(checked)
+        self.ui.small_cell_consumption_sleep_edit.setReadOnly(checked)
+        self.ui.mean_user_speed_edit.setReadOnly(checked)
+        self.ui.numberOfLasers_edit.setReadOnly(checked)
+        self.ui.noise_edit.setReadOnly(checked)
+        self.ui.alpha_loss_edit.setReadOnly(checked)
+        self.ui.PMacroCells_edit.setReadOnly(checked)
+        self.ui.PFemtoCells_edit.setReadOnly(checked)
+        self.ui.PDevice_edit.setReadOnly(checked)
+        self.ui.MacroCellDownlinkBW_edit.setReadOnly(checked)
+        self.ui.FemtoCellDownlinkBW_edit.setReadOnly(checked)
+        
+        # Apply style sheet to change appearance when disabled
+        if checked:
+            # Clear style sheet
+            self.ui.small_cell_voltage_min_edit.setStyleSheet() 
+            self.ui.small_cell_voltage_max_edit.setStyleSheet() 
+            self.ui.battery_capacity_edit.setStyleSheet() 
+            self.ui.small_cell_consumption_on_edit.setStyleSheet() 
+            self.ui.small_cell_consumption_sleep_edit.setStyleSheet() 
+            self.ui.mean_user_speed_edit.setStyleSheet() 
+            self.ui.numberOfLasers_edit.setStyleSheet() 
+            self.ui.noise_edit.setStyleSheet() 
+            self.ui.alpha_loss_edit.setStyleSheet() 
+            self.ui.PMacroCells_edit.setStyleSheet() 
+            self.ui.PFemtoCells_edit.setStyleSheet() 
+            self.ui.PDevice_edit.setStyleSheet() 
+            self.ui.MacroCellDownlinkBW_edit.setStyleSheet() 
+            self.ui.FemtoCellDownlinkBW_edit.setStyleSheet() 
+            self.ui.battery_capacity_edit.setStyleSheet() 
+        else:
+            # Add disabled stylesheet
+            self.ui.small_cell_voltage_min_edit.setStyleSheet(disabled_stylesheet) 
+            self.ui.small_cell_voltage_max_edit.setStyleSheet(disabled_stylesheet) 
+            self.ui.battery_capacity_edit.setStyleSheet(disabled_stylesheet) 
+            self.ui.small_cell_consumption_on_edit.setStyleSheet(disabled_stylesheet) 
+            self.ui.small_cell_consumption_sleep_edit.setStyleSheet(disabled_stylesheet) 
+            self.ui.mean_user_speed_edit.setStyleSheet(disabled_stylesheet) 
+            self.ui.numberOfLasers_edit.setStyleSheet(disabled_stylesheet) 
+            self.ui.noise_edit.setStyleSheet(disabled_stylesheet) 
+            self.ui.alpha_loss_edit.setStyleSheet(disabled_stylesheet) 
+            self.ui.PMacroCells_edit.setStyleSheet(disabled_stylesheet) 
+            self.ui.PFemtoCells_edit.setStyleSheet(disabled_stylesheet) 
+            self.ui.PDevice_edit.setStyleSheet(disabled_stylesheet) 
+            self.ui.MacroCellDownlinkBW_edit.setStyleSheet(disabled_stylesheet) 
+            self.ui.FemtoCellDownlinkBW_edit.setStyleSheet(disabled_stylesheet) 
+            self.ui.battery_capacity_edit.setStyleSheet(disabled_stylesheet)  
+      
+    def close_all_figures(self) -> None:
+        logging.info("Closing all figures...")
+        try:
+            plt.close('all')
+        except Exception as ex:
+            logging.error(ex)
+        return
+            
+    def show_help(self) -> None:
+        QtWidgets.QMessageBox.information(self, "Help", "This is the help content.")
+        return
+
+    def exit(self) -> None:
+        logging.info("Exit simulator...")
+        sys.exit(0)
+        return
             
     def get_input_parameters(self) -> dict :
         input_parameters = {}
@@ -127,7 +224,7 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
         try:
             config_parameters['algorithm'] = self.ui.algorithm_comboBox.currentText().lower().replace("-", "")
             config_parameters['use_nice_setup'] = self.ui.use_nice_setup_checkBox.isChecked()
-            config_parameters['use_user_list'] = self.ui.use_user_list_checkBox.isChecked()
+            config_parameters['use_user_list'] = False
             config_parameters['show_plots'] = self.ui.show_plots_checkBox.isChecked()
             config_parameters['show_live_plots'] = False
             config_parameters['speed_live_plots'] = 0.05
@@ -150,6 +247,18 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
             
         print(custom_config)
         return custom_config
+    
+    def get_last_created_output_folder(self) -> str:
+        # Get a list of all directories in the output folder
+        subdirectories = [d for d in os.listdir(self.output_folder_path) if os.path.isdir(os.path.join(self.output_folder_path, d))]
+        # Sort the directories by creation time
+        subdirectories.sort(key=lambda d: os.path.getctime(os.path.join(self.output_folder_path, d)))
+        
+        if subdirectories:
+            last_created_directory = subdirectories[-1]
+            return last_created_directory
+        else:
+            return ""
 
 if __name__ == "__main__":
     logging.info("Starting UI")

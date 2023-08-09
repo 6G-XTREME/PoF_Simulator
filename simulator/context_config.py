@@ -191,8 +191,8 @@ class Contex_Config():
         
         if show_plots:
             plt.show(block=False)
-            input("hit [enter] to close plots and continue")
-            plt.close('all')
+            #input("hit [enter] to close plots and continue")
+            #plt.close('all')
         
         pass
     
@@ -240,7 +240,7 @@ class Contex_Config():
         
         for fig in self.list_figures:
             fig[0].savefig(os.path.join(plot_folder, f'{run_name}-{fig[1]}.png'))
-            plt.close(fig[0])
+            #plt.close(fig[0])
 
         # Copy user_list.mat [replicability of run]
         user_list_output_mat_path = os.path.join(run_folder, f'{run_name}-user_list.mat')
