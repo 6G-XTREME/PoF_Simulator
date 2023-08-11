@@ -113,7 +113,7 @@ class Contex_Config():
     def start_simulation(self, sim_times, timeStep, text_plot, show_plots: bool = True, speed_plot: float = 0.05):
         pass
     
-    def plot_output(self, sim_times, show_plots: bool = True):
+    def plot_output(self, sim_times, is_gui: bool = False, show_plots: bool = True):
         # 1
         fig_cell_occupancy, ax = plt.subplots()
         self.list_figures.append((fig_cell_occupancy, "cell_occupancy"))
@@ -191,8 +191,10 @@ class Contex_Config():
         
         if show_plots:
             plt.show(block=False)
-            #input("hit [enter] to close plots and continue")
-            #plt.close('all')
+            if not is_gui:
+                plt.pause(0.001)
+                input("hit [enter] to close plots and continue")
+                plt.close('all')
         
         pass
     

@@ -146,6 +146,7 @@ class PoF_simulation_ELighthouse(Contex_Config):
                 if show_plots:
                     if canvas_widget is None:
                         plt.draw()
+                        plt.pause(speed_plot)
                 if canvas_widget is not None: 
                     canvas_widget.draw() 
                 
@@ -611,7 +612,7 @@ class PoF_simulation_ELighthouse(Contex_Config):
         self.X_macro_only_bps[timeIndex][cl] += X
         return X
     
-    def plot_output(self, sim_times, timeStep, show_plots: bool = True):
+    def plot_output(self, sim_times, timeStep, is_gui: bool = False, show_plots: bool = True):
         """ Override Show Plot Output
 
         Args:
@@ -727,7 +728,7 @@ class PoF_simulation_ELighthouse(Contex_Config):
         ax.set_ylabel('Throughput [Mb/s]')
         
         # Get the context_class method
-        super().plot_output(sim_times=sim_times, show_plots=show_plots)
+        super().plot_output(sim_times=sim_times, show_plots=show_plots, is_gui=is_gui)
         
     def save_run(self, fig_map, sim_times, run_name, output_folder):
         # Legacy algorithm save

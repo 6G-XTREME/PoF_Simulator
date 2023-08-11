@@ -47,7 +47,7 @@ logging.basicConfig(format='%(asctime)s %(levelname)s:%(module)s:%(funcName)s: %
 if __name__ == "__main__":
     logging.info("Configuring input_parameters & config_simulator...")
     simulator_input = INPUT_PARAMETERS.copy()   # Retrieve the default input parameters
-    simulator_input['Simulation_Time'] = 30*60  
+    simulator_input['Simulation_Time'] = 2*60  
     simulator_input['Users'] = 180
     
     simulator_config = CONFIG_PARAMETERS.copy() # Retrieve the default config of the simulator

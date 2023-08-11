@@ -295,7 +295,8 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
                               progressbar_widget=progressbar_widget)
 
         uc3m.plot_output(sim_times=sim_times,
-                         show_plots=config_parameters['show_plots'])
+                         show_plots=config_parameters['show_plots'],
+                         is_gui=(canvas_widget is not None))
 
         if config_parameters['save_output']:
             uc3m.save_run(fig_map=fig_map, 
@@ -323,7 +324,8 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         
         eli.plot_output(sim_times=sim_times,
                          show_plots=config_parameters['show_plots'],
-                         timeStep=timeStep)
+                         timeStep=timeStep,
+                         is_gui=(canvas_widget is not None))
 
         if config_parameters['save_output']:
             eli.save_run(fig_map=fig_map, 

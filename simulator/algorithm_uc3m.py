@@ -41,6 +41,7 @@ class PoF_simulation_UC3M(Contex_Config):
                 if show_plots:
                     if canvas_widget is None:
                         plt.draw()
+                        plt.pause(speed_plot)
                 if canvas_widget is not None: 
                     canvas_widget.draw() 
                 
