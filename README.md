@@ -1,4 +1,4 @@
-# PoF Polling Simulator
+# Power over Fiber (PoF) Polling Simulator
 
 Este repositorio contiene el código asociado para la simulación de un contexto de red telealimentado con PoF Polling, usando algoritmos de tipo DRCA (Dynamic Resource and Cell Allocation) para el provisionamiento y asignación de los recursos disponibles. 
 
@@ -6,13 +6,22 @@ Este repositorio contiene el código asociado para la simulación de un contexto
 * Implementado dos entornos de simulación:
     1. Entorno Legacy, que corresponde con la adaptación del código de MATLAB de la versión preliminar de PoF Polling.
     2. Entorno Evolved, que corresponde con una mejora del entorno legacy. Centrado principalmente en la modularidad del código para poder ejecutar correctamente tantos los algoritmos basados en el entorno legacy, como aquellos algoritmos que quieran usar el entorno Evolved.
-
+* Implementada una interfaz gráfica que permite la ejecución y el análisis de los resultados de la simulación.
 * Permite guardar los datos de simulación (CSV, gráficos y variables para replicabilidad)
 * Permite ejecutar simulaciones de manera "headless" y autónoma.
 * Permite la ejecución de simulaciones por "batchs", de modo que la salida de la simulación será la media de los batchs realizados.
 
-## Ejecución del simulador.
+## Ejecución del simulador
+### Requerimientos
+* Tener instalado Python 3.X (minimo versión 3.7)
+* Instalar los modulos necesarios para ejecutar el simulador. Usar este comando en el directorio del proyecto: ``` pip install -r requirements.txt```
 
+### Modo GUI
+1. Ir al archivo: ``start_x.py``
+2. Ejecutar el archivo (```python start_x.py```). Automáticamente aparecerá una interfaz gráfica para configurar y ejecutar la simulación.
+
+*Nota: la ejecución desde la GUI solo ejecuta una iteración de simulación, no dispone de ejecución en batch ni paramétrica*
+### Modo consola
 1. Ir al archivo: ``run_simulator.py``
 2. Configurar simulador y sus parámetros de entrada
 3. El simulador se ejecutará utilizando la función: `execute_simulator`
