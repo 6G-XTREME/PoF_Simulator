@@ -59,6 +59,11 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         run_name = str(uuid.uuid4())[:8]
     logger.info(f"Run_name: {run_name}")
     
+    if canvas_widget is None:
+        # In CLI execution, Tk works better than Qt
+        import matplotlib
+        matplotlib.use('TkAgg')  # Set the Matplotlib backend
+    
     # Import input_parameters from dict
     try:
         battery_capacity = input_parameters['battery_capacity']
