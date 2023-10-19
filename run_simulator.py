@@ -64,6 +64,7 @@ if __name__ == "__main__":
     custom_config['user_report_position'] = 8   # For each four timeSteps, the users updates position
     custom_config['startup_max_tokens'] = 8     # TimeSlots to startup a FemtoCell
     custom_config['poweroff_unused_cell'] = 8   # TimeSlots to poweroff an unused Cell
+    custom_config['use_harvesting'] = True      # Enable the Solar Harvesting Mode -> New graph + solar charging...
     
     logging.info("Execute simulator...")
     #execute_simulator(config_parameters=simulator_config, custom_parameters=custom_config)

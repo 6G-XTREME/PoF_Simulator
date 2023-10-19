@@ -242,6 +242,7 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
             custom_config['user_report_position'] = self.ui.user_report_position_spinBox.value()
             custom_config['startup_max_tokens'] = self.ui.startup_max_tokens_spinBox.value()
             custom_config['poweroff_unused_cell'] = self.ui.poweroff_unused_cell_spinBox.value()
+            custom_config['use_harvesting'] = self.ui.use_solar_harvesting_checkBox.isChecked()
         except ValueError:
             print("Unable to convert to number")
             

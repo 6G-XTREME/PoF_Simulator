@@ -637,68 +637,90 @@
         </item>
        </layout>
       </widget>
-      <widget class="QWidget" name="layoutWidget">
+      <widget class="QCheckBox" name="use_solar_harvesting_checkBox">
        <property name="geometry">
         <rect>
          <x>350</x>
-         <y>32</y>
-         <width>334</width>
-         <height>101</height>
+         <y>40</y>
+         <width>160</width>
+         <height>25</height>
         </rect>
        </property>
-       <layout class="QVBoxLayout" name="verticalLayout_2">
-        <item>
-         <widget class="QSplitter" name="splitter_18">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <widget class="QLabel" name="user_report_position_label">
-           <property name="text">
-            <string>Time slots to user report a new position</string>
-           </property>
-          </widget>
-          <widget class="QSpinBox" name="user_report_position_spinBox">
-           <property name="value">
-            <number>8</number>
-           </property>
-          </widget>
-         </widget>
-        </item>
-        <item>
-         <widget class="QSplitter" name="splitter_23">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <widget class="QLabel" name="startup_max_tokens_label">
-           <property name="text">
-            <string>Time slots to count cell as power on</string>
-           </property>
-          </widget>
-          <widget class="QSpinBox" name="startup_max_tokens_spinBox">
-           <property name="value">
-            <number>8</number>
-           </property>
-          </widget>
-         </widget>
-        </item>
-        <item>
-         <widget class="QSplitter" name="splitter_24">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <widget class="QLabel" name="poweroff_unused_cell_label">
-           <property name="text">
-            <string>Time slots to poweroff a unused cell</string>
-           </property>
-          </widget>
-          <widget class="QSpinBox" name="poweroff_unused_cell_spinBox">
-           <property name="value">
-            <number>8</number>
-           </property>
-          </widget>
-         </widget>
-        </item>
-       </layout>
+       <property name="text">
+        <string>Use solar harvesting</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+      <widget class="QSplitter" name="splitter_23">
+       <property name="geometry">
+        <rect>
+         <x>351</x>
+         <y>103</y>
+         <width>312</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <widget class="QLabel" name="startup_max_tokens_label">
+        <property name="text">
+         <string>Time slots to count cell as power on</string>
+        </property>
+       </widget>
+       <widget class="QSpinBox" name="startup_max_tokens_spinBox">
+        <property name="value">
+         <number>8</number>
+        </property>
+       </widget>
+      </widget>
+      <widget class="QSplitter" name="splitter_24">
+       <property name="geometry">
+        <rect>
+         <x>351</x>
+         <y>136</y>
+         <width>312</width>
+         <height>26</height>
+        </rect>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <widget class="QLabel" name="poweroff_unused_cell_label">
+        <property name="text">
+         <string>Time slots to poweroff a unused cell</string>
+        </property>
+       </widget>
+       <widget class="QSpinBox" name="poweroff_unused_cell_spinBox">
+        <property name="value">
+         <number>8</number>
+        </property>
+       </widget>
+      </widget>
+      <widget class="QSplitter" name="splitter_18">
+       <property name="geometry">
+        <rect>
+         <x>351</x>
+         <y>70</y>
+         <width>312</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <widget class="QLabel" name="user_report_position_label">
+        <property name="text">
+         <string>Time slots to user report a new position</string>
+        </property>
+       </widget>
+       <widget class="QSpinBox" name="user_report_position_spinBox">
+        <property name="value">
+         <number>8</number>
+        </property>
+       </widget>
       </widget>
      </widget>
      <widget class="QWidget" name="figure" native="true">
