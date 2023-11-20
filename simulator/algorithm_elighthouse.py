@@ -14,9 +14,11 @@ import time, random, os
 from simulator.launch import logger
 from simulator.context_config import Contex_Config
 from simulator.solar_harvesting import SolarPanel, Weather
-import simulator.map_utils, simulator.mobility_utils, simulator.user_association_utils, simulator.radio_utils
+import simulator.map_utils, simulator.mobility_utils, simulator.user_association_utils, simulator.radio_utils, simulator.energy_utils
 
 class PoF_simulation_ELighthouse(Contex_Config):
+    map_scale: int                              # 1 km == 100 points (1:100) 
+    
     user_report_position: int                   # TimeStep between user new position report
     user_report_position_next_time: np.array    # Next TimeStep to report position (with random)
     user_closest_bs: np.array                   # To Save previous closestBS
@@ -36,12 +38,15 @@ class PoF_simulation_ELighthouse(Contex_Config):
     per_in_area: float
     per_time_served: float
     
+    att_db_per_km: float                    # Fiber attenuation in dB/Km
+    
     # Battery Vars
     first_batt_dead_s: float
     last_batt_dead_s: float
     remaining_batt: int
     # Solar harvesting
     use_harvesting: bool                    # Enable Solar Harvesting
+    weather: str                            # Select the weather condition
     solar_panel: SolarPanel                 # Helper Object to obtain the charging intensity
     battery_mean_harvesting: np.array
     cumulative_harvested_power: np.array
@@ -63,6 +68,7 @@ class PoF_simulation_ELighthouse(Contex_Config):
         # Set seed for random
         #random.seed(150)
         
+        # Validation of custom parameters
         try:
             # Number of timeSlots that user should wait to re-send the position
             if elighthouse_parameters['user_report_position'] > 0 and elighthouse_parameters['user_report_position'] < 100:
@@ -82,18 +88,40 @@ class PoF_simulation_ELighthouse(Contex_Config):
             else:
                 self.poweroff_max_tokens = 1
                 
+            # Solar Harvesting + PoF
             if elighthouse_parameters['use_harvesting']:
                 self.use_harvesting = True
                 # ToDo: add more types of Solar Panels. This is the basics one...
                 self.solar_panel = SolarPanel(power_rating=10, efficiency=0.15, area=(0.42 * 0.28))
+                
+                valid_enum_member_names = {member.name for member in Weather}
+                if elighthouse_parameters['weather'] in valid_enum_member_names:
+                    self.weather = elighthouse_parameters['weather']
+                else:
+                    self.weather = "SUNNY"
             else:
                 self.use_harvesting = False
-            
+                
+            # Map Scale
+            if elighthouse_parameters['MapScale'] > 0 and elighthouse_parameters['MapScale'] <= 100:
+                self.map_scale = elighthouse_parameters['MapScale']
+            else:
+                self.map_scale = 100
+               
+            # Fiber dB attenuation per Km 
+            if elighthouse_parameters['fiberAttdBperKm'] > 0.0 and elighthouse_parameters['fiberAttdBperKm'] <= 0.4:
+                self.att_db_per_km = elighthouse_parameters["fiberAttdBperKm"]
+            else:
+                self.att_db_per_km = 0.2
         except:
             # On error, load default custom parameters
             self.user_report_position = 1
             self.startup_max_tokens = 1
             self.poweroff_max_tokens = 1
+            self.use_harvesting = False
+            self.weather = "SUNNY"
+            self.map_scale = 100
+            self.att_db_per_km = 0.2
         
         super().__init__(sim_times=sim_times, basestation_data=basestation_data, user_data=user_data, battery_data=battery_data, transmit_power_data=transmit_power_data)
     
@@ -492,6 +520,20 @@ class PoF_simulation_ELighthouse(Contex_Config):
             # Asign available energy to charge a cell battery
             available = self.max_energy_consumption - self.live_smallcell_consumption[timeIndex]
             I = np.argmin(self.battery_vector[0])    # One decision for eachTimeStep -> Because we can concentrate the laser power
+            
+            # Find nearest macrocell...
+            i_x = self.BaseStations[I][0]
+            i_y = self.BaseStations[I][1]
+            closests_macro = simulator.user_association_utils.search_closest_macro([i_x,i_y],self.BaseStations[0:self.NMacroCells, 0:2])
+            #print(f"Femto selected: {I}, nearest macro: {closests_macro}")
+            if I != closests_macro: 
+                macro_x = self.BaseStations[closests_macro][0]
+                macro_y = self.BaseStations[closests_macro][1]
+                d_km = simulator.map_utils.get_distance_in_kilometers([i_x, i_y], [macro_x, macro_y], self.map_scale)
+                #print(f"Available: {available}")
+                available = simulator.energy_utils.get_power_with_attenuation(available, self.att_db_per_km, d_km)
+                #print(f"Avaliable with att: {available}")
+            
             if self.battery_vector[0][I] < self.battery_capacity:
                 charging_intensity = available / np.mean(self.small_cell_voltage_range)
                 self.battery_vector[0][I] = min(self.battery_vector[0][I] + ((charging_intensity * timeStep) / 3600), self.battery_capacity)
@@ -510,7 +552,7 @@ class PoF_simulation_ELighthouse(Contex_Config):
             solar_irradiance = self.solar_panel.convert_daily_ghi_to_timeStep_ghi(daily_irradiance=4900, timeStep=0.5)
             for batt in range(self.NMacroCells, len(self.battery_vector[0])):
                 if self.battery_vector[0][batt] < self.battery_capacity:
-                    charging_power = self.solar_panel.calculate_power_generated(solar_irradiance=solar_irradiance, weather_condition=Weather.SUNNY)
+                    charging_power = self.solar_panel.calculate_power_generated(solar_irradiance=solar_irradiance, weather_condition=Weather[self.weather])
                     harvested_power = ((charging_power * timeStep) / 3600)
                     self.battery_vector[0][batt] = min(self.battery_vector[0][batt] + harvested_power, self.battery_capacity)
                     self.cumulative_harvested_power[batt] += harvested_power
@@ -727,7 +769,7 @@ class PoF_simulation_ELighthouse(Contex_Config):
         # New Figures
         if self.use_harvesting:
             fig_battery_mean_harvesting, ax = plt.subplots()
-            self.list_figures.append((fig_battery_mean_harvesting, "battery_mean"))
+            self.list_figures.append((fig_battery_mean_harvesting, "battery_mean_harvesting"))
             ax.plot(sim_times, self.battery_mean_values, label='With Harvesting')
             ax.plot(sim_times, self.battery_mean_values - self.battery_mean_harvesting, label='Without Harvesting')
             ax.axhline(y=3.3, color='r',label="Max. battery capacity")
@@ -736,8 +778,8 @@ class PoF_simulation_ELighthouse(Contex_Config):
             ax.set_title('Mean Battery Capacity of the System')
             ax.legend()
             
-            fig_battery_mean, ax = plt.subplots()
-            self.list_figures.append((fig_battery_mean, "battery_mean"))
+            fig_battery_acc_harvesting, ax = plt.subplots()
+            self.list_figures.append((fig_battery_acc_harvesting, "battery_accumulative_harvesting"))
             ax.plot(sim_times, self.battery_mean_harvesting, label='Accumulative battery harvesting')
             ax.set_xlabel('Time [s]')
             ax.set_ylabel('Battery capacity [Ah]')

@@ -48,7 +48,7 @@ if __name__ == "__main__":
     logging.info("Configuring input_parameters & config_simulator...")
     simulator_input = INPUT_PARAMETERS.copy()   # Retrieve the default input parameters
     simulator_input['Simulation_Time'] = 2*60  
-    simulator_input['Users'] = 180
+    simulator_input['Users'] = 30
     
     simulator_config = CONFIG_PARAMETERS.copy() # Retrieve the default config of the simulator
     #simulator_config['use_user_list'] = True    # For validate MATLAB output. Always the same execution. Fixed Simulation Time
@@ -64,7 +64,11 @@ if __name__ == "__main__":
     custom_config['user_report_position'] = 8   # For each four timeSteps, the users updates position
     custom_config['startup_max_tokens'] = 8     # TimeSlots to startup a FemtoCell
     custom_config['poweroff_unused_cell'] = 8   # TimeSlots to poweroff an unused Cell
+    
     custom_config['use_harvesting'] = True      # Enable the Solar Harvesting Mode -> New graph + solar charging...
+    custom_config['weather'] = "RAINY"          # Select over SUNNY, CLOUDY or RAINY
+    custom_config['MapScale'] = 100             # 1 km == 100 points (1:100)
+    custom_config['fiberAttdBperKm'] = 0.2      # Fiber attenuation in dB/Km
     
     logging.info("Execute simulator...")
     #execute_simulator(config_parameters=simulator_config, custom_parameters=custom_config)

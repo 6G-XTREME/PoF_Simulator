@@ -53,6 +53,7 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
         self.ui.edit_simulator_input_checkBox.toggled.connect(self.toggle_editing_input_parameters)
         self.ui.use_nice_setup_checkBox.toggled.connect(self.toggle_editing_cells)
         self.ui.run_pushButton.clicked.connect(self.run_simulation_button)
+        self.ui.use_solar_harvesting_checkBox.toggled.connect(self.toggle_solar_harvesting)
         
         # Actions
         menu_bar = self.findChild(QtWidgets.QMenuBar, "menubar")
@@ -170,7 +171,10 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
             self.ui.MacroCellDownlinkBW_edit.setStyleSheet(disabled_stylesheet) 
             self.ui.FemtoCellDownlinkBW_edit.setStyleSheet(disabled_stylesheet) 
             self.ui.battery_capacity_edit.setStyleSheet(disabled_stylesheet)  
-      
+    
+    def toggle_solar_harvesting(self, state):
+        self.ui.weather_comboBox.setEnabled(state)
+    
     def close_all_figures(self) -> None:
         logging.info("Closing all figures...")
         try:
@@ -243,6 +247,9 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
             custom_config['startup_max_tokens'] = self.ui.startup_max_tokens_spinBox.value()
             custom_config['poweroff_unused_cell'] = self.ui.poweroff_unused_cell_spinBox.value()
             custom_config['use_harvesting'] = self.ui.use_solar_harvesting_checkBox.isChecked()
+            custom_config['weather'] = str(self.ui.weather_comboBox.currentText()).upper()
+            custom_config['MapScale'] = float(self.ui.MapScale_edit.text())
+            custom_config['fiberAttdBperKm'] = float(self.ui.fiber_att_edit.text())
         except ValueError:
             print("Unable to convert to number")
             

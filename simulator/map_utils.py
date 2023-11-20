@@ -122,6 +122,13 @@ def get_dominance_area(P1, P2):
 def get_euclidean_distance(X, Y):
     return sqrt((X[0]-Y[0])**2 + (X[1]-Y[1])**2)
 
+def get_distance_in_kilometers(X, Y, scale):
+    # Calculate Euclidean distance in map units
+    d_units = get_euclidean_distance(X, Y)
+
+    # Convert distance to kilometers, based on the provided scale
+    return d_units / scale
+
 def perpendicular_bisector(P1, P2):
     _xmed = (P1[0] + P2[0])/2
     _ymed = (P1[1] + P2[1])/2

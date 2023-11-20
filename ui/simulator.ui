@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1160</width>
-    <height>760</height>
+    <height>808</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -19,8 +19,8 @@
      <rect>
       <x>0</x>
       <y>0</y>
-      <width>1151</width>
-      <height>701</height>
+      <width>1141</width>
+      <height>751</height>
      </rect>
     </property>
     <property name="sizePolicy">
@@ -507,8 +507,8 @@
        <rect>
         <x>440</x>
         <y>460</y>
-        <width>691</width>
-        <height>191</height>
+        <width>681</width>
+        <height>241</height>
        </rect>
       </property>
       <property name="title">
@@ -520,7 +520,7 @@
          <x>331</x>
          <y>31</y>
          <width>16</width>
-         <height>151</height>
+         <height>201</height>
         </rect>
        </property>
        <property name="orientation">
@@ -536,7 +536,7 @@
          <height>155</height>
         </rect>
        </property>
-       <layout class="QVBoxLayout" name="verticalLayout_3">
+       <layout class="QVBoxLayout" name="LeftPanel">
         <item>
          <widget class="QSplitter" name="splitter_21">
           <property name="orientation">
@@ -637,90 +637,191 @@
         </item>
        </layout>
       </widget>
-      <widget class="QCheckBox" name="use_solar_harvesting_checkBox">
+      <widget class="QWidget" name="">
        <property name="geometry">
         <rect>
          <x>350</x>
-         <y>40</y>
-         <width>160</width>
-         <height>25</height>
+         <y>30</y>
+         <width>314</width>
+         <height>197</height>
         </rect>
        </property>
-       <property name="text">
-        <string>Use solar harvesting</string>
-       </property>
-       <property name="checked">
-        <bool>true</bool>
-       </property>
-      </widget>
-      <widget class="QSplitter" name="splitter_23">
-       <property name="geometry">
-        <rect>
-         <x>351</x>
-         <y>103</y>
-         <width>312</width>
-         <height>27</height>
-        </rect>
-       </property>
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <widget class="QLabel" name="startup_max_tokens_label">
-        <property name="text">
-         <string>Time slots to count cell as power on</string>
-        </property>
-       </widget>
-       <widget class="QSpinBox" name="startup_max_tokens_spinBox">
-        <property name="value">
-         <number>8</number>
-        </property>
-       </widget>
-      </widget>
-      <widget class="QSplitter" name="splitter_24">
-       <property name="geometry">
-        <rect>
-         <x>351</x>
-         <y>136</y>
-         <width>312</width>
-         <height>26</height>
-        </rect>
-       </property>
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <widget class="QLabel" name="poweroff_unused_cell_label">
-        <property name="text">
-         <string>Time slots to poweroff a unused cell</string>
-        </property>
-       </widget>
-       <widget class="QSpinBox" name="poweroff_unused_cell_spinBox">
-        <property name="value">
-         <number>8</number>
-        </property>
-       </widget>
-      </widget>
-      <widget class="QSplitter" name="splitter_18">
-       <property name="geometry">
-        <rect>
-         <x>351</x>
-         <y>70</y>
-         <width>312</width>
-         <height>27</height>
-        </rect>
-       </property>
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <widget class="QLabel" name="user_report_position_label">
-        <property name="text">
-         <string>Time slots to user report a new position</string>
-        </property>
-       </widget>
-       <widget class="QSpinBox" name="user_report_position_spinBox">
-        <property name="value">
-         <number>8</number>
-        </property>
-       </widget>
+       <layout class="QVBoxLayout" name="verticalLayout_2">
+        <item>
+         <widget class="QSplitter" name="splitter_25">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <widget class="QCheckBox" name="use_solar_harvesting_checkBox">
+           <property name="text">
+            <string>Use solar harvesting</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+          <widget class="QComboBox" name="weather_comboBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="currentText">
+            <string>Sunny</string>
+           </property>
+           <item>
+            <property name="text">
+             <string>Sunny</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Cloudy</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Rainy</string>
+            </property>
+           </item>
+          </widget>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSplitter" name="splitter_27">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <widget class="QLabel" name="MapScale_label">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="text">
+            <string>Map scale (1km:&lt;input&gt;)</string>
+           </property>
+          </widget>
+          <widget class="QLineEdit" name="MapScale_edit">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="layoutDirection">
+            <enum>Qt::LeftToRight</enum>
+           </property>
+           <property name="text">
+            <string>100.0</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+           <property name="clearButtonEnabled">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSplitter" name="splitter_26">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <widget class="QLabel" name="fiber_att_label">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="text">
+            <string>Fiber attenuation (dB/km)</string>
+           </property>
+          </widget>
+          <widget class="QLineEdit" name="fiber_att_edit">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="layoutDirection">
+            <enum>Qt::LeftToRight</enum>
+           </property>
+           <property name="text">
+            <string>0.2</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+           <property name="clearButtonEnabled">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSplitter" name="splitter_18">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <widget class="QLabel" name="user_report_position_label">
+           <property name="text">
+            <string>Time slots to user report a new position</string>
+           </property>
+          </widget>
+          <widget class="QSpinBox" name="user_report_position_spinBox">
+           <property name="value">
+            <number>8</number>
+           </property>
+          </widget>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSplitter" name="splitter_23">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <widget class="QLabel" name="startup_max_tokens_label">
+           <property name="text">
+            <string>Time slots to count cell as power on</string>
+           </property>
+          </widget>
+          <widget class="QSpinBox" name="startup_max_tokens_spinBox">
+           <property name="value">
+            <number>8</number>
+           </property>
+          </widget>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSplitter" name="splitter_24">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <widget class="QLabel" name="poweroff_unused_cell_label">
+           <property name="text">
+            <string>Time slots to poweroff a unused cell</string>
+           </property>
+          </widget>
+          <widget class="QSpinBox" name="poweroff_unused_cell_spinBox">
+           <property name="value">
+            <number>8</number>
+           </property>
+          </widget>
+         </widget>
+        </item>
+       </layout>
       </widget>
      </widget>
      <widget class="QWidget" name="figure" native="true">
