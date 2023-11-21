@@ -176,7 +176,15 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
             colorsBS[a] = np.random.uniform(size=3, low=0, high=1)
             ax.plot(BaseStations[a,0], BaseStations[a,1], 'o',color = colorsBS[a])
             ax.text(BaseStations[a,0], BaseStations[a,1], 'P'+str(a) , ha='center', va='bottom')
-
+        
+        # Algorithm Centroid of Extra Point of Charge
+        if 'extraPoFCharger' in custom_parameters:
+            if custom_parameters['extraPoFCharger']:
+                centroid_x = np.mean(BaseStations[:, 0])
+                centroid_y = np.mean(BaseStations[:, 1])
+                ax.plot(centroid_x, centroid_y, 'x', color='red', label='Centroid')
+                #ax.text(centroid_x, centroid_y, 'Centroid', ha='center', va='bottom')
+        
         if config_parameters['show_plots']:
             if canvas_widget is None: 
                 plt.show(block=False)  

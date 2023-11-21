@@ -65,6 +65,7 @@ if __name__ == "__main__":
     custom_config['startup_max_tokens'] = 8     # TimeSlots to startup a FemtoCell
     custom_config['poweroff_unused_cell'] = 8   # TimeSlots to poweroff an unused Cell
     
+    custom_config['extraPoFCharger'] = True     # Enable an extra Charger with 1W on the centroid
     custom_config['use_harvesting'] = True      # Enable the Solar Harvesting Mode -> New graph + solar charging...
     custom_config['weather'] = "RAINY"          # Select over SUNNY, CLOUDY or RAINY
     custom_config['MapScale'] = 100             # 1 km == 100 points (1:100)

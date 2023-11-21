@@ -54,6 +54,7 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
         self.ui.use_nice_setup_checkBox.toggled.connect(self.toggle_editing_cells)
         self.ui.run_pushButton.clicked.connect(self.run_simulation_button)
         self.ui.use_solar_harvesting_checkBox.toggled.connect(self.toggle_solar_harvesting)
+        self.ui.algorithm_comboBox.currentIndexChanged.connect(self.update_custom_configuration_state)
         
         # Actions
         menu_bar = self.findChild(QtWidgets.QMenuBar, "menubar")
@@ -77,6 +78,9 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
         self.canvas_widget = FigureCanvas(Figure(figsize=(5, 3)))
         layout = QtWidgets.QVBoxLayout(self.figure)
         layout.addWidget(self.canvas_widget)
+        
+        # Start conditions
+        self.toggle_editing_input_parameters(False)
         
     def run_simulation_button(self):
         if self.long_task_thread and self.long_task_thread.isRunning():
@@ -118,62 +122,22 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
             self.ui.NFemtoCells_edit.setText("20")
       
     def toggle_editing_input_parameters(self, state):
-        checked = not state
-        disabled_stylesheet = "QLineEdit:disabled { background-color: #2e2e2e; color: #808080; }"
-        self.ui.battery_capacity_edit.setReadOnly(checked)
-        self.ui.small_cell_voltage_min_edit.setReadOnly(checked)
-        self.ui.small_cell_voltage_max_edit.setReadOnly(checked)
-        self.ui.battery_capacity_edit.setReadOnly(checked)
-        self.ui.small_cell_consumption_on_edit.setReadOnly(checked)
-        self.ui.small_cell_consumption_sleep_edit.setReadOnly(checked)
-        self.ui.mean_user_speed_edit.setReadOnly(checked)
-        self.ui.numberOfLasers_edit.setReadOnly(checked)
-        self.ui.noise_edit.setReadOnly(checked)
-        self.ui.alpha_loss_edit.setReadOnly(checked)
-        self.ui.PMacroCells_edit.setReadOnly(checked)
-        self.ui.PFemtoCells_edit.setReadOnly(checked)
-        self.ui.PDevice_edit.setReadOnly(checked)
-        self.ui.MacroCellDownlinkBW_edit.setReadOnly(checked)
-        self.ui.FemtoCellDownlinkBW_edit.setReadOnly(checked)
-        
-        # Apply style sheet to change appearance when disabled
-        if checked:
-            # Clear style sheet
-            self.ui.small_cell_voltage_min_edit.setStyleSheet() 
-            self.ui.small_cell_voltage_max_edit.setStyleSheet() 
-            self.ui.battery_capacity_edit.setStyleSheet() 
-            self.ui.small_cell_consumption_on_edit.setStyleSheet() 
-            self.ui.small_cell_consumption_sleep_edit.setStyleSheet() 
-            self.ui.mean_user_speed_edit.setStyleSheet() 
-            self.ui.numberOfLasers_edit.setStyleSheet() 
-            self.ui.noise_edit.setStyleSheet() 
-            self.ui.alpha_loss_edit.setStyleSheet() 
-            self.ui.PMacroCells_edit.setStyleSheet() 
-            self.ui.PFemtoCells_edit.setStyleSheet() 
-            self.ui.PDevice_edit.setStyleSheet() 
-            self.ui.MacroCellDownlinkBW_edit.setStyleSheet() 
-            self.ui.FemtoCellDownlinkBW_edit.setStyleSheet() 
-            self.ui.battery_capacity_edit.setStyleSheet() 
-        else:
-            # Add disabled stylesheet
-            self.ui.small_cell_voltage_min_edit.setStyleSheet(disabled_stylesheet) 
-            self.ui.small_cell_voltage_max_edit.setStyleSheet(disabled_stylesheet) 
-            self.ui.battery_capacity_edit.setStyleSheet(disabled_stylesheet) 
-            self.ui.small_cell_consumption_on_edit.setStyleSheet(disabled_stylesheet) 
-            self.ui.small_cell_consumption_sleep_edit.setStyleSheet(disabled_stylesheet) 
-            self.ui.mean_user_speed_edit.setStyleSheet(disabled_stylesheet) 
-            self.ui.numberOfLasers_edit.setStyleSheet(disabled_stylesheet) 
-            self.ui.noise_edit.setStyleSheet(disabled_stylesheet) 
-            self.ui.alpha_loss_edit.setStyleSheet(disabled_stylesheet) 
-            self.ui.PMacroCells_edit.setStyleSheet(disabled_stylesheet) 
-            self.ui.PFemtoCells_edit.setStyleSheet(disabled_stylesheet) 
-            self.ui.PDevice_edit.setStyleSheet(disabled_stylesheet) 
-            self.ui.MacroCellDownlinkBW_edit.setStyleSheet(disabled_stylesheet) 
-            self.ui.FemtoCellDownlinkBW_edit.setStyleSheet(disabled_stylesheet) 
-            self.ui.battery_capacity_edit.setStyleSheet(disabled_stylesheet)  
+        for i in range(self.ui.InputParameters.count()):
+            widget = self.ui.InputParameters.itemAt(i).widget()
+            if widget:
+                widget.setDisabled(not state)
+                if isinstance(widget, (QtWidgets.QLineEdit, QtWidgets.QTextEdit)):
+                    widget.setReadOnly(state)
     
     def toggle_solar_harvesting(self, state):
         self.ui.weather_comboBox.setEnabled(state)
+        
+    def update_custom_configuration_state(self):
+        selected_value = self.ui.algorithm_comboBox.currentText()
+        for i in range(self.ui.RightPanel.count()):
+            widget = self.ui.RightPanel.itemAt(i).widget()
+            if widget:
+                widget.setDisabled(selected_value != "E-Lighthouse")
     
     def close_all_figures(self) -> None:
         logging.info("Closing all figures...")
@@ -250,6 +214,7 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
             custom_config['weather'] = str(self.ui.weather_comboBox.currentText()).upper()
             custom_config['MapScale'] = float(self.ui.MapScale_edit.text())
             custom_config['fiberAttdBperKm'] = float(self.ui.fiber_att_edit.text())
+            custom_config['extraPoFCharger'] = self.ui.extra_charger_checkBox.isChecked()
         except ValueError:
             print("Unable to convert to number")
             
