@@ -1,7 +1,11 @@
 import os
 import sys
+import csv
+import re
+import send2trash
 import logging
 from PySide6 import QtWidgets, QtCore
+from PySide6.QtWidgets import QTableWidget, QTableWidgetItem, QMessageBox
 from PySide6.QtUiTools import QUiLoader
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -62,6 +66,8 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
         menu_help = menu_bar.findChild(QtWidgets.QMenu, "menuHelp")
         action_close_figures = menu_figures.addAction("Close All Figures")
         action_close_figures.triggered.connect(self.close_all_figures)
+        action_purge_runs = menu_help.addAction("Purge Output Folder")
+        action_purge_runs.triggered.connect(lambda: self.purge_output_folder(self.output_folder_path))
         action_about = menu_help.addAction("About")
         action_about.triggered.connect(self.show_help)
         action_exit = menu_help.addAction("Exit")
@@ -79,7 +85,12 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
         layout = QtWidgets.QVBoxLayout(self.figure)
         layout.addWidget(self.canvas_widget)
         
+        # Set table options
+        self.ui.table_csv.setEditTriggers(QTableWidget.NoEditTriggers)  # Make the table read-only
+        self.ui.table_csv.setSortingEnabled(True)
+        
         # Start conditions
+        self.ui.tabWidget.setCurrentIndex(0)
         self.toggle_editing_input_parameters(False)
         
     def run_simulation_button(self):
@@ -107,7 +118,9 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
         
         if self.ui.save_output_checkBox.isChecked():
             # Find the new folder created
-            message = f"Simulation had finished. The simulation data has been saved inside: output/{self.get_last_created_output_folder()}"
+            output_run = self.get_last_created_output_folder()
+            message = f"Simulation had finished. The simulation data has been saved inside: output/{output_run}. View data inside Results Tab."
+            self.update_results_table(f"./output/{output_run}/data/{output_run}-output.csv")
         else:
             message = "Simulation had finished."
         
@@ -138,6 +151,43 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
             widget = self.ui.RightPanel.itemAt(i).widget()
             if widget:
                 widget.setDisabled(selected_value != "E-Lighthouse")
+                
+    def update_results_table(self, file: str):
+        self.ui.results_msg.setText(f"Reading results of file : {file}")
+        with open(file, 'r') as csv_file:
+            csv_reader = csv.reader(csv_file)
+            data = list(csv_reader)
+
+            # Extract the column names from the first row of the CSV data
+            column_names = data[0]
+
+            # Remove the first row (column names) from the data
+            data = data[1:]
+
+            self.ui.table_csv.setRowCount(len(data))
+            self.ui.table_csv.setColumnCount(len(column_names))
+
+            # Set the extracted column names as column headers
+            self.ui.table_csv.setHorizontalHeaderLabels(column_names)
+
+            for row_index, row_data in enumerate(data):
+                for col_index, cell_value in enumerate(row_data):
+                    item = QTableWidgetItem(cell_value)
+                    self.ui.table_csv.setItem(row_index, col_index, item)
+    
+    def purge_output_folder(self, directory_path, loop=False) -> None:
+        for item in os.listdir(directory_path):
+            item_path = os.path.join(directory_path, item)
+            if os.path.isdir(item_path):
+                uuid_pattern = r'^[0-9a-fA-F]+$'  # Check if the folder name matches the UUID pattern (e.g., "4877ba88")
+                if re.match(uuid_pattern, item):
+                    logging.info(f"Moving UUID folder to trash: {item}")
+                    self.purge_output_folder(item_path, True)  # Recursively move contents of UUID folders to trash
+                    send2trash.send2trash(item_path)  # Send the UUID folder to trash
+                else:
+                    logging.info(f"Skipping human-readable folder: {item}")
+        if not loop:
+            QtWidgets.QMessageBox.information(self, "Purge Output Folder", f"Succesfully trashed the content of the folder: {self.output_folder_path}")
     
     def close_all_figures(self) -> None:
         logging.info("Closing all figures...")
@@ -150,6 +200,21 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
     def show_help(self) -> None:
         QtWidgets.QMessageBox.information(self, "Help", "This is the help content.")
         return
+    
+    def closeEvent(self, event):
+        reply = QMessageBox.question(
+            self,
+            "Confirmation",
+            "Are you sure you want to exit?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+
+        if reply == QMessageBox.Yes:
+            self.close_all_figures()    # Try to close all figures
+            event.accept()
+        else:
+            event.ignore()
 
     def exit(self) -> None:
         logging.info("Exit simulator...")
