@@ -10,6 +10,7 @@ from PySide6.QtUiTools import QUiLoader
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from simulator.launch import execute_simulator
 
@@ -88,6 +89,8 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
         # Set table options
         self.ui.table_csv.setEditTriggers(QTableWidget.NoEditTriggers)  # Make the table read-only
         self.ui.table_csv.setSortingEnabled(True)
+        self.ui.summary_csv.setEditTriggers(QTableWidget.NoEditTriggers)  # Make the table read-only
+        self.ui.summary_csv.setSortingEnabled(True)
         
         # Start conditions
         self.ui.tabWidget.setCurrentIndex(0)
@@ -120,7 +123,9 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
             # Find the new folder created
             output_run = self.get_last_created_output_folder()
             message = f"Simulation had finished. The simulation data has been saved inside: output/{output_run}. View data inside Results Tab."
-            self.update_results_table(f"./output/{output_run}/data/{output_run}-output.csv")
+            last_run_raw_data = f"./output/{output_run}/data/{output_run}-output.csv"
+            self.update_results_table(last_run_raw_data)
+            self.update_summary_table(last_run_raw_data)
         else:
             message = "Simulation had finished."
         
@@ -144,6 +149,7 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
     
     def toggle_solar_harvesting(self, state):
         self.ui.weather_comboBox.setEnabled(state)
+        self.ui.city_comboBox.setEnabled(state)
         
     def update_custom_configuration_state(self):
         selected_value = self.ui.algorithm_comboBox.currentText()
@@ -157,24 +163,44 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
         with open(file, 'r') as csv_file:
             csv_reader = csv.reader(csv_file)
             data = list(csv_reader)
-
-            # Extract the column names from the first row of the CSV data
             column_names = data[0]
-
-            # Remove the first row (column names) from the data
             data = data[1:]
 
             self.ui.table_csv.setRowCount(len(data))
             self.ui.table_csv.setColumnCount(len(column_names))
-
-            # Set the extracted column names as column headers
             self.ui.table_csv.setHorizontalHeaderLabels(column_names)
 
             for row_index, row_data in enumerate(data):
                 for col_index, cell_value in enumerate(row_data):
                     item = QTableWidgetItem(cell_value)
                     self.ui.table_csv.setItem(row_index, col_index, item)
+            
+            num_columns = self.ui.table_csv.columnCount()
+            for column_index in range(num_columns):
+                self.ui.table_csv.resizeColumnToContents(column_index)
     
+    def update_summary_table(self, file: str):
+        self.ui.summary_msg.setText(f"This table represent the mean values calculated from all the raw data generated during the simulation. Run: {file}")
+        df = pd.read_csv(file)
+        df = df.drop(['time[s]'], axis=1)
+        df = df.drop(columns=['harvesting', 'centroids'])
+        means = df.mean(numeric_only=True)
+        means = means.round(2)
+        
+        transposed_means = means.transpose()
+        column_names = transposed_means.index.tolist()
+        num_rows, num_cols = len(column_names), 1  # Transposed, so 1 column
+
+        self.ui.summary_csv.setRowCount(num_rows)
+        self.ui.summary_csv.setColumnCount(num_cols)
+        self.ui.summary_csv.setVerticalHeaderLabels(column_names)
+
+        for row_index, cell_value in enumerate(transposed_means):
+            item = QTableWidgetItem(str(cell_value))  # Convert cell_value to str if needed
+            self.ui.summary_csv.setItem(row_index, 0, item)  # One column in the transposed data
+        self.ui.summary_csv.resizeColumnToContents(0)  # Adjust the width of the first column
+
+
     def purge_output_folder(self, directory_path, loop=False) -> None:
         for item in os.listdir(directory_path):
             item_path = os.path.join(directory_path, item)
@@ -246,10 +272,10 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
             input_parameters['TransmittingPower']['MacroCellDownlinkBW'] = float(self.ui.MacroCellDownlinkBW_edit.text())
             input_parameters['TransmittingPower']['FemtoCellDownlinkBW'] = float(self.ui.FemtoCellDownlinkBW_edit.text())
             input_parameters['TransmittingPower']['alpha_loss'] = float(self.ui.alpha_loss_edit.text())
-        except ValueError:
-            print("Unable to convert to number")
+        except ValueError as ex:
+            logging.error(f"Unable to convert to number: {ex}")
             
-        print(input_parameters)
+        logging.info(input_parameters)
         return input_parameters
     
     def get_config_parameters(self) -> dict:
@@ -263,10 +289,10 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
             config_parameters['speed_live_plots'] = 0.05
             config_parameters['save_output'] = self.ui.save_output_checkBox.isChecked()
             config_parameters['output_folder'] = self.ui.output_folder_edit.text()
-        except ValueError:
-            print("Unable to convert to numbers")
+        except ValueError as ex:
+            logging.error(f"Unable to convert to numbers: {ex}")
         
-        print(config_parameters)
+        logging.info(config_parameters)
         return config_parameters
     
     def get_custom_config(self) -> dict:
@@ -277,16 +303,17 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
             custom_config['poweroff_unused_cell'] = self.ui.poweroff_unused_cell_spinBox.value()
             custom_config['use_harvesting'] = self.ui.use_solar_harvesting_checkBox.isChecked()
             custom_config['weather'] = str(self.ui.weather_comboBox.currentText()).upper()
+            custom_config['city'] = str(self.ui.city_comboBox.currentText())
             custom_config['MapScale'] = float(self.ui.MapScale_edit.text())
             custom_config['fiberAttdBperKm'] = float(self.ui.fiber_att_edit.text())
             try: 
                 custom_config['extraPoFCharger'] = self.ui.extra_charger_checkBox.isChecked()
             except RuntimeError:
                 custom_config['extraPoFCharger'] = False 
-        except ValueError:
-            print("Unable to convert to number")
+        except ValueError as ex:
+            logging.error(f"Unable to convert to number: {ex}")
             
-        print(custom_config)
+        logging.info(custom_config)
         return custom_config
     
     def get_last_created_output_folder(self) -> str:

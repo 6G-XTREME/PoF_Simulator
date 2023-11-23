@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1178</width>
+    <width>1196</width>
     <height>832</height>
    </rect>
   </property>
@@ -19,7 +19,7 @@
      <rect>
       <x>0</x>
       <y>0</y>
-      <width>1161</width>
+      <width>1181</width>
       <height>771</height>
      </rect>
     </property>
@@ -30,7 +30,7 @@
      </sizepolicy>
     </property>
     <property name="currentIndex">
-     <number>0</number>
+     <number>1</number>
     </property>
     <widget class="QWidget" name="SimulatorTab">
      <attribute name="title">
@@ -601,7 +601,7 @@
        <rect>
         <x>480</x>
         <y>460</y>
-        <width>651</width>
+        <width>691</width>
         <height>261</height>
        </rect>
       </property>
@@ -731,16 +731,16 @@
         </item>
        </layout>
       </widget>
-      <widget class="QWidget" name="layoutWidget">
+      <widget class="QWidget" name="">
        <property name="geometry">
         <rect>
-         <x>330</x>
+         <x>331</x>
          <y>30</y>
-         <width>314</width>
+         <width>348</width>
          <height>228</height>
         </rect>
        </property>
-       <layout class="QVBoxLayout" name="RightPanel">
+       <layout class="QVBoxLayout" name="verticalLayout">
         <item>
          <widget class="QSplitter" name="splitter_25">
           <property name="orientation">
@@ -780,6 +780,22 @@
             </property>
            </item>
           </widget>
+          <widget class="QComboBox" name="city_comboBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="currentText">
+            <string>Cartagena</string>
+           </property>
+           <item>
+            <property name="text">
+             <string>Cartagena</string>
+            </property>
+           </item>
+          </widget>
          </widget>
         </item>
         <item>
@@ -788,7 +804,7 @@
            <string>Extra PoF charger (centroid based)</string>
           </property>
           <property name="checked">
-           <bool>true</bool>
+           <bool>false</bool>
           </property>
          </widget>
         </item>
@@ -1101,7 +1117,7 @@
        </item>
       </layout>
      </widget>
-     <widget class="QSplitter" name="splitter_28">
+     <widget class="QSplitter" name="simulation_status">
       <property name="geometry">
        <rect>
         <x>10</x>
@@ -1125,9 +1141,37 @@
       </widget>
      </widget>
     </widget>
-    <widget class="QWidget" name="ResultsTab">
+    <widget class="QWidget" name="SummaryTab">
      <attribute name="title">
-      <string>Results</string>
+      <string>Summary Results</string>
+     </attribute>
+     <widget class="QLabel" name="summary_msg">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>10</y>
+        <width>1131</width>
+        <height>19</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>You must select the option &quot;save data and show result&quot; in order to view the summary results table</string>
+      </property>
+     </widget>
+     <widget class="QTableWidget" name="summary_csv">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>40</y>
+        <width>1141</width>
+        <height>681</height>
+       </rect>
+      </property>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="RawDataTab">
+     <attribute name="title">
+      <string>Raw Data</string>
      </attribute>
      <widget class="QTableWidget" name="table_csv">
       <property name="geometry">
@@ -1149,7 +1193,7 @@
        </rect>
       </property>
       <property name="text">
-       <string>You must select the option &quot;save data and show result&quot; in order to view the results table</string>
+       <string>You must select the option &quot;save data and show result&quot; in order to view the raw data table</string>
       </property>
      </widget>
     </widget>
@@ -1160,7 +1204,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1178</width>
+     <width>1196</width>
      <height>24</height>
     </rect>
    </property>
