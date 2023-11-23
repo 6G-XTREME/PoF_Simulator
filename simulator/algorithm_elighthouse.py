@@ -47,6 +47,7 @@ class PoF_simulation_ELighthouse(Contex_Config):
     # Solar harvesting
     use_harvesting: bool                    # Enable Solar Harvesting
     weather: str                            # Select the weather condition
+    city: str                               # Selected city to simulate the harvesting
     solar_panel: SolarPanel                 # Helper Object to obtain the charging intensity
     battery_mean_harvesting: np.array
     cumulative_harvested_power: np.array
@@ -96,14 +97,22 @@ class PoF_simulation_ELighthouse(Contex_Config):
             # Solar Harvesting + PoF
             if elighthouse_parameters['use_harvesting']:
                 self.use_harvesting = True
-                # ToDo: add more types of Solar Panels. This is the basics one...
-                self.solar_panel = SolarPanel(power_rating=10, efficiency=0.15, area=(0.42 * 0.28))
+                # Reference Solar Panel:
+                # SeedStudio Panel: https://www.seeedstudio.com/Solar-Panel-PV-12W-with-mounting-bracket-p-5003.html
+                # https://www.mouser.es/new/seeed-studio/seeed-studio-pv-12w-solar-panel/
+                self.solar_panel = SolarPanel(power_rating=12, voltage_charging=14, efficiency=0.2, area=(0.35 * 0.25))
                 
                 valid_enum_member_names = {member.name for member in Weather}
                 if elighthouse_parameters['weather'] in valid_enum_member_names:
                     self.weather = elighthouse_parameters['weather']
                 else:
                     self.weather = "SUNNY"
+                
+                if elighthouse_parameters['city'] in self.solar_panel.irradiance_city:
+                    self.city = elighthouse_parameters['city']
+                else:
+                    self.city = "Cartagena"
+                logger.info("Using solar harvesting, located at city: " + self.city)
             else:
                 self.use_harvesting = False
                 
@@ -144,6 +153,7 @@ class PoF_simulation_ELighthouse(Contex_Config):
             self.poweroff_max_tokens = 1
             self.use_harvesting = False
             self.weather = "SUNNY"
+            self.city = "Cartagena"
             self.map_scale = 100
             self.att_db_per_km = 0.2
             self.use_centroid = False
@@ -598,13 +608,11 @@ class PoF_simulation_ELighthouse(Contex_Config):
     
         # Add the Solar harvesting for each battery of femtocell ...
         if self.use_harvesting:
-            solar_irradiance = self.solar_panel.convert_daily_ghi_to_timeStep_ghi(daily_irradiance=4900, timeStep=0.5)
             for batt in range(self.NMacroCells, len(self.battery_vector[0])):
                 if self.battery_vector[0][batt] < self.battery_capacity:
-                    charging_power = self.solar_panel.calculate_power_generated(solar_irradiance=solar_irradiance, weather_condition=Weather[self.weather])
-                    harvested_power = ((charging_power * timeStep) / 3600)
-                    self.battery_vector[0][batt] = min(self.battery_vector[0][batt] + harvested_power, self.battery_capacity)
-                    self.cumulative_harvested_power[batt] += harvested_power
+                    charging_power_amperes_timeStep = self.solar_panel.calculate_Ah_in_timeStep(solar_irradiance=self.solar_panel.irradiance_city[self.city], timeStep=0.5, weather_condition=Weather[self.weather])
+                    self.battery_vector[0][batt] = min(self.battery_vector[0][batt] + charging_power_amperes_timeStep, self.battery_capacity)
+                    self.cumulative_harvested_power[batt] += charging_power_amperes_timeStep
             self.battery_mean_harvesting[timeIndex] = np.mean(self.cumulative_harvested_power)
         
         self.battery_mean_values[timeIndex] = np.mean(self.battery_vector[0])
@@ -905,6 +913,7 @@ class PoF_simulation_ELighthouse(Contex_Config):
             df_update = df_update.assign(harvesting=self.use_harvesting)
             if self.use_harvesting:
                 df_update = df_update.assign(weather=self.weather)
+                df_update = df_update.assign(city=self.city)
             df_update = df_update.assign(centroids=self.use_centroid)
         except:
             pass
