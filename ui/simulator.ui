@@ -30,7 +30,7 @@
      </sizepolicy>
     </property>
     <property name="currentIndex">
-     <number>1</number>
+     <number>0</number>
     </property>
     <widget class="QWidget" name="SimulatorTab">
      <attribute name="title">
@@ -602,7 +602,7 @@
         <x>480</x>
         <y>460</y>
         <width>691</width>
-        <height>261</height>
+        <height>271</height>
        </rect>
       </property>
       <property name="title">
@@ -734,10 +734,10 @@
       <widget class="QWidget" name="">
        <property name="geometry">
         <rect>
-         <x>331</x>
-         <y>30</y>
+         <x>330</x>
+         <y>31</y>
          <width>348</width>
-         <height>228</height>
+         <height>230</height>
         </rect>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout">
@@ -799,13 +799,39 @@
          </widget>
         </item>
         <item>
-         <widget class="QCheckBox" name="extra_charger_checkBox">
-          <property name="text">
-           <string>Extra PoF charger (centroid based)</string>
+         <widget class="QSplitter" name="splitter_28">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
           </property>
-          <property name="checked">
-           <bool>false</bool>
-          </property>
+          <widget class="QCheckBox" name="extra_charger_checkBox">
+           <property name="text">
+            <string>Extra PoF charger </string>
+           </property>
+           <property name="checked">
+            <bool>false</bool>
+           </property>
+          </widget>
+          <widget class="QComboBox" name="extra_charger_comboBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="currentText">
+            <string>Centroid</string>
+           </property>
+           <item>
+            <property name="text">
+             <string>Centroid</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Random Macro</string>
+            </property>
+           </item>
+          </widget>
          </widget>
         </item>
         <item>

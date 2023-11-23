@@ -54,6 +54,7 @@ class PoF_simulation_ELighthouse(Contex_Config):
     
     # Centroid Charging
     use_centroid: bool
+    selected_random_macro: int              # Index of the selected macro cell
     centroid_x: float                       # X Coordinate of the centroid
     centroid_y: float                       # Y Coordinate of the centroid
     
@@ -141,6 +142,12 @@ class PoF_simulation_ELighthouse(Contex_Config):
                 else:
                     logger.error("Centroid mode is enabled but its unable to found the Y coordinate")
                     raise Exception
+                
+                if 'selected_random_macro' in elighthouse_parameters:
+                    self.selected_random_macro = elighthouse_parameters['selected_random_macro']
+                else:
+                    self.selected_random_macro = -1
+                    
                 logger.info(f"Using centroids: X={self.centroid_x}, Y={self.centroid_y}")
             else:
                 self.use_centroid = False
@@ -157,6 +164,7 @@ class PoF_simulation_ELighthouse(Contex_Config):
             self.map_scale = 100
             self.att_db_per_km = 0.2
             self.use_centroid = False
+            self.selected_random_macro = -1
         
         super().__init__(sim_times=sim_times, basestation_data=basestation_data, user_data=user_data, battery_data=battery_data, transmit_power_data=transmit_power_data)
     
@@ -915,6 +923,9 @@ class PoF_simulation_ELighthouse(Contex_Config):
                 df_update = df_update.assign(weather=self.weather)
                 df_update = df_update.assign(city=self.city)
             df_update = df_update.assign(centroids=self.use_centroid)
+            
+            if self.selected_random_macro >= 0:
+                df_update = df_update.assign(selected_macro_charge=self.selected_random_macro)
         except:
             pass
         

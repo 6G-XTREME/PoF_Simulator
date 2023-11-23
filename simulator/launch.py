@@ -181,11 +181,19 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         # Algorithm Centroid of Extra Point of Charge
         if 'extraPoFCharger' in custom_parameters:
             if custom_parameters['extraPoFCharger']:
-                centroid_x = np.mean(BaseStations[NMacroCells:, 0])
-                centroid_y = np.mean(BaseStations[NMacroCells:, 1])
+                if custom_parameters['typeExtraPoFCharger'] == "Random Macro":
+                    # Select randomly a Macro Cell
+                    selected_macro = np.random.randint(0, NMacroCells)
+                    centroid_x = BaseStations[selected_macro, 0]
+                    centroid_y = BaseStations[selected_macro, 1]  
+                    custom_parameters['selected_random_macro'] = selected_macro
+                    logger.info(f"Using random macro method, selected macro: {selected_macro}")
+                else:   # Use "Centroid"
+                    centroid_x = np.mean(BaseStations[NMacroCells:, 0])
+                    centroid_y = np.mean(BaseStations[NMacroCells:, 1])
                 custom_parameters['centroid_x'] = centroid_x
                 custom_parameters['centroid_y'] = centroid_y
-                ax.plot(centroid_x, centroid_y, 'x', color='red', label='Centroid')
+                ax.plot(centroid_x, centroid_y, 'x', color='red', markersize=10, markeredgewidth= 2, label='Centroid')
                 #ax.text(centroid_x, centroid_y, 'Centroid', ha='center', va='bottom')
         
         if config_parameters['show_plots']:

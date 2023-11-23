@@ -59,6 +59,7 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
         self.ui.use_nice_setup_checkBox.toggled.connect(self.toggle_editing_cells)
         self.ui.run_pushButton.clicked.connect(self.run_simulation_button)
         self.ui.use_solar_harvesting_checkBox.toggled.connect(self.toggle_solar_harvesting)
+        self.ui.extra_charger_checkBox.toggled.connect(self.toggle_pof_charger)
         self.ui.algorithm_comboBox.currentIndexChanged.connect(self.update_custom_configuration_state)
         
         # Actions
@@ -95,6 +96,7 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
         # Start conditions
         self.ui.tabWidget.setCurrentIndex(0)
         self.toggle_editing_input_parameters(False)
+        self.toggle_pof_charger(False)
         
     def run_simulation_button(self):
         if self.long_task_thread and self.long_task_thread.isRunning():
@@ -150,6 +152,9 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
     def toggle_solar_harvesting(self, state):
         self.ui.weather_comboBox.setEnabled(state)
         self.ui.city_comboBox.setEnabled(state)
+        
+    def toggle_pof_charger(self, state):
+        self.ui.extra_charger_comboBox.setEnabled(state)
         
     def update_custom_configuration_state(self):
         selected_value = self.ui.algorithm_comboBox.currentText()
@@ -308,6 +313,7 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
             custom_config['fiberAttdBperKm'] = float(self.ui.fiber_att_edit.text())
             try: 
                 custom_config['extraPoFCharger'] = self.ui.extra_charger_checkBox.isChecked()
+                custom_config['typeExtraPoFCharger'] = str(self.ui.extra_charger_comboBox.currentText())
             except RuntimeError:
                 custom_config['extraPoFCharger'] = False 
         except ValueError as ex:
