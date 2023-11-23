@@ -195,6 +195,8 @@ class Contex_Config():
                 plt.pause(0.001)
                 input("hit [enter] to close plots and continue")
                 plt.close('all')
+        else:
+            plt.close('all')
         
         pass
     

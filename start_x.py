@@ -279,7 +279,10 @@ class PoF_Simulator_App(QtWidgets.QMainWindow):
             custom_config['weather'] = str(self.ui.weather_comboBox.currentText()).upper()
             custom_config['MapScale'] = float(self.ui.MapScale_edit.text())
             custom_config['fiberAttdBperKm'] = float(self.ui.fiber_att_edit.text())
-            custom_config['extraPoFCharger'] = self.ui.extra_charger_checkBox.isChecked()
+            try: 
+                custom_config['extraPoFCharger'] = self.ui.extra_charger_checkBox.isChecked()
+            except RuntimeError:
+                custom_config['extraPoFCharger'] = False 
         except ValueError:
             print("Unable to convert to number")
             
