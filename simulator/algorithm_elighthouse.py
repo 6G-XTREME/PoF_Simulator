@@ -51,6 +51,11 @@ class PoF_simulation_ELighthouse(Contex_Config):
     battery_mean_harvesting: np.array
     cumulative_harvested_power: np.array
     
+    # Centroid Charging
+    use_centroid: bool
+    centroid_x: float                       # X Coordinate of the centroid
+    centroid_y: float                       # Y Coordinate of the centroid
+    
     # Traffic Vars
     X_macro_bps: np.array
     X_macro_only_bps: np.array
@@ -113,8 +118,27 @@ class PoF_simulation_ELighthouse(Contex_Config):
                 self.att_db_per_km = elighthouse_parameters["fiberAttdBperKm"]
             else:
                 self.att_db_per_km = 0.2
-        except:
+                
+            # Centroid Based Charging
+            if elighthouse_parameters['extraPoFCharger']:
+                self.use_centroid = True
+                if 'centroid_x' in elighthouse_parameters:
+                    self.centroid_x = elighthouse_parameters['centroid_x']
+                else:
+                    logger.error("Centroid mode is enabled but its unable to found the X coordinate")
+                    raise Exception
+                if 'centroid_x' in elighthouse_parameters:
+                    self.centroid_y = elighthouse_parameters['centroid_y']    
+                else:
+                    logger.error("Centroid mode is enabled but its unable to found the Y coordinate")
+                    raise Exception
+                logger.info(f"Using centroids: X={self.centroid_x}, Y={self.centroid_y}")
+            else:
+                self.use_centroid = False
+                
+        except Exception as ex:
             # On error, load default custom parameters
+            logger.error(f"Unable to validate custom parameters, insted using defaults. Error: {ex}")
             self.user_report_position = 1
             self.startup_max_tokens = 1
             self.poweroff_max_tokens = 1
@@ -122,6 +146,7 @@ class PoF_simulation_ELighthouse(Contex_Config):
             self.weather = "SUNNY"
             self.map_scale = 100
             self.att_db_per_km = 0.2
+            self.use_centroid = False
         
         super().__init__(sim_times=sim_times, basestation_data=basestation_data, user_data=user_data, battery_data=battery_data, transmit_power_data=transmit_power_data)
     
@@ -515,14 +540,40 @@ class PoF_simulation_ELighthouse(Contex_Config):
             timeIndex (_type_): Index of simulation times
             timeStep (_type_): actual simulation step
         """
+        
+        # extra_budget = total-active
+        # live_energy < max_energy_active:
+        #   available = max_energy_active - live_energy + extra_budget [big number]
+        # else:
+        #  using batteries, we are in the max usage of PoF, but still something left
+        #   available = extra_budget [not too big]
+        
         # Decide about battery recharging
+        extra_budget = self.max_energy_consumption_total - self.max_energy_consumption_active
         if self.live_smallcell_consumption[timeIndex]  < self.max_energy_consumption_active:
             # Asign available energy to charge a cell battery
-            I = np.argmin(self.battery_vector[0])    # One decision for eachTimeStep -> Because we can concentrate the laser power
-            i_x = self.BaseStations[I][0]
-            i_y = self.BaseStations[I][1]
+            available = (self.max_energy_consumption_active - self.live_smallcell_consumption[timeIndex]) + extra_budget
+        else:
+            # The live consumption exceed the PoF active limit, so we are on the max usage of the Budget (max_energy_consumption_active)
+            available = extra_budget            # Only available the extra energy in the PoF Budget
+        
+        #print(f"Total: {self.max_energy_consumption_total}, Max_active: {self.max_energy_consumption_active}")
+        #print(f"Live active: {self.live_smallcell_consumption[timeIndex]}")
+        #print(f"Extra budget: {extra_budget}. Available: {available}")
+        
+        # Select which FemtoCell to charge with PoF
+        I = np.argmin(self.battery_vector[0])    # One decision for eachTimeStep -> Because we can concentrate the laser power
+        i_x = self.BaseStations[I][0]
+        i_y = self.BaseStations[I][1]
+        if self.use_centroid:       # Centroid Based Charging Mode
+            d_km = simulator.map_utils.get_distance_in_kilometers([i_x, i_y], [self.centroid_x, self.centroid_y], self.map_scale)
+            #print(f"Centroid Available: {available}")
+            available = simulator.energy_utils.get_power_with_attenuation(available, self.att_db_per_km, d_km)
+            #print(f"Centroid Avaliable with att: {available}")
+            #print("-------------------")
+        else:                       # Nearest MacroStation Charging Mode
+            # Find nearest macrocell...
             closests_macro = simulator.user_association_utils.search_closest_macro([i_x,i_y],self.BaseStations[0:self.NMacroCells, 0:2])
-            #print(f"Femto selected: {I}, nearest macro: {closests_macro}")
             if I != closests_macro: 
                 macro_x = self.BaseStations[closests_macro][0]
                 macro_y = self.BaseStations[closests_macro][1]
@@ -530,20 +581,21 @@ class PoF_simulation_ELighthouse(Contex_Config):
                 #print(f"Available: {available}")
                 available = simulator.energy_utils.get_power_with_attenuation(available, self.att_db_per_km, d_km)
                 #print(f"Avaliable with att: {available}")
-            
-            if self.battery_vector[0][I] < self.battery_capacity:
-                charging_intensity = available / np.mean(self.small_cell_voltage_range)
-                self.battery_vector[0][I] = min(self.battery_vector[0][I] + ((charging_intensity * timeStep) / 3600), self.battery_capacity)
-                try:
-                    if self.battery_state[timeIndex][I] == 0.0: 
-                        self.battery_state[timeIndex+1][I] = 1.0        # If none state, set as charging
-                    elif self.battery_state[timeIndex][I] == 2.0: 
-                        self.battery_state[timeIndex+1][I] = 3.0        # If discharging, set as charging & discharging
-                    else: self.battery_state[timeIndex+1][I] = self.battery_state[timeIndex]
-                except:
-                    # Last step of the simulation...
-                    pass
         
+        # Update battery state of the selected battery to charge with PoF
+        if self.battery_vector[0][I] < self.battery_capacity:
+            charging_intensity = available / np.mean(self.small_cell_voltage_range)
+            self.battery_vector[0][I] = min(self.battery_vector[0][I] + ((charging_intensity * timeStep) / 3600), self.battery_capacity)
+            try:
+                if self.battery_state[timeIndex][I] == 0.0: 
+                    self.battery_state[timeIndex+1][I] = 1.0        # If none state, set as charging
+                elif self.battery_state[timeIndex][I] == 2.0: 
+                    self.battery_state[timeIndex+1][I] = 3.0        # If discharging, set as charging & discharging
+                else: self.battery_state[timeIndex+1][I] = self.battery_state[timeIndex]
+            except:
+                # Last step of the simulation...
+                pass
+    
         # Add the Solar harvesting for each battery of femtocell ...
         if self.use_harvesting:
             solar_irradiance = self.solar_panel.convert_daily_ghi_to_timeStep_ghi(daily_irradiance=4900, timeStep=0.5)
@@ -846,6 +898,14 @@ class PoF_simulation_ELighthouse(Contex_Config):
 
             df_update = df_update.rename(columns={'first_batt_dead': 'first_batt_dead[s]',
                                                   'last_batt_dead': 'last_batt_dead[s]'})
+        except:
+            pass
+        
+        try:
+            df_update = df_update.assign(harvesting=self.use_harvesting)
+            if self.use_harvesting:
+                df_update = df_update.assign(weather=self.weather)
+            df_update = df_update.assign(centroids=self.use_centroid)
         except:
             pass
         

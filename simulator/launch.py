@@ -181,8 +181,10 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         # Algorithm Centroid of Extra Point of Charge
         if 'extraPoFCharger' in custom_parameters:
             if custom_parameters['extraPoFCharger']:
-                centroid_x = np.mean(BaseStations[:, 0])
-                centroid_y = np.mean(BaseStations[:, 1])
+                centroid_x = np.mean(BaseStations[NMacroCells:, 0])
+                centroid_y = np.mean(BaseStations[NMacroCells:, 1])
+                custom_parameters['centroid_x'] = centroid_x
+                custom_parameters['centroid_y'] = centroid_y
                 ax.plot(centroid_x, centroid_y, 'x', color='red', label='Centroid')
                 #ax.text(centroid_x, centroid_y, 'Centroid', ha='center', va='bottom')
         
