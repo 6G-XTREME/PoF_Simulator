@@ -86,9 +86,9 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         FemtoCellDownlinkBW = input_parameters['TransmittingPower']['FemtoCellDownlinkBW']
         
         small_cell_current_draw = small_cell_consumption_ON/np.mean(small_cell_voltage_range)
-        # Todo: verificar que esta es la max_energy del PoF
-        #max_energy_consumption = numberOfLasers * small_cell_consumption_ON
-        max_energy_consumption = numberOfLasers * 1     # Lasers: each give 1 Watts
+        
+        max_energy_consumption_total = numberOfLasers * 1                               # 1 Watt each laser, total energy inside PoF Budget (no batteries related)
+        max_energy_consumption_active = numberOfLasers * small_cell_consumption_ON      # One laser per femtocell
         
         min_user_speed = 1
         max_user_speed = 2 * input_parameters['mean_user_speed'] - min_user_speed    # Get the max value, [xmin, xmax] that satisfy the mean 
@@ -98,7 +98,8 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
             'small_cell_consumption_SLEEP': small_cell_consumption_SLEEP,
             'small_cell_current_draw': small_cell_current_draw,
             'small_cell_voltage_range': small_cell_voltage_range,
-            'max_energy_consumption': max_energy_consumption,
+            'max_energy_consumption_total': max_energy_consumption_total,
+            'max_energy_consumption_active': max_energy_consumption_active,
             'battery_capacity': battery_capacity
         }
         

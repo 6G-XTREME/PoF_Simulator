@@ -84,7 +84,8 @@ class Contex_Config():
         self.small_cell_consumption_SLEEP = battery_data['small_cell_consumption_SLEEP']
         self.small_cell_current_draw = battery_data['small_cell_current_draw']
         self.small_cell_voltage_range = battery_data['small_cell_voltage_range']
-        self.max_energy_consumption = battery_data['max_energy_consumption']
+        self.max_energy_consumption_total = battery_data['max_energy_consumption_total']
+        self.max_energy_consumption_active = battery_data['max_energy_consumption_active']
         
         self.battery_capacity = battery_data['battery_capacity']
         self.battery_vector = self.battery_capacity * np.ones((1, self.NMacroCells + self.NFemtoCells))
@@ -129,7 +130,8 @@ class Contex_Config():
         fig_cell_consumption, ax = plt.subplots()
         self.list_figures.append((fig_cell_consumption, "cell_consumption"))
         #ax.axhline(y=self.small_cell_consumption_ON * self.NFemtoCells, color='r', label='Total always ON cell consumption [W]')
-        ax.axhline(y=self.max_energy_consumption, color='b', label='Max consumption of lasers')
+        ax.axhline(y=self.max_energy_consumption_total, color='b', label='Max power of lasers')
+        ax.axhline(y=self.max_energy_consumption_active, color='r', label='Max consumption of PoF budget')
         ax.plot(sim_times, self.live_smallcell_consumption, 'g', label='Live energy consumption [W], laser + battery')
         #ax.text(1, small_cell_consumption_ON * NFemtoCells - 1, f"Energy consumption (Active Femtocells): {small_cell_consumption_ON * NFemtoCells - 1} W")
         #ax.text(1, small_cell_consumption_ON * NFemtoCells - 3, f"Energy consumption (Idle Femtocells): {small_cell_consumption_ON * NFemtoCells - 3} W")

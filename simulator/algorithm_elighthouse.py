@@ -247,7 +247,7 @@ class PoF_simulation_ELighthouse(Contex_Config):
                     active_femto = np.sum(self.active_Cells[timeIndex][self.NMacroCells:])
                     battery_femto = np.count_nonzero(self.battery_state[timeIndex][self.NMacroCells:] == 2.0)   # Battery Cells doesnt count for current_watts budget
                     current_watts = (active_femto * self.small_cell_consumption_ON) + ((self.NFemtoCells - (active_femto + battery_femto)) * self.small_cell_consumption_SLEEP)
-                    if current_watts >= (self.max_energy_consumption - self.small_cell_consumption_ON + self.small_cell_consumption_SLEEP): # No, I cannot. Check battery.
+                    if current_watts >= (self.max_energy_consumption_active - self.small_cell_consumption_ON + self.small_cell_consumption_SLEEP): # No, I cannot. Check battery.
 
                         # Check if we can use Femtocell's battery
                         if self.battery_vector[0, closestBSDownlink] > (timeStep/3600) * self.small_cell_current_draw:
@@ -516,12 +516,9 @@ class PoF_simulation_ELighthouse(Contex_Config):
             timeStep (_type_): actual simulation step
         """
         # Decide about battery recharging
-        if self.live_smallcell_consumption[timeIndex] < self.max_energy_consumption:
+        if self.live_smallcell_consumption[timeIndex]  < self.max_energy_consumption_active:
             # Asign available energy to charge a cell battery
-            available = self.max_energy_consumption - self.live_smallcell_consumption[timeIndex]
             I = np.argmin(self.battery_vector[0])    # One decision for eachTimeStep -> Because we can concentrate the laser power
-            
-            # Find nearest macrocell...
             i_x = self.BaseStations[I][0]
             i_y = self.BaseStations[I][1]
             closests_macro = simulator.user_association_utils.search_closest_macro([i_x,i_y],self.BaseStations[0:self.NMacroCells, 0:2])

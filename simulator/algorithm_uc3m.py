@@ -69,7 +69,7 @@ class PoF_simulation_UC3M(Contex_Config):
                     #Can I turn it on with PoF?
                     active_femto = np.sum(self.active_Cells[self.NMacroCells:])
                     current_watts = (active_femto * self.small_cell_consumption_ON) + ((self.NFemtoCells - active_femto) * self.small_cell_consumption_SLEEP)
-                    if current_watts >= (self.max_energy_consumption - self.small_cell_consumption_ON + self.small_cell_consumption_SLEEP): # No, I cannot. Check battery.
+                    if current_watts >= (self.max_energy_consumption_active - self.small_cell_consumption_ON + self.small_cell_consumption_SLEEP): # No, I cannot. Check battery.
 
                         #Check if we can use Femtocell's battery
                         if self.battery_vector[0, closestBSDownlink] > (timeStep/3600) * self.small_cell_current_draw:
@@ -275,8 +275,8 @@ class PoF_simulation_UC3M(Contex_Config):
 
     def update_battery_status(self, timeIndex, timeStep):
         # Decide about battery recharging
-            if self.live_smallcell_consumption[timeIndex] < self.max_energy_consumption:
-                available = self.max_energy_consumption - self.live_smallcell_consumption[timeIndex]
+            if self.live_smallcell_consumption[timeIndex] < self.max_energy_consumption_active:
+                available = self.max_energy_consumption_active - self.live_smallcell_consumption[timeIndex]
                 I = np.argmin(self.battery_vector[0])    
                 if self.battery_vector[0][I] < self.battery_capacity:
                     charging_intensity = available / np.mean(self.small_cell_voltage_range)
