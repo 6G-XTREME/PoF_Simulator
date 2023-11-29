@@ -287,7 +287,11 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
     ax.set_title('Downlink association. Distance & Power criterion')
     ax.set_xlabel('X [m]')
     ax.set_ylabel('Y [m]')
-    text_plot = ax.text(0, Maplimit, 'Time (sec) = 0')
+    
+    if canvas_widget is None:   # Only show time in the plot when is outside de UI
+        text_plot = ax.text(0, Maplimit, 'Time (sec) = 0')
+    else:
+        text_plot = None
 
     user_dict = {
         'users': s_mobility["NB_USERS"],

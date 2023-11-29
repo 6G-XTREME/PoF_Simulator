@@ -28,8 +28,9 @@ class PoF_simulation_UC3M(Contex_Config):
                 f.update(100 / len(sim_times))
                 f.set_description("%.2f %% completed..." % (stage))
 
-                t = sim_times[timeIndex]
-                text_plot.set_text('Time (sec) = {:.2f}'.format(t))
+                if canvas_widget is None:   # Only show time in the plot when is outside de UI
+                    t = sim_times[timeIndex]
+                    text_plot.set_text('Time (sec) = {:.2f}'.format(t))
 
                 self.algorithm_step(timeIndex=timeIndex, timeStep=timeStep)
                 self.compute_statistics(timeIndex=timeIndex)
