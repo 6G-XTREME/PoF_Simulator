@@ -69,6 +69,7 @@ if __name__ == "__main__":
     custom_config['typeExtraPoFCharger'] = "Centroid"
     custom_config['use_harvesting'] = True      # Enable the Solar Harvesting Mode -> New graph + solar charging...
     custom_config['weather'] = "RAINY"          # Select over SUNNY, CLOUDY or RAINY
+    custom_config['city'] = "Cartagena"         # Select city
     custom_config['MapScale'] = 100             # 1 km == 100 points (1:100)
     custom_config['fiberAttdBperKm'] = 0.2      # Fiber attenuation in dB/Km
     
