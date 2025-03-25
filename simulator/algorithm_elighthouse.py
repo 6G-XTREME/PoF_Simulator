@@ -836,12 +836,12 @@ class PoF_simulation_ELighthouse(Contex_Config):
         if self.use_harvesting:
             fig_battery_mean_harvesting, ax = plt.subplots()
             self.list_figures.append((fig_battery_mean_harvesting, "battery_mean_harvesting"))
-            ax.plot(sim_times, self.battery_mean_values, label='With Harvesting')
-            ax.plot(sim_times, self.battery_mean_values - self.battery_mean_harvesting, label='Without Harvesting')
-            ax.axhline(y=3.3, color='r',label="Max. battery capacity")
+            ax.plot(sim_times, self.battery_mean_values, '-', label='Hybrid PoF & Solar', color="tab:red")
+            ax.plot(sim_times, self.battery_mean_values - self.battery_mean_harvesting, '--', label='Only PoF', color="tab:blue")
+            ax.axhline(y=3.3, color='tab:green',label="Max. battery capacity")
             ax.set_xlabel('Time [s]')
             ax.set_ylabel('Battery capacity [Ah]')
-            ax.set_title('Mean Battery Capacity of the System')
+            #ax.set_title('Mean Battery Capacity of the System')
             ax.legend()
             
             fig_battery_acc_harvesting, ax = plt.subplots()

@@ -5,11 +5,17 @@ import pandas as pd
 from simulator.launch import INPUT_PARAMETERS, CONFIG_PARAMETERS
 from run_batch import run_batch_simulation
 
-BATCH_STEPS = 20
+BATCH_STEPS = 10
+
 PARAMETER = "Users"
 NAME = PARAMETER.lower() + "-parametric"
 VALUES_TO_VISIT = [30, 60, 90, 120, 160, 180]   # p.e Users
 SIMULATION_TIME = 30                            # in minutes
+
+# PARAMETER = "typeExtraPoFCharger"
+# NAME = PARAMETER.lower() + "-parametric"
+# VALUES_TO_VISIT = ["Random Macro", "Centroid"]   # p.e Users
+# SIMULATION_TIME = 30                            # in minutes
 
 logging.basicConfig(format='%(asctime)s %(levelname)s:%(module)s:%(funcName)s: %(message)s', 
                     level=logging.INFO)     # Change level to DEBUG if needed
@@ -24,11 +30,12 @@ def run_parametric():
     # Default config!
     simulator_input = INPUT_PARAMETERS.copy()
     simulator_input['Simulation_Time'] = SIMULATION_TIME*60
-    simulator_input['Users'] = 90
+    #simulator_input['Users'] = 90
     
     simulator_config = CONFIG_PARAMETERS.copy()
     simulator_config['save_output'] = True      # Save the run output on output folder
     simulator_config['show_plots'] = False      # Show output plots
+    simulator_config['use_nice_setup'] = True
     
     simulator_config['algorithm'] = "elighthouse"
     
@@ -36,6 +43,17 @@ def run_parametric():
     custom_config['user_report_position'] = 8   # For each four timeSteps, the users updates position
     custom_config['startup_max_tokens'] = 8     # TimeSlots to startup a FemtoCell
     custom_config['poweroff_unused_cell'] = 8   # TimeSlots to poweroff an unused Cell
+    custom_config['MapScale'] = 100             # 1 km == 100 points (1:100)
+    custom_config['fiberAttdBperKm'] = 0.2      # Fiber attenuation in dB/Km
+    
+    # Validate E23
+    # Solar Harvesting
+    custom_config['use_harvesting'] = False      # Enable the Solar Harvesting Mode -> New graph + solar charging...
+    custom_config['weather'] = "SUNNY"          # Select over SUNNY, CLOUDY or RAINY
+    custom_config['city'] = "Cartagena"         # Select city
+    # PoF Charging method
+    custom_config['extraPoFCharger'] = True     # Enable an extra Charger with 1W on the centroid
+    custom_config['typeExtraPoFCharger'] = "Random Macro"
     
     for pos in range(0, len(VALUES_TO_VISIT)):
         simulator_input[PARAMETER] = VALUES_TO_VISIT[pos]
