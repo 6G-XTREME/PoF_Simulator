@@ -32,6 +32,7 @@ seaborn = "0.12.2"
 pyside6 = "6.5.2"
 send2trash = "1.8.2"
 ipykernel = "^6.29.5"
+networkx = "3.4.2"
 
 
 [build-system]
