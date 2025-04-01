@@ -28,41 +28,47 @@ class GraphComplete:
         self.graph = nx.Graph()
         self.links = []
         self.nodes = []
-        
-        self.discarded_nodes = []
+        self.nodes_to_discard = []
+        self.links_to_discard = []
         
         for i in range(distance_matrix.shape[0]):
             if xlsx_data.iloc[i, 1] != "HL4" and xlsx_data.iloc[i, 1] != "HL5":
-                self.discarded_nodes.append(i)
+                self.nodes_to_discard.append(i)
 
         for i in range(distance_matrix.shape[0]):
-            if i not in self.discarded_nodes:
+            if i not in self.nodes_to_discard:
                 self.graph.add_node(i)
         
         for i in range(distance_matrix.shape[0]):
             for j in range(i + 1, distance_matrix.shape[1]):
-                if i not in self.discarded_nodes and j not in self.discarded_nodes:
-                    distance = distance_matrix[i, j]
-                    if distance > 0:
+                distance = distance_matrix[i, j]
+                if distance > 0:
+                    if i not in self.nodes_to_discard and j not in self.nodes_to_discard:
                         self.graph.add_edge(i, j, weight=1/distance)
-                    self.links.append(Link(source=i, target=j, distance=distance, label=f'{distance:.2f}km'))
+                    else:
+                        self.links_to_discard.append(len(self.links))
                     
+                    self.links.append(Link(source=i, target=j, distance=distance, label=f'{distance:.2f}km'))
+
         self.layout_function = layout_function
         self.pos = self.graph_functions[layout_function](self.graph)
         
         
         for i in range(distance_matrix.shape[0]):
-            if i not in self.discarded_nodes:
+            if i not in self.nodes_to_discard:
                 node_id = i
                 node_name = xlsx_data.iloc[i, 0]
                 node_type = xlsx_data.iloc[i, 1]
                 node_degree = int(sum(distance_matrix[i] > 0))
                 node_x, node_y = self.pos[i]
-                self.nodes.append(Node(id=node_id, type=node_type, x=node_x, y=node_y, node_degree=node_degree, name=node_name))
+            self.nodes.append(Node(id=node_id, type=node_type, x=node_x, y=node_y, node_degree=node_degree, name=node_name))
 
         print(f'Nodes: {len(self.nodes)}')
         print(f'Links: {len(self.links)}')
-        print(f'Discarded nodes: {len(self.discarded_nodes)}')
+        print(f'Discarded nodes: {len(self.nodes_to_discard)}')
+        print(f'Discarded links: {len(self.links_to_discard)}')
+        print(f'Remaining nodes: {len(self.graph.nodes)}')
+        print(f'Remaining links: {len(self.graph.edges)}')
         
 
     def to_json(self):
@@ -72,7 +78,7 @@ class GraphComplete:
     def plot_graph(self, guardar_figura=True, nombre_figura="grafo_distancias.png"):
         fig, ax = plt.subplots(figsize=(40, 40))
         node_colors = ["yellow" if node.type == "HL4" else "green" if node.type == "HL5" else "blue" for node in self.nodes]
-        node_colors = [node_colors[i] for i in range(len(node_colors)) if i not in self.discarded_nodes]
+        node_colors = [node_colors[i] for i in range(len(node_colors)) if i not in self.nodes_to_discard]
         nodes = nx.draw_networkx_nodes(self.graph, self.pos, node_size=100, node_color=node_colors, cmap=plt.cm.viridis, ax=ax)
         nx.draw_networkx_edges(self.graph, self.pos, alpha=0.3, ax=ax)
 
