@@ -54,6 +54,11 @@ logger = logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 logging.getLogger("PIL.PngImagePlugin").setLevel(logging.WARNING)
 
+# -------------------------------------------------------------------------------------------------------------------- #
+# -- Execute Simulator ----------------------------------------------------------------------------------------------- #
+#                                                                                                                      #
+# -------------------------------------------------------------------------------------------------------------------- #
+
 def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name: str = "", input_parameters: dict = INPUT_PARAMETERS, config_parameters: dict = CONFIG_PARAMETERS, custom_parameters: dict = {}):
     if run_name == "":
         run_name = str(uuid.uuid4())[:8]
@@ -63,7 +68,11 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         # In CLI execution, Tk works better than Qt
         import matplotlib
         matplotlib.use('TkAgg')  # Set the Matplotlib backend
-    
+
+    # ---------------------------------------------------------------------------------------------------------------- #
+    # -- Input Parameters -------------------------------------------------------------------------------------------- #
+    #                                                                                                                  #
+    # ---------------------------------------------------------------------------------------------------------------- #
     # Import input_parameters from dict
     try:
         battery_capacity = input_parameters['battery_capacity']
@@ -115,11 +124,16 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         logger.error(bcolors.FAIL + 'Error importing parameters into local variables' + bcolors.ENDC)
         logger.error(e)
         return
-    
+
+
+    # ---------------------------------------------------------------------------------------------------------------- #
+    # -- Users and Base Stations Placement --------------------------------------------------------------------------- #
+    #                                                                                                                  #
+    # ---------------------------------------------------------------------------------------------------------------- #
     if config_parameters['use_user_list']:
         logger.info("Using defined 'user_list', overriding Simulation Time to 50s...")
         Simulation_Time = 50
-    
+
     if config_parameters['use_nice_setup']:
         # Use nice_setup from .mat file. Already selected distribution of BaseStations
         try:
@@ -162,6 +176,11 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
             logger.error(e)
             return
 
+
+    # ---------------------------------------------------------------------------------------------------------------- #
+    # --  -------------------------------------------------------------------------------------------- #
+    #                                                                                                                  #
+    # ---------------------------------------------------------------------------------------------------------------- #
     try:
         colorsBS = np.zeros((Npoints, 3))
         if canvas_widget is None: 
@@ -207,6 +226,13 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         logger.error(e)
         return
 
+
+
+
+    # ---------------------------------------------------------------------------------------------------------------- #
+    # --  -------------------------------------------------------------------------------------------- #
+    #                                                                                                                  #
+    # ---------------------------------------------------------------------------------------------------------------- #
     try:
         # Setup Regions!
         Regions = simulator.map_utils.create_regions(Npoints=Npoints, 
@@ -239,6 +265,10 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         'NB_USERS': Users
     }
     logger.debug(sim_input['V_WALK_INTERVAL'])
+
+
+
+
     
     # Generate the mobility path of users
     s_mobility = simulator.mobility_utils.generate_mobility(sim_input)
@@ -306,7 +336,13 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         else:
             canvas_widget.draw()
 
-    # Start the simulation!
+
+
+
+    # ---------------------------------------------------------------------------------------------------------------- #
+    # -- Start the Simulation ---------------------------------------------------------------------------------------- #
+    #                                                                                                                  #
+    # ---------------------------------------------------------------------------------------------------------------- #
     if config_parameters['algorithm'].lower() == 'uc3m':
         logger.info("Using UC3M algorithm...")
         from simulator.algorithm_uc3m import PoF_simulation_UC3M

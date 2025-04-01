@@ -3,6 +3,8 @@ import scipy.io
 import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
+from model.NodeClass import Node
+from model.LinkClass import Link
 
 
 # --- FUNCIÓN PRINCIPAL ---
@@ -62,9 +64,14 @@ def visualizar_matriz_distancias(path_mat, guardar_figura=True, nombre_figura="g
     else:
         plt.show()
 
-# --- EJECUCIÓN ---
-# Reemplaza esta ruta con la de tu archivo .mat
-# visualizar_matriz_distancias("ruta/a/tu/archivo.mat")
+
+def plot_figure(G, links: list[Link], nodes: list[Node]):
+    fig, ax = plt.subplots(figsize=(40, 40))
+    nx.draw_networkx_nodes(G, pos, node_size=100, node_color=node_colors, cmap=plt.cm.viridis, ax=ax)
+    nx.draw_networkx_edges(G, pos, alpha=0.3, ax=ax)
+    plt.show()
+
+
 
 if __name__ == "__main__":
     visualizar_matriz_distancias("Passion_Xtreme_III.mat", False)
