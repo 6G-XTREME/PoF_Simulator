@@ -28,15 +28,25 @@ class GraphComplete:
         self.graph = nx.Graph()
         self.links = []
         self.nodes = []
-
-
+        
+        self.discarded_nodes = []
+        
         for i in range(distance_matrix.shape[0]):
-            self.graph.add_node(i)
+            if xlsx_data.iloc[i, 1] != "HL4" and xlsx_data.iloc[i, 1] != "HL5":
+                self.discarded_nodes.append(i)
+
+        print(f"Discarded nodes: {self.discarded_nodes}")
+        
+        for i in range(distance_matrix.shape[0]):
+            if i not in self.discarded_nodes:
+                self.graph.add_node(i)
+        
         for i in range(distance_matrix.shape[0]):
             for j in range(i + 1, distance_matrix.shape[1]):
-                distance = distance_matrix[i, j]
-                if distance > 0:
-                    self.graph.add_edge(i, j, weight=1/distance)
+                if i not in self.discarded_nodes and j not in self.discarded_nodes:
+                    distance = distance_matrix[i, j]
+                    if distance > 0:
+                        self.graph.add_edge(i, j, weight=1/distance)
                     self.links.append(Link(source=i, target=j, distance=distance, label=f'{distance:.2f}km'))
                     
         self.layout_function = layout_function
@@ -44,11 +54,12 @@ class GraphComplete:
         
         
         for i in range(distance_matrix.shape[0]):
-            node_id = i
-            node_name = xlsx_data.iloc[i, 0]
-            node_type = xlsx_data.iloc[i, 1]
-            node_degree = int(sum(distance_matrix[i] > 0))
-            node_x, node_y = self.pos[i]
+            if i not in self.discarded_nodes:
+                node_id = i
+                node_name = xlsx_data.iloc[i, 0]
+                node_type = xlsx_data.iloc[i, 1]
+                node_degree = int(sum(distance_matrix[i] > 0))
+                node_x, node_y = self.pos[i]
             self.nodes.append(Node(id=node_id, type=node_type, x=node_x, y=node_y, node_degree=node_degree, name=node_name))
         
 
@@ -59,6 +70,7 @@ class GraphComplete:
     def plot_graph(self, guardar_figura=True, nombre_figura="grafo_distancias.png"):
         fig, ax = plt.subplots(figsize=(40, 40))
         node_colors = ["yellow" if node.type == "HL4" else "green" if node.type == "HL5" else "blue" for node in self.nodes]
+        node_colors = [node_colors[i] for i in range(len(node_colors)) if i not in self.discarded_nodes]
         nodes = nx.draw_networkx_nodes(self.graph, self.pos, node_size=100, node_color=node_colors, cmap=plt.cm.viridis, ax=ax)
         nx.draw_networkx_edges(self.graph, self.pos, alpha=0.3, ax=ax)
 
