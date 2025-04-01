@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
+import scipy.io
 
 class GraphComplete:
     graph_functions = {
@@ -14,6 +14,14 @@ class GraphComplete:
         "random_layout": lambda G: nx.random_layout(G),
         "shell_layout": lambda G: nx.shell_layout(G),
     }
+    
+    @staticmethod
+    def of(distance_matrix_path: str, xlsx_data_path: str, layout_function: str = "spring_layout"):
+        distance_matrix = scipy.io.loadmat(distance_matrix_path)['crossMatrix']
+        xlsx_data = pd.read_excel(xlsx_data_path)
+        return GraphComplete(distance_matrix, xlsx_data, layout_function)
+    
+    
     
     def __init__(self, distance_matrix: np.ndarray, xlsx_data: pd.DataFrame, layout_function: str = "spring_layout"):
         self.graph = nx.Graph()

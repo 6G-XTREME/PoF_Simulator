@@ -12,7 +12,12 @@ def plot_test(mat_path, xlsx_path):
 
     graph = GraphComplete(distance_matrix, xlsx_data)
     graph.plot_graph()
+    
+    
+def plot_test_2():
+    graph = GraphComplete.of("Passion_Xtreme_III.mat", "NameTypes.xlsx")
+    graph.plot_graph()
 
 
 if __name__ == "__main__":
-    plot_test("Passion_Xtreme_III.mat", "NameTypes.xlsx")
+    plot_test_2()
