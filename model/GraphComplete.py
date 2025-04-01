@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import scipy.io
+import geopandas as gpd
+import contextily as ctx
 
 class GraphComplete:
     graph_functions = {
@@ -16,6 +18,11 @@ class GraphComplete:
         "shell_layout": lambda G: nx.shell_layout(G),                   # TODO: tune
     }
     
+
+    # ---------------------------------------------------------------------------------------------------------------- #
+    # -- Wrapper to create from files -------------------------------------------------------------------------------- #
+    #                                                                                                                  #
+    # ---------------------------------------------------------------------------------------------------------------- #
     @staticmethod
     def of(distance_matrix_path: str, xlsx_data_path: str, layout_function: str = "spring_layout"):
         distance_matrix = scipy.io.loadmat(distance_matrix_path)['crossMatrix']
@@ -23,7 +30,10 @@ class GraphComplete:
         return GraphComplete(distance_matrix, xlsx_data, layout_function)
     
     
-    
+    # ---------------------------------------------------------------------------------------------------------------- #
+    # -- Constructor ------------------------------------------------------------------------------------------------- #
+    #                                                                                                                  #
+    # ---------------------------------------------------------------------------------------------------------------- #
     def __init__(self, distance_matrix: np.ndarray, xlsx_data: pd.DataFrame, layout_function: str = "spring_layout"):
         self.graph = nx.Graph()
         self.links = []
@@ -31,6 +41,10 @@ class GraphComplete:
         self.nodes_to_discard = []
         self.links_to_discard = []
         
+        # Coordinates for Puerta del Sol
+        puerta_del_sol_lat = 40.4168
+        puerta_del_sol_lon = -3.7038
+
         for i in range(distance_matrix.shape[0]):
             if xlsx_data.iloc[i, 1] != "HL4" and xlsx_data.iloc[i, 1] != "HL5":
                 self.nodes_to_discard.append(i)
@@ -50,10 +64,10 @@ class GraphComplete:
                     
                     self.links.append(Link(source=i, target=j, distance=distance, label=f'{distance:.2f}km'))
 
+        # Compute layout positions
         self.layout_function = layout_function
         self.pos = self.graph_functions[layout_function](self.graph)
-        
-        
+
         for i in range(distance_matrix.shape[0]):
             if i not in self.nodes_to_discard:
                 node_id = i
@@ -61,7 +75,8 @@ class GraphComplete:
                 node_type = xlsx_data.iloc[i, 1]
                 node_degree = int(sum(distance_matrix[i] > 0))
                 node_x, node_y = self.pos[i]
-            self.nodes.append(Node(id=node_id, type=node_type, x=node_x, y=node_y, node_degree=node_degree, name=node_name))
+
+                self.nodes.append(Node(id=node_id, type=node_type, x=node_x, y=node_y, node_degree=node_degree, name=node_name))
 
         print(f'Nodes: {len(self.nodes)}')
         print(f'Links: {len(self.links)}')
@@ -71,11 +86,20 @@ class GraphComplete:
         print(f'Remaining links: {len(self.graph.edges)}')
         
 
+    # ---------------------------------------------------------------------------------------------------------------- #
+    # -- To JSON ----------------------------------------------------------------------------------------------------- #
+    #                                                                                                                  #
+    # ---------------------------------------------------------------------------------------------------------------- #
     def to_json(self):
         return FileFormat(nodes=self.nodes, links=self.links).model_dump()
     
     
-    def plot_graph(self, guardar_figura=True, nombre_figura="grafo_distancias.png"):
+    
+    # ---------------------------------------------------------------------------------------------------------------- #
+    # -- Plot without map -------------------------------------------------------------------------------------------- #
+    #                                                                                                                  #
+    # ---------------------------------------------------------------------------------------------------------------- #
+    def plot_graph_on_map(self, guardar_figura=True, nombre_figura="grafo_distancias.png"):
         fig, ax = plt.subplots(figsize=(40, 40))
         node_colors = ["yellow" if node.type == "HL4" else "green" if node.type == "HL5" else "blue" for node in self.nodes]
         node_colors = [node_colors[i] for i in range(len(node_colors)) if i not in self.nodes_to_discard]
@@ -103,4 +127,15 @@ class GraphComplete:
             print(f"✅ Figura guardada como: {nombre_figura}")
         else:
             plt.show()
+            
+    
+    
+    # ---------------------------------------------------------------------------------------------------------------- #
+    # -- Plot with map ----------------------------------------------------------------------------------------------- #
+    #                                                                                                                  #
+    # ---------------------------------------------------------------------------------------------------------------- #
+    def plot_graph_with_map(self, guardar_figura=True, nombre_figura="grafo_distancias.png"):
+        pass            
+            
+
 
