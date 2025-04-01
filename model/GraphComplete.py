@@ -36,7 +36,7 @@ class GraphComplete:
             for j in range(i + 1, distance_matrix.shape[1]):
                 distance = distance_matrix[i, j]
                 if distance > 0:
-                    self.graph.add_edge(i, j, weight=distance)
+                    self.graph.add_edge(i, j, weight=1/distance)
                     self.links.append(Link(source=i, target=j, distance=distance, label=f'{distance:.2f}km'))
                     
         self.layout_function = layout_function
@@ -68,7 +68,7 @@ class GraphComplete:
 
         # Etiquetas de aristas también opcionalmente limitadas
         edge_labels = nx.get_edge_attributes(self.graph, 'weight')
-        edge_labels = {(u, v): f"{d:.1f} km" for (u, v), d in edge_labels.items()}
+        edge_labels = {(u, v): f"{1/d:.1f} km" for (u, v), d in edge_labels.items()}
         if len(self.graph.edges) <= 1000:
             nx.draw_networkx_edge_labels(self.graph, self.pos, edge_labels=edge_labels, font_size=3, ax=ax)
 
