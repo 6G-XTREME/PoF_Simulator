@@ -1,5 +1,6 @@
 from model.LinkClass import Link
 from model.NodeClass import Node
+from model.FileFormat import FileFormat
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -9,10 +10,10 @@ import scipy.io
 class GraphComplete:
     graph_functions = {
         "spring_layout": lambda G: nx.spring_layout(G, seed=42),
-        "circular_layout": lambda G: nx.circular_layout(G),
-        "kamada_kawai_layout": lambda G: nx.kamada_kawai_layout(G),
-        "random_layout": lambda G: nx.random_layout(G),
-        "shell_layout": lambda G: nx.shell_layout(G),
+        "circular_layout": lambda G: nx.circular_layout(G),             # TODO: tune
+        "kamada_kawai_layout": lambda G: nx.kamada_kawai_layout(G),     # TODO: tune
+        "random_layout": lambda G: nx.random_layout(G),                 # TODO: tune
+        "shell_layout": lambda G: nx.shell_layout(G),                   # TODO: tune
     }
     
     @staticmethod
@@ -50,7 +51,9 @@ class GraphComplete:
             node_x, node_y = self.pos[i]
             self.nodes.append(Node(id=node_id, type=node_type, x=node_x, y=node_y, node_degree=node_degree, name=node_name))
         
-        
+
+    def to_json(self):
+        return FileFormat(nodes=self.nodes, links=self.links).model_dump()
     
     
     def plot_graph(self, guardar_figura=True, nombre_figura="grafo_distancias.png"):
@@ -64,11 +67,10 @@ class GraphComplete:
             nx.draw_networkx_labels(self.graph, self.pos, {i: f"{self.nodes[i].name}" for i in self.graph.nodes()}, font_size=5, ax=ax)
 
         # Etiquetas de aristas también opcionalmente limitadas
-
         edge_labels = nx.get_edge_attributes(self.graph, 'weight')
+        edge_labels = {(u, v): f"{d:.1f} km" for (u, v), d in edge_labels.items()}
         if len(self.graph.edges) <= 1000:
-            nx.draw_networkx_edge_labels(self.graph, self.pos, edge_labels={(u, v): f"{d:.1f}" for (u, v), d in edge_labels.items()},
-                                         font_size=3, ax=ax)
+            nx.draw_networkx_edge_labels(self.graph, self.pos, edge_labels=edge_labels, font_size=3, ax=ax)
 
         # plt.colorbar(nodes, ax=ax, label='Grado del nodo')
         ax.set_title("Grafo de distancias entre nodos (heatmap por grado)", fontsize=16)
