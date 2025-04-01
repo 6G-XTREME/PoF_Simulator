@@ -8,6 +8,33 @@ from model.LinkClass import Link
 
 
 # --- FUNCIÓN PRINCIPAL ---
+def crear_figura(G, pos, node_colors, edge_labels, guardar_figura, nombre_figura):
+    fig, ax = plt.subplots(figsize=(40, 40))
+    nodes = nx.draw_networkx_nodes(G, pos, node_size=100, node_color=node_colors, cmap=plt.cm.viridis, ax=ax)
+    nx.draw_networkx_edges(G, pos, alpha=0.3, ax=ax)
+
+    # Mostrar etiquetas de nodos si hay pocos
+    if len(G.nodes) <= 200:
+        nx.draw_networkx_labels(G, pos, {i: f"N{i + 1}" for i in G.nodes()}, font_size=5, ax=ax)
+
+    # Etiquetas de aristas también opcionalmente limitadas
+    if len(G.edges) <= 1000:
+        nx.draw_networkx_edge_labels(G, pos, edge_labels={(u, v): f"{d:.1f}" for (u, v), d in edge_labels.items()},
+                                     font_size=3, ax=ax)
+
+    plt.colorbar(nodes, ax=ax, label='Grado del nodo')
+    ax.set_title("Grafo de distancias entre nodos (heatmap por grado)", fontsize=16)
+    plt.axis('off')
+    plt.tight_layout()
+
+    if guardar_figura:
+        plt.show()
+        fig.savefig(nombre_figura, dpi=300)
+        print(f"✅ Figura guardada como: {nombre_figura}")
+    else:
+        plt.show()
+
+
 def visualizar_matriz_distancias(path_mat, guardar_figura=True, nombre_figura="grafo_distancias.png"):
     """
     Visualiza una matriz de distancias entre nodos desde un archivo .mat como un grafo.
@@ -38,39 +65,8 @@ def visualizar_matriz_distancias(path_mat, guardar_figura=True, nombre_figura="g
     node_colors = [grados[n] for n in G.nodes()]
     edge_labels = nx.get_edge_attributes(G, 'weight')
 
-    # Crear la figura (más ligera)
-    fig, ax = plt.subplots(figsize=(40, 40))
-    nodes = nx.draw_networkx_nodes(G, pos, node_size=100, node_color=node_colors, cmap=plt.cm.viridis, ax=ax)
-    nx.draw_networkx_edges(G, pos, alpha=0.3, ax=ax)
-
-    # Mostrar etiquetas de nodos si hay pocos
-    if len(G.nodes) <= 200:
-        nx.draw_networkx_labels(G, pos, {i: f"N{i + 1}" for i in G.nodes()}, font_size=5, ax=ax)
-
-    # Etiquetas de aristas también opcionalmente limitadas
-    if len(G.edges) <= 1000:
-        nx.draw_networkx_edge_labels(G, pos, edge_labels={(u, v): f"{d:.1f}" for (u, v), d in edge_labels.items()},
-                                     font_size=3, ax=ax)
-
-    plt.colorbar(nodes, ax=ax, label='Grado del nodo')
-    ax.set_title("Grafo de distancias entre nodos (heatmap por grado)", fontsize=16)
-    plt.axis('off')
-    plt.tight_layout()
-
-    if guardar_figura:
-        plt.show()
-        fig.savefig(nombre_figura, dpi=300)
-        print(f"✅ Figura guardada como: {nombre_figura}")
-    else:
-        plt.show()
-
-
-def plot_figure(G, links: list[Link], nodes: list[Node]):
-    fig, ax = plt.subplots(figsize=(40, 40))
-    nx.draw_networkx_nodes(G, pos, node_size=100, node_color=node_colors, cmap=plt.cm.viridis, ax=ax)
-    nx.draw_networkx_edges(G, pos, alpha=0.3, ax=ax)
-    plt.show()
-
+    # Llamar a la nueva función para crear la figura
+    crear_figura(G, pos, node_colors, edge_labels, guardar_figura, nombre_figura)
 
 
 if __name__ == "__main__":

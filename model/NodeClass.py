@@ -6,7 +6,4 @@ class Node(BaseModel):
     x: float
     y: float
     node_degree: int
-    color: str
-    size: int
-    shape: str
-    label: str
+    name: str
