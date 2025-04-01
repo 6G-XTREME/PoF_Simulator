@@ -35,8 +35,6 @@ class GraphComplete:
             if xlsx_data.iloc[i, 1] != "HL4" and xlsx_data.iloc[i, 1] != "HL5":
                 self.discarded_nodes.append(i)
 
-        print(f"Discarded nodes: {self.discarded_nodes}")
-        
         for i in range(distance_matrix.shape[0]):
             if i not in self.discarded_nodes:
                 self.graph.add_node(i)
@@ -60,7 +58,11 @@ class GraphComplete:
                 node_type = xlsx_data.iloc[i, 1]
                 node_degree = int(sum(distance_matrix[i] > 0))
                 node_x, node_y = self.pos[i]
-            self.nodes.append(Node(id=node_id, type=node_type, x=node_x, y=node_y, node_degree=node_degree, name=node_name))
+                self.nodes.append(Node(id=node_id, type=node_type, x=node_x, y=node_y, node_degree=node_degree, name=node_name))
+
+        print(f'Nodes: {len(self.nodes)}')
+        print(f'Links: {len(self.links)}')
+        print(f'Discarded nodes: {len(self.discarded_nodes)}')
         
 
     def to_json(self):
