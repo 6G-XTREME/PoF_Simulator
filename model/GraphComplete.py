@@ -40,8 +40,8 @@ class GraphComplete:
     # ---------------------------------------------------------------------------------------------------------------- #
     def __init__(self, distance_matrix: np.ndarray, xlsx_data: pd.DataFrame, layout_function: str = "spring_layout"):
         self.graph = nx.Graph()
-        self.links = []
-        self.nodes = []
+        # self.links = []
+        # self.nodes = []
         self.nodes_to_discard = []
         self.links_to_discard = []
         
@@ -73,7 +73,7 @@ class GraphComplete:
                 if distance > 0:
                     self.graph.add_edge(i, j, weight=1/distance)
                     
-                    self.links.append(LinkRaw(source=i, target=j, distance=distance, label=f'{distance:.2f}km'))
+                    # self.links.append(LinkRaw(source=i, target=j, distance=distance, label=f'{distance:.2f}km'))
 
         # Compute layout positions
         self.layout_function = layout_function
@@ -81,16 +81,16 @@ class GraphComplete:
 
         for i in range(num_nodes):
             if i not in self.nodes_to_discard:
-                node_id = i
+                # node_id = i
                 node_name = xlsx_data.iloc[i, 0]
                 node_type = xlsx_data.iloc[i, 1]
                 node_degree = int(sum(distance_matrix[i] > 0))
                 node_x, node_y = self.pos[i]
 
-                self.nodes.append(Node(id=node_id, type=node_type, x=node_x, y=node_y, node_degree=node_degree, name=node_name))
+                # self.nodes.append(Node(id=node_id, type=node_type, x=node_x, y=node_y, node_degree=node_degree, name=node_name))
                 self.nodesObj.append(NodeCrossRef(name=node_name, pos=(node_x, node_y), node_degree=node_degree, type=node_type))
                 self.vertexs.append(Vertex(pos=(node_x, node_y), degree=node_degree, name=node_name, type=node_type))
-                map_id_to_obj[i] = len(self.nodes) - 1
+                map_id_to_obj[i] = len(self.nodesObj) - 1
         
         for i in range(num_nodes):
             for j in range(i+1, num_nodes):
@@ -104,17 +104,52 @@ class GraphComplete:
                     self.edges.append(Edge(a=self.vertexs[id_a].pos, b=self.vertexs[id_b].pos, distance=distance, label=f'{distance:.2f}km'))
                     self.linksObj.append(LinkCrossRef(a=self.nodesObj[id_a], b=self.nodesObj[id_b], distance_km=distance, label=f'{distance:.2f}km'))
 
-        print(f'Nodes: {len(self.nodes)}')
-        print(f'Links: {len(self.links)}')
         print(f'Discarded nodes: {len(self.nodes_to_discard)}')
         print(f'Discarded links: {len(self.links_to_discard)}')
-        print(f'Remaining nodes: {len(self.graph.nodes)}')
-        print(f'Remaining links: {len(self.graph.edges)}')
         
         print(f'Vertexs: {len(self.vertexs)}')
         print(f'Edges: {len(self.edges)}')
         print(f'LinksObj: {len(self.linksObj)}')
         print(f'NodesObj: {len(self.nodesObj)}')
+        
+        self.print_network()
+        
+    
+    def print_network(self):
+        print('\n*-*-* Printing information about the imported network *-*-*\n')
+        # Num nodes
+        print(f'Num nodes: {len(self.nodesObj)}')
+        # Num links
+        print(f'Num links: {len(self.linksObj)}')
+        # Num HL4
+        print(f'Num HL4: {len([node for node in self.nodesObj if node.type == "HL4"])}')
+        # Num HL5
+        print(f'Num HL5: {len([node for node in self.nodesObj if node.type == "HL5"])}')
+        
+        # Average distance
+        print(f'Average distance: {np.mean([edge.distance for edge in self.edges]):.2f}')
+        # Max distance
+        print(f'Max distance (km): {np.max([edge.distance for edge in self.edges]):.2f}')
+        # Min distance
+        print(f'Min distance (km): {np.min([edge.distance for edge in self.edges]):.2f}')
+        
+        # Average degree
+        print(f'Average degree: {np.mean([node.degree for node in self.vertexs]):.2f}')
+        # Min degree
+        print(f'Min degree: {np.min([node.degree for node in self.vertexs])}')
+        # Max degree
+        print(f'Max degree: {np.max([node.degree for node in self.vertexs])}')
+        
+        # Average degree HL4
+        print(f'Average degree HL4: {np.mean([node.degree for node in self.vertexs if node.type == "HL4"]):.2f}')
+        # Average degree HL5
+        print(f'Average degree HL5: {np.mean([node.degree for node in self.vertexs if node.type == "HL5"]):.2f}')
+        
+        # Num links HL4 - HL5
+        # Num links HL5 - HL5
+        # Num links HL4 - HL4
+        
+        # Is connex graph
         
 
     # ---------------------------------------------------------------------------------------------------------------- #
@@ -264,41 +299,6 @@ class GraphComplete:
 
 
 class GraphCompletePlots:
-    
-    @staticmethod
-    def plot_without_map(graph: GraphComplete, path: str | None = None):
-        fig, ax = plt.subplots(figsize=(40, 40))
-        
-        # Depending on the order of the plots, it can be choosen if the links are plotted on top of the nodes or viceversa
-        # to show the links on top of the nodes, the links should be plotted last
-        # to show the nodes on top of the links, the nodes should be plotted last
-        
-        # Plot nodes (vertexs)
-        def plot_nodes():
-            x, y = Vertex.obtain_x_y_vectors(graph.vertexs)
-            node_colors = ["yellow" if type == "HL4" else "green" if type == "HL5" else "blue" for type in Vertex.obtain_type_vector(graph.vertexs)]
-            names = Vertex.obtain_name_vector(graph.vertexs)
-            
-            ax.scatter(x, y, c=node_colors, s=100)
-            for i, name in enumerate(names):
-                ax.text(x[i], y[i], name, fontsize=6, ha='right', va='bottom')
-        
-        def plot_links():
-            # Plot links (edges)
-            for edge in graph.edges:
-                a = edge.a
-                b = edge.b
-                
-                ax.plot([a[0], b[0]], [a[1], b[1]], 'k-', lw=1)
-                ax.text((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, edge.label, fontsize=6, color='gray')
-                
-        plot_links()
-        plot_nodes()
-        
-        ax.set_title("Grafo de Red", fontsize=16)
-        plt.axis('off')
-        plt.tight_layout()
-        plt.show()
         
         
     @staticmethod
@@ -324,6 +324,21 @@ class GraphCompletePlots:
                 if include_edge_labels:
                     ax.text((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, edge.label, fontsize=6, color='gray')
                 
+        # Depending on the order of the plots, it can be choosen if the links are plotted on top of the nodes or viceversa
+        # to show the links on top of the nodes, the links should be plotted last
+        # to show the nodes on top of the links, the nodes should be plotted last
         plot_links()
         plot_nodes()
+        
+    
+    @staticmethod
+    def plot_without_map(graph: GraphComplete, path: str | None = None, include_node_labes: bool = True, include_edge_labels: bool = True):
+        fig, ax = plt.subplots(figsize=(40, 40))
+        
+        GraphCompletePlots.plot_on_figure(graph, fig, ax, include_node_labes, include_edge_labels)
+        
+        ax.set_title("Grafo de Red", fontsize=16)
+        plt.axis('off')
+        plt.tight_layout()
+        plt.show()
         
