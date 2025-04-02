@@ -4,13 +4,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 from model.NodeClass import Node
-from model.LinkClass import Link
+from model.LinkClass import LinkRaw
 
 
 # --- FUNCIÓN PRINCIPAL ---
 def crear_figura(G, pos, node_colors, edge_labels, guardar_figura, nombre_figura):
     fig, ax = plt.subplots(figsize=(40, 40))
-    nodes = nx.draw_networkx_nodes(G, pos, node_size=100, node_color=node_colors, cmap=plt.cm.viridis, ax=ax)
+    nodes = nx.draw_networkx_nodes(G, pos, node_size=600, node_color=node_colors, cmap=plt.cm.viridis, ax=ax)
     nx.draw_networkx_edges(G, pos, alpha=0.3, ax=ax)
 
     # Mostrar etiquetas de nodos si hay pocos

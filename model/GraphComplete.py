@@ -1,6 +1,7 @@
-from model.LinkClass import Link
-from model.NodeClass import Node
+from model.LinkClass import LinkRaw, LinkCrossRef
+from model.NodeClass import Node, NodeCrossRef
 from model.FileFormat import FileFormat
+from model.Plotteable import Vertex, Edge
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -9,6 +10,7 @@ import scipy.io
 import geopandas as gpd
 import contextily as ctx
 from shapely.geometry import LineString, Point
+
 
 
 class GraphComplete:
@@ -43,34 +45,41 @@ class GraphComplete:
         self.nodes_to_discard = []
         self.links_to_discard = []
         
-        # Coordinates for Puerta del Sol
-        puerta_del_sol_lat = 40.4168
-        puerta_del_sol_lon = -3.7038
+        # Vertex: (x, y, node_degree, name)
+        # Edges: ((x,y), (x,y), distance)
+        self.vertexs = []
+        self.edges = []
+        
+        
+        self.linksObj = []
+        self.nodesObj = []
 
-        for i in range(distance_matrix.shape[0]):
+        num_nodes = distance_matrix.shape[0]
+        map_id_to_obj = {}
+
+        for i in range(num_nodes):
             if xlsx_data.iloc[i, 1] != "HL4" and xlsx_data.iloc[i, 1] != "HL5":
                 self.nodes_to_discard.append(i)
 
-        for i in range(distance_matrix.shape[0]):
+        for i in range(num_nodes):
             if i not in self.nodes_to_discard:
                 self.graph.add_node(i)
         
-        for i in range(distance_matrix.shape[0]):
-            for j in range(i + 1, distance_matrix.shape[1]):
+        for i in range(num_nodes):
+            for j in range(num_nodes):
+                if i == j or i in self.nodes_to_discard or j in self.nodes_to_discard:
+                    continue
                 distance = distance_matrix[i, j]
                 if distance > 0:
-                    if i not in self.nodes_to_discard and j not in self.nodes_to_discard:
-                        self.graph.add_edge(i, j, weight=1/distance)
-                    else:
-                        self.links_to_discard.append(len(self.links))
+                    self.graph.add_edge(i, j, weight=1/distance)
                     
-                    self.links.append(Link(source=i, target=j, distance=distance, label=f'{distance:.2f}km'))
+                    self.links.append(LinkRaw(source=i, target=j, distance=distance, label=f'{distance:.2f}km'))
 
         # Compute layout positions
         self.layout_function = layout_function
         self.pos = self.graph_functions[layout_function](self.graph)
 
-        for i in range(distance_matrix.shape[0]):
+        for i in range(num_nodes):
             if i not in self.nodes_to_discard:
                 node_id = i
                 node_name = xlsx_data.iloc[i, 0]
@@ -79,6 +88,21 @@ class GraphComplete:
                 node_x, node_y = self.pos[i]
 
                 self.nodes.append(Node(id=node_id, type=node_type, x=node_x, y=node_y, node_degree=node_degree, name=node_name))
+                self.nodesObj.append(NodeCrossRef(name=node_name, pos=(node_x, node_y), node_degree=node_degree, type=node_type))
+                self.vertexs.append(Vertex(pos=(node_x, node_y), degree=node_degree, name=node_name, type=node_type))
+                map_id_to_obj[i] = len(self.nodes) - 1
+        
+        for i in range(num_nodes):
+            for j in range(i+1, num_nodes):
+                if i == j or i in self.nodes_to_discard or j in self.nodes_to_discard:
+                    continue
+                distance = distance_matrix[i, j]
+                id_a = map_id_to_obj[i]
+                id_b = map_id_to_obj[j]
+                
+                if distance > 0:
+                    self.edges.append(Edge(a=self.vertexs[id_a].pos, b=self.vertexs[id_b].pos, distance=distance, label=f'{distance:.2f}km'))
+                    self.linksObj.append(LinkCrossRef(a=self.nodesObj[id_a], b=self.nodesObj[id_b], distance_km=distance, label=f'{distance:.2f}km'))
 
         print(f'Nodes: {len(self.nodes)}')
         print(f'Links: {len(self.links)}')
@@ -86,6 +110,11 @@ class GraphComplete:
         print(f'Discarded links: {len(self.links_to_discard)}')
         print(f'Remaining nodes: {len(self.graph.nodes)}')
         print(f'Remaining links: {len(self.graph.edges)}')
+        
+        print(f'Vertexs: {len(self.vertexs)}')
+        print(f'Edges: {len(self.edges)}')
+        print(f'LinksObj: {len(self.linksObj)}')
+        print(f'NodesObj: {len(self.nodesObj)}')
         
 
     # ---------------------------------------------------------------------------------------------------------------- #
@@ -101,12 +130,12 @@ class GraphComplete:
     # -- Plot without map -------------------------------------------------------------------------------------------- #
     #                                                                                                                  #
     # ---------------------------------------------------------------------------------------------------------------- #
-    def plot_graph_on_map(self, guardar_figura=True, nombre_figura="grafo_distancias.png"):
+    def plot_graph(self, guardar_figura=True, nombre_figura="grafo_distancias.png"):
         fig, ax = plt.subplots(figsize=(40, 40))
         node_colors = ["yellow" if node.type == "HL4" else "green" if node.type == "HL5" else "blue" for node in self.nodes]
         node_colors = [node_colors[i] for i in range(len(node_colors)) if i not in self.nodes_to_discard]
         nodes = nx.draw_networkx_nodes(self.graph, self.pos, node_size=100, node_color=node_colors, cmap=plt.cm.viridis, ax=ax)
-        nx.draw_networkx_edges(self.graph, self.pos, alpha=0.3, ax=ax)
+        nx.draw_networkx_edges(self.graph, self.pos, alpha=0.9, ax=ax)
 
         # Mostrar etiquetas de nodos si hay pocos
         if len(self.graph.nodes) <= 200:
@@ -232,3 +261,69 @@ class GraphComplete:
             
 
 
+
+
+class GraphCompletePlots:
+    
+    @staticmethod
+    def plot_without_map(graph: GraphComplete, path: str | None = None):
+        fig, ax = plt.subplots(figsize=(40, 40))
+        
+        # Depending on the order of the plots, it can be choosen if the links are plotted on top of the nodes or viceversa
+        # to show the links on top of the nodes, the links should be plotted last
+        # to show the nodes on top of the links, the nodes should be plotted last
+        
+        # Plot nodes (vertexs)
+        def plot_nodes():
+            x, y = Vertex.obtain_x_y_vectors(graph.vertexs)
+            node_colors = ["yellow" if type == "HL4" else "green" if type == "HL5" else "blue" for type in Vertex.obtain_type_vector(graph.vertexs)]
+            names = Vertex.obtain_name_vector(graph.vertexs)
+            
+            ax.scatter(x, y, c=node_colors, s=100)
+            for i, name in enumerate(names):
+                ax.text(x[i], y[i], name, fontsize=6, ha='right', va='bottom')
+        
+        def plot_links():
+            # Plot links (edges)
+            for edge in graph.edges:
+                a = edge.a
+                b = edge.b
+                
+                ax.plot([a[0], b[0]], [a[1], b[1]], 'k-', lw=1)
+                ax.text((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, edge.label, fontsize=6, color='gray')
+                
+        plot_links()
+        plot_nodes()
+        
+        ax.set_title("Grafo de Red", fontsize=16)
+        plt.axis('off')
+        plt.tight_layout()
+        plt.show()
+        
+        
+    @staticmethod
+    def plot_on_figure(graph: GraphComplete, fig, ax, include_node_labes: bool = True, include_edge_labels: bool = True):      
+        # Plot nodes (vertexs)
+        def plot_nodes():
+            x, y = Vertex.obtain_x_y_vectors(graph.vertexs)
+            node_colors = ["yellow" if type == "HL4" else "green" if type == "HL5" else "blue" for type in Vertex.obtain_type_vector(graph.vertexs)]
+            names = Vertex.obtain_name_vector(graph.vertexs)
+            
+            ax.scatter(x, y, c=node_colors, s=100)
+            if include_node_labes:
+                for i, name in enumerate(names):
+                    ax.text(x[i], y[i], name, fontsize=6, ha='right', va='bottom')
+        
+        def plot_links():
+            # Plot links (edges)
+            for edge in graph.edges:
+                a = edge.a
+                b = edge.b
+                
+                ax.plot([a[0], b[0]], [a[1], b[1]], 'k-', lw=1)
+                if include_edge_labels:
+                    ax.text((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, edge.label, fontsize=6, color='gray')
+                
+        plot_links()
+        plot_nodes()
+        

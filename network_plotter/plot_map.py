@@ -4,7 +4,7 @@ import json
 import networkx as nx
 from model.NodeClass import Node
 from model.FileFormat import FileFormat
-from model.LinkClass import Link
+from model.LinkClass import LinkRaw
 import matplotlib.pyplot as plt
 
 
@@ -18,7 +18,7 @@ def build_graph(distance_matrix, xlsx_data):
             distance = distance_matrix[i, j]
             if distance > 0:
                 G.add_edge(i, j, weight=distance)
-                links.append(Link(source=i, target=j, distance=distance, color='blue', label=f'{distance:.2f}km'))
+                links.append(LinkRaw(source=i, target=j, distance=distance, color='blue', label=f'{distance:.2f}km'))
                 
     nodes = []
     pos = nx.spring_layout(G, seed=42)
@@ -51,7 +51,7 @@ def merge_and_create_nodes(mat_path, xlsx_path, json_output_path):
             if distance > 0:
                 G.add_edge(i, j, weight=distance)
                 # Create a Link instance
-                link = Link(source=i, target=j, distance=distance, color='blue', label=f'{distance:.2f}km')
+                link = LinkRaw(source=i, target=j, distance=distance, color='blue', label=f'{distance:.2f}km')
                 links.append(link)
 
     # Calculate node positions using spring layout

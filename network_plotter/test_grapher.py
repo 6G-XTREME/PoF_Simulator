@@ -1,4 +1,4 @@
-from model.GraphComplete import GraphComplete
+from model.GraphComplete import GraphComplete, GraphCompletePlots
 import pandas as pd
 import scipy.io
 import json
@@ -23,7 +23,13 @@ def plot_test_2():
 def plot_test_3():
     graph = GraphComplete.of("network_plotter/Passion_Xtreme_III.mat", "network_plotter/NameTypes.xlsx")
     graph.plot_graph_with_map()
+    
+def plot_test_4():
+    graph = GraphComplete.of("network_plotter/Passion_Xtreme_III.mat", "network_plotter/NameTypes.xlsx")
+    GraphCompletePlots.plot_without_map(graph)
 
 
 if __name__ == "__main__":
-    plot_test_3()
+    # plot_test_2()
+    # plot_test_3()
+    plot_test_4()
