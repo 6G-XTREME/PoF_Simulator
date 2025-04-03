@@ -28,8 +28,13 @@ def plot_test_4():
     graph = GraphComplete.of("network_plotter/Passion_Xtreme_III.mat", "network_plotter/NameTypes.xlsx")
     GraphCompletePlots.plot_without_map(graph)
 
+def plot_test_5():
+    graph = GraphComplete.of("network_plotter/Passion_Xtreme_III.mat", "network_plotter/NameTypes.xlsx")
+    GraphCompletePlots.plot_for_node_degree(graph, include_node_labes=False)
+
 
 if __name__ == "__main__":
     # plot_test_2()
     # plot_test_3()
-    plot_test_4()
+    # plot_test_4()
+    plot_test_5()

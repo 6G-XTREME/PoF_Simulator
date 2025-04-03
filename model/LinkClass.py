@@ -19,6 +19,7 @@ class LinkCrossRef(BaseModel):
     b: Any
     distance_km: float
     label: str
+    name: str
 
     def get_pos_a(self):
         return self.a.pos

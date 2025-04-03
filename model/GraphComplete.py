@@ -10,8 +10,17 @@ import scipy.io
 import geopandas as gpd
 import contextily as ctx
 from shapely.geometry import LineString, Point
+from pydantic import BaseModel
+
+import matplotlib.patches as mpatches
+import matplotlib.lines as mlines
 
 
+class GraphCompleteSerializable(BaseModel):
+    vertexs: list[Vertex]
+    edges: list[Edge]
+    nodes: list[NodeCrossRef]
+    links: list[LinkCrossRef]
 
 class GraphComplete:
     graph_functions = {
@@ -32,6 +41,26 @@ class GraphComplete:
         distance_matrix = scipy.io.loadmat(distance_matrix_path)['crossMatrix']
         xlsx_data = pd.read_excel(xlsx_data_path)
         return GraphComplete(distance_matrix, xlsx_data, layout_function)
+    
+    @staticmethod
+    def of_model(model: GraphCompleteSerializable):
+        # TODO
+        graph = GraphComplete(model.vertexs, model.edges, model.nodes, model.links)
+        graph.vertexs = model.vertexs
+      
+
+    # ---------------------------------------------------------------------------------------------------------------- #
+    # -- To JSON ----------------------------------------------------------------------------------------------------- #
+    #                                                                                                                  #
+    # ---------------------------------------------------------------------------------------------------------------- #
+    def to_serializable(self):
+        # Convert to JSON serializable format
+        return GraphCompleteSerializable(
+            vertexs=self.vertexs,
+            edges=self.edges,
+            nodes=self.nodesObj,
+            links=self.linksObj
+        )
     
     
     # ---------------------------------------------------------------------------------------------------------------- #
@@ -101,8 +130,19 @@ class GraphComplete:
                 id_b = map_id_to_obj[j]
                 
                 if distance > 0:
+                    node_a = self.nodesObj[id_a]
+                    node_b = self.nodesObj[id_b]
                     self.edges.append(Edge(a=self.vertexs[id_a].pos, b=self.vertexs[id_b].pos, distance=distance, label=f'{distance:.2f}km'))
-                    self.linksObj.append(LinkCrossRef(a=self.nodesObj[id_a], b=self.nodesObj[id_b], distance_km=distance, label=f'{distance:.2f}km'))
+                    newLink = LinkCrossRef(a=node_a, b=node_b, distance_km=distance, label=f'{distance:.2f}km', name=f'{node_a.name} <-> {node_b.name}')
+                    self.linksObj.append(newLink)
+
+                    node_a.assoc_links.append(newLink.name)
+                    node_b.assoc_links.append(newLink.name)
+                    node_a.assoc_nodes.append(node_b.name)
+                    node_b.assoc_nodes.append(node_a.name)
+                    
+                    
+                    
 
         print(f'Discarded nodes: {len(self.nodes_to_discard)}')
         print(f'Discarded links: {len(self.links_to_discard)}')
@@ -145,54 +185,18 @@ class GraphComplete:
         # Average degree HL5
         print(f'Average degree HL5: {np.mean([node.degree for node in self.vertexs if node.type == "HL5"]):.2f}')
         
+        # Total link length
+        print(f'Total bidirectional link length (km): {np.sum([edge.distance for edge in self.edges]):.2f}')
+        # print(f'Total directional link length (km): {2 * np.sum([edge.distance for edge in self.edges]):.2f}')
+        
+        
+        
         # Num links HL4 - HL5
         # Num links HL5 - HL5
         # Num links HL4 - HL4
         
         # Is connex graph
-        
-
-    # ---------------------------------------------------------------------------------------------------------------- #
-    # -- To JSON ----------------------------------------------------------------------------------------------------- #
-    #                                                                                                                  #
-    # ---------------------------------------------------------------------------------------------------------------- #
-    def to_json(self):
-        return FileFormat(nodes=self.nodes, links=self.links).model_dump()
-    
-    
-    
-    # ---------------------------------------------------------------------------------------------------------------- #
-    # -- Plot without map -------------------------------------------------------------------------------------------- #
-    #                                                                                                                  #
-    # ---------------------------------------------------------------------------------------------------------------- #
-    def plot_graph(self, guardar_figura=True, nombre_figura="grafo_distancias.png"):
-        fig, ax = plt.subplots(figsize=(40, 40))
-        node_colors = ["yellow" if node.type == "HL4" else "green" if node.type == "HL5" else "blue" for node in self.nodes]
-        node_colors = [node_colors[i] for i in range(len(node_colors)) if i not in self.nodes_to_discard]
-        nodes = nx.draw_networkx_nodes(self.graph, self.pos, node_size=100, node_color=node_colors, cmap=plt.cm.viridis, ax=ax)
-        nx.draw_networkx_edges(self.graph, self.pos, alpha=0.9, ax=ax)
-
-        # Mostrar etiquetas de nodos si hay pocos
-        if len(self.graph.nodes) <= 200:
-            nx.draw_networkx_labels(self.graph, self.pos, {i: f"{self.nodes[i].name}" for i in self.graph.nodes()}, font_size=5, ax=ax)
-
-        # Etiquetas de aristas también opcionalmente limitadas
-        edge_labels = nx.get_edge_attributes(self.graph, 'weight')
-        edge_labels = {(u, v): f"{1/d:.1f} km" for (u, v), d in edge_labels.items()}
-        if len(self.graph.edges) <= 1000:
-            nx.draw_networkx_edge_labels(self.graph, self.pos, edge_labels=edge_labels, font_size=3, ax=ax)
-
-        # plt.colorbar(nodes, ax=ax, label='Grado del nodo')
-        ax.set_title("Grafo de distancias entre nodos (heatmap por grado)", fontsize=16)
-        plt.axis('off')
-        plt.tight_layout()
-
-        if guardar_figura:
-            plt.show()
-            fig.savefig(nombre_figura, dpi=300)
-            print(f"✅ Figura guardada como: {nombre_figura}")
-        else:
-            plt.show()
+      
             
     
     
@@ -336,6 +340,82 @@ class GraphCompletePlots:
         fig, ax = plt.subplots(figsize=(40, 40))
         
         GraphCompletePlots.plot_on_figure(graph, fig, ax, include_node_labes, include_edge_labels)
+        
+        ax.set_title("Grafo de Red", fontsize=16)
+        plt.axis('off')
+        plt.tight_layout()
+        plt.show()
+        
+        
+    @staticmethod
+    def plot_for_node_degree(graph: GraphComplete, path: str | None = None, include_node_labes: bool = True, include_edge_labels: bool = True):
+        fig, ax = plt.subplots(figsize=(40, 40))
+        
+        hl4_shape = '*'
+        hl5_shape = 'o'
+        
+        # Plot nodes (vertexs)
+        def plot_nodes():
+            x, y = Vertex.obtain_x_y_vectors(graph.vertexs)
+            degrees = Vertex.obtain_degree_vector(graph.vertexs)
+            types = Vertex.obtain_type_vector(graph.vertexs)
+            names = Vertex.obtain_name_vector(graph.vertexs)
+        
+            # Normalize degrees for color mapping
+            norm = plt.Normalize(min(degrees), max(degrees))
+            cmap = plt.cm.viridis
+            node_colors = [cmap(norm(deg)) for deg in degrees]
+        
+            # Separate indices for circle and square nodes
+            circle_indices = [i for i, t in enumerate(types) if t == "HL4"]
+            square_indices = [i for i, t in enumerate(types) if t == "HL5"]
+        
+            # Plot circle nodes
+            ax.scatter([x[i] for i in circle_indices],
+                    [y[i] for i in circle_indices],
+                    c="red",
+                    # c=[node_colors[i] for i in circle_indices],
+                    s=150,
+                    marker=hl4_shape,
+                    label='HL4')
+        
+            # Plot square nodes
+            ax.scatter([x[i] for i in square_indices],
+                    [y[i] for i in square_indices],
+                    c=[node_colors[i] for i in square_indices],
+                    s=100,
+                    marker=hl5_shape,
+                    label='HL5')
+        
+            # Optional: add labels
+            if include_node_labes:
+                for i, name in enumerate(names):
+                    ax.text(x[i], y[i], name, fontsize=6, ha='right', va='bottom')
+        
+            # Add colorbar
+            sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+            sm.set_array([])
+            plt.colorbar(sm, ax=ax, label='Node Degree (HL5 nodes only)')
+        
+        def plot_links():
+            # Plot links (edges)
+            for edge in graph.edges:
+                a = edge.a
+                b = edge.b
+                
+                ax.plot([a[0], b[0]], [a[1], b[1]], 'k-', lw=1)
+                if include_edge_labels:
+                    ax.text((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, edge.label, fontsize=6, color='gray')
+        
+        # Create custom legend handles
+        hl5_patch = mpatches.Patch(color='blue', label='HL5 (colored by degree)')
+        hl4_patch = mlines.Line2D([], [], color='red', marker=hl4_shape, linestyle='None', markersize=10, label='HL4')
+        
+        # Add the legend to the plot
+        plt.legend(handles=[hl5_patch, hl4_patch], loc='upper right')
+        
+        plot_links()
+        plot_nodes()
         
         ax.set_title("Grafo de Red", fontsize=16)
         plt.axis('off')
