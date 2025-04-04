@@ -13,6 +13,8 @@ class NodeCrossRef(BaseModel):
     pos: tuple[float, float]
     node_degree: int
     type: str
+    
+    traffic_profile: int | None = None
 
     assoc_links: list = []
     assoc_nodes: list = []

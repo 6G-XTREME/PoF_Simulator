@@ -38,6 +38,7 @@ osmnx = "2.0.2"
 geopandas = "1.0.1"
 contextily = "1.6.2"
 notebook = "^7.3.3"
+scikit-learn = "^1.6.1"
 
 
 [build-system]
