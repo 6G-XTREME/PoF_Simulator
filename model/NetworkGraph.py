@@ -1,7 +1,5 @@
-from model.LinkClass import LinkRaw, LinkCrossRef
-from model.NodeClass import Node, NodeCrossRef
-from model.FileFormat import FileFormat
-from model.Plotteable import Vertex, Edge
+from model.LinkClass import Link
+from model.NodeClass import Node
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -13,148 +11,117 @@ from shapely.geometry import LineString, Point
 from pydantic import BaseModel
 
 from scipy.spatial import KDTree
-from scipy.interpolate import griddata
 from sklearn.preprocessing import MinMaxScaler
 
 import matplotlib.patches as mpatches
 import matplotlib.lines as mlines
 
-
-class GraphCompleteSerializable(BaseModel):
-    vertexs: list[Vertex]
-    edges: list[Edge]
-    nodes: list[NodeCrossRef]
-    links: list[LinkCrossRef]
-
-class GraphComplete:
-    graph_functions = {
-        "spring_layout": lambda G: nx.spring_layout(G, seed=42),
-        "circular_layout": lambda G: nx.circular_layout(G),             # TODO: tune
-        "kamada_kawai_layout": lambda G: nx.kamada_kawai_layout(G),     # TODO: tune
-        "random_layout": lambda G: nx.random_layout(G),                 # TODO: tune
-        "shell_layout": lambda G: nx.shell_layout(G),                   # TODO: tune
-    }
+graph_functions = {
+    "spring_layout": lambda G: nx.spring_layout(G, seed=42),
+    "circular_layout": lambda G: nx.circular_layout(G),             # TODO: tune
+    "kamada_kawai_layout": lambda G: nx.kamada_kawai_layout(G),     # TODO: tune
+    "random_layout": lambda G: nx.random_layout(G),                 # TODO: tune
+    "shell_layout": lambda G: nx.shell_layout(G),                   # TODO: tune
+}
     
-
+class CompleteGraph(BaseModel):
+    nodes: list[Node]
+    links: list[Link]
+    nodes_to_discard: list[int]
+    links_to_discard: list[int]
+    
     # ---------------------------------------------------------------------------------------------------------------- #
     # -- Wrapper to create from files -------------------------------------------------------------------------------- #
     #                                                                                                                  #
     # ---------------------------------------------------------------------------------------------------------------- #
     @staticmethod
-    def of(distance_matrix_path: str, xlsx_data_path: str, layout_function: str = "spring_layout"):
+    def of_sources(distance_matrix_path: str, xlsx_data_path: str, layout_function: str = "spring_layout"):
         distance_matrix = scipy.io.loadmat(distance_matrix_path)['crossMatrix']
         xlsx_data = pd.read_excel(xlsx_data_path)
-        return GraphComplete(distance_matrix, xlsx_data, layout_function)
-    
-    @staticmethod
-    def of_model(model: GraphCompleteSerializable):
-        # TODO
-        graph = GraphComplete(model.vertexs, model.edges, model.nodes, model.links)
-        graph.vertexs = model.vertexs
-      
-
-    # ---------------------------------------------------------------------------------------------------------------- #
-    # -- To JSON ----------------------------------------------------------------------------------------------------- #
-    #                                                                                                                  #
-    # ---------------------------------------------------------------------------------------------------------------- #
-    def to_serializable(self):
-        # Convert to JSON serializable format
-        return GraphCompleteSerializable(
-            vertexs=self.vertexs,
-            edges=self.edges,
-            nodes=self.nodesObj,
-            links=self.linksObj
-        )
-    
-    
-    # ---------------------------------------------------------------------------------------------------------------- #
-    # -- Constructor ------------------------------------------------------------------------------------------------- #
-    #                                                                                                                  #
-    # ---------------------------------------------------------------------------------------------------------------- #
-    def __init__(self, distance_matrix: np.ndarray, xlsx_data: pd.DataFrame, layout_function: str = "spring_layout"):
-        self.graph = nx.Graph()
-        # self.links = []
-        # self.nodes = []
-        self.nodes_to_discard = []
-        self.links_to_discard = []
         
-        # Vertex: (x, y, node_degree, name)
-        # Edges: ((x,y), (x,y), distance)
-        self.vertexs = []
-        self.edges = []
+        graph = nx.Graph()
+        nodes = []
+        links = []
+        nodes_to_discard = []
+        links_to_discard = []
         
-        
-        self.linksObj = []
-        self.nodesObj = []
-
         num_nodes = distance_matrix.shape[0]
         map_id_to_obj = {}
 
         for i in range(num_nodes):
             if xlsx_data.iloc[i, 1] != "HL4" and xlsx_data.iloc[i, 1] != "HL5":
-                self.nodes_to_discard.append(i)
+                nodes_to_discard.append(i)
 
         for i in range(num_nodes):
-            if i not in self.nodes_to_discard:
-                self.graph.add_node(i)
+            if i not in nodes_to_discard:
+                graph.add_node(i)
         
         for i in range(num_nodes):
             for j in range(num_nodes):
-                if i == j or i in self.nodes_to_discard or j in self.nodes_to_discard:
+                if i == j or i in nodes_to_discard or j in nodes_to_discard:
                     continue
                 distance = distance_matrix[i, j]
                 if distance > 0:
-                    self.graph.add_edge(i, j, weight=1/distance)
-                    
-                    # self.links.append(LinkRaw(source=i, target=j, distance=distance, label=f'{distance:.2f}km'))
+                    graph.add_edge(i, j, weight=1/distance)
 
         # Compute layout positions
-        self.layout_function = layout_function
-        self.pos = self.graph_functions[layout_function](self.graph)
+        pos = graph_functions[layout_function](graph)
 
         for i in range(num_nodes):
-            if i not in self.nodes_to_discard:
+            if i not in nodes_to_discard:
                 # node_id = i
                 node_name = xlsx_data.iloc[i, 0]
                 node_type = xlsx_data.iloc[i, 1]
                 node_degree = int(sum(distance_matrix[i] > 0))
-                node_x, node_y = self.pos[i]
+                node_x, node_y = pos[i]
 
                 # self.nodes.append(Node(id=node_id, type=node_type, x=node_x, y=node_y, node_degree=node_degree, name=node_name))
-                self.nodesObj.append(NodeCrossRef(name=node_name, pos=(node_x, node_y), node_degree=node_degree, type=node_type))
-                self.vertexs.append(Vertex(pos=(node_x, node_y), degree=node_degree, name=node_name, type=node_type))
-                map_id_to_obj[i] = len(self.nodesObj) - 1
+                nodes.append(Node(name=node_name, pos=(node_x, node_y), node_degree=node_degree, type=node_type))
+                # self.vertexs.append(Vertex(pos=(node_x, node_y), degree=node_degree, name=node_name, type=node_type))
+                map_id_to_obj[i] = len(nodes) - 1
         
         for i in range(num_nodes):
             for j in range(i+1, num_nodes):
-                if i == j or i in self.nodes_to_discard or j in self.nodes_to_discard:
+                if i == j or i in nodes_to_discard or j in nodes_to_discard:
                     continue
                 distance = distance_matrix[i, j]
                 id_a = map_id_to_obj[i]
                 id_b = map_id_to_obj[j]
                 
                 if distance > 0:
-                    node_a = self.nodesObj[id_a]
-                    node_b = self.nodesObj[id_b]
-                    self.edges.append(Edge(a=self.vertexs[id_a].pos, b=self.vertexs[id_b].pos, distance=distance, label=f'{distance:.2f}km'))
-                    newLink = LinkCrossRef(a=node_a, b=node_b, distance_km=distance, label=f'{distance:.2f}km', name=f'{node_a.name} <-> {node_b.name}')
-                    self.linksObj.append(newLink)
+                    node_a = nodes[id_a]
+                    node_b = nodes[id_b]
+                    # self.edges.append(Edge(a=self.vertexs[id_a].pos, b=self.vertexs[id_b].pos, distance=distance, label=f'{distance:.2f}km'))
+                    newLink = Link(a=node_a, b=node_b, distance_km=distance, label=f'{distance:.2f}km', name=f'{node_a.name} <-> {node_b.name}')
+                    links.append(newLink)
 
                     node_a.assoc_links.append(newLink.name)
                     node_b.assoc_links.append(newLink.name)
                     node_a.assoc_nodes.append(node_b.name)
                     node_b.assoc_nodes.append(node_a.name)
+        
+        return CompleteGraph(nodes=nodes, links=links, nodes_to_discard=nodes_to_discard, links_to_discard=links_to_discard)
+      
+    
+    # ---------------------------------------------------------------------------------------------------------------- #
+    # -- Constructor ------------------------------------------------------------------------------------------------- #
+    #                                                                                                                  #
+    # ---------------------------------------------------------------------------------------------------------------- #
+    def __init__(self, 
+        nodes: list[Node],
+        links: list[Link],
+        nodes_to_discard: list[int],
+        links_to_discard: list[int],
+    ):
+        super().__init__(nodes=nodes, links=links, nodes_to_discard=nodes_to_discard, links_to_discard=links_to_discard)
                     
-                    
-                    
-
         print(f'Discarded nodes: {len(self.nodes_to_discard)}')
         print(f'Discarded links: {len(self.links_to_discard)}')
         
-        print(f'Vertexs: {len(self.vertexs)}')
-        print(f'Edges: {len(self.edges)}')
-        print(f'LinksObj: {len(self.linksObj)}')
-        print(f'NodesObj: {len(self.nodesObj)}')
+        # print(f'Vertexs: {len(self.vertexs)}')
+        # print(f'Edges: {len(self.edges)}')
+        print(f'Links: {len(self.links)}')
+        print(f'Nodes: {len(self.nodes)}')
         
         self.compute_traffic_profiles()
         self.print_network()
@@ -210,8 +177,10 @@ class GraphComplete:
         """
         
         # Get map coordinates and degree
-        x, y = Vertex.obtain_x_y_vectors(self.vertexs)
-        degree = Vertex.obtain_degree_vector(self.vertexs)
+        # x, y = Vertex.obtain_x_y_vectors(self.vertexs)
+        x, y = Node.obtain_x_y_vectors(self.nodes)
+        # degree = Vertex.obtain_degree_vector(self.vertexs)
+        degree = Node.obtain_degree_vector(self.nodes)
         df = pd.DataFrame({'x': x, 'y': y, 'degree': degree})
 
         # Calcular densidad local: cuántos vecinos en cierto radio
@@ -240,14 +209,14 @@ class GraphComplete:
         
         for i in range(len(df)):
             if df.loc[i, 'intensidad_norm'] < traffic_profile_threshold_low:
-                self.nodesObj[i].traffic_profile = "low"
-                self.nodesObj[i].estimated_traffic_injection = traffic_profile_mbps_low
+                self.nodes[i].traffic_profile = "low"
+                self.nodes[i].estimated_traffic_injection = traffic_profile_mbps_low
             elif df.loc[i, 'intensidad_norm'] < traffic_profile_threshold_medium:
-                self.nodesObj[i].traffic_profile = "medium"
-                self.nodesObj[i].estimated_traffic_injection = traffic_profile_mbps_medium
+                self.nodes[i].traffic_profile = "medium"
+                self.nodes[i].estimated_traffic_injection = traffic_profile_mbps_medium
             elif df.loc[i, 'intensidad_norm'] <= traffic_profile_threshold_high:
-                self.nodesObj[i].traffic_profile = "high"
-                self.nodesObj[i].estimated_traffic_injection = traffic_profile_mbps_high
+                self.nodes[i].traffic_profile = "high"
+                self.nodes[i].estimated_traffic_injection = traffic_profile_mbps_high
                 
                 
                 
@@ -258,35 +227,35 @@ class GraphComplete:
     def print_network(self):
         print('\n*-*-* Printing information about the imported network *-*-*\n')
         # Num nodes
-        print(f'Num nodes: {len(self.nodesObj)}')
+        print(f'Num nodes: {len(self.nodes)}')
         # Num links
-        print(f'Num links: {len(self.linksObj)}')
+        print(f'Num links: {len(self.links)}')
         # Num HL4
-        print(f'Num HL4: {len([node for node in self.nodesObj if node.type == "HL4"])}')
+        print(f'Num HL4: {len([node for node in self.nodes if node.type == "HL4"])}')
         # Num HL5
-        print(f'Num HL5: {len([node for node in self.nodesObj if node.type == "HL5"])}')
+        print(f'Num HL5: {len([node for node in self.nodes if node.type == "HL5"])}')
         
         # Average distance
-        print(f'Average distance: {np.mean([edge.distance for edge in self.edges]):.2f}')
+        print(f'Average distance: {np.mean([link.distance_km for link in self.links]):.2f}')
         # Max distance
-        print(f'Max distance (km): {np.max([edge.distance for edge in self.edges]):.2f}')
+        print(f'Max distance (km): {np.max([link.distance_km for link in self.links]):.2f}')
         # Min distance
-        print(f'Min distance (km): {np.min([edge.distance for edge in self.edges]):.2f}')
+        print(f'Min distance (km): {np.min([link.distance_km for link in self.links]):.2f}')
         
         # Average degree
-        print(f'Average degree: {np.mean([node.degree for node in self.vertexs]):.2f}')
+        print(f'Average degree: {np.mean([node.node_degree for node in self.nodes]):.2f}')
         # Min degree
-        print(f'Min degree: {np.min([node.degree for node in self.vertexs])}')
+        print(f'Min degree: {np.min([node.node_degree for node in self.nodes])}')
         # Max degree
-        print(f'Max degree: {np.max([node.degree for node in self.vertexs])}')
+        print(f'Max degree: {np.max([node.node_degree for node in self.nodes])}')
         
         # Average degree HL4
-        print(f'Average degree HL4: {np.mean([node.degree for node in self.vertexs if node.type == "HL4"]):.2f}')
+        print(f'Average degree HL4: {np.mean([node.node_degree for node in self.nodes if node.type == "HL4"]):.2f}')
         # Average degree HL5
-        print(f'Average degree HL5: {np.mean([node.degree for node in self.vertexs if node.type == "HL5"]):.2f}')
+        print(f'Average degree HL5: {np.mean([node.node_degree for node in self.nodes if node.type == "HL5"]):.2f}')
         
         # Total link length
-        print(f'Total bidirectional link length (km): {np.sum([edge.distance for edge in self.edges]):.2f}')
+        print(f'Total bidirectional link length (km): {np.sum([link.distance_km for link in self.links]):.2f}')
         # print(f'Total directional link length (km): {2 * np.sum([edge.distance for edge in self.edges]):.2f}')
         
         
@@ -398,127 +367,3 @@ class GraphComplete:
             fig.savefig(nombre_figura, dpi=300)
             print(f"✅ Mapa guardado como: {nombre_figura}")
             
-
-
-
-
-class GraphCompletePlots:
-        
-        
-    @staticmethod
-    def plot_on_figure(graph: GraphComplete, fig, ax, include_node_labes: bool = True, include_edge_labels: bool = True):      
-        # Plot nodes (vertexs)
-        def plot_nodes():
-            x, y = Vertex.obtain_x_y_vectors(graph.vertexs)
-            node_colors = ["yellow" if type == "HL4" else "green" if type == "HL5" else "blue" for type in Vertex.obtain_type_vector(graph.vertexs)]
-            names = Vertex.obtain_name_vector(graph.vertexs)
-            
-            ax.scatter(x, y, c=node_colors, s=100)
-            if include_node_labes:
-                for i, name in enumerate(names):
-                    ax.text(x[i], y[i], name, fontsize=6, ha='right', va='bottom')
-        
-        def plot_links():
-            # Plot links (edges)
-            for edge in graph.edges:
-                a = edge.a
-                b = edge.b
-                
-                ax.plot([a[0], b[0]], [a[1], b[1]], 'k-', lw=1)
-                if include_edge_labels:
-                    ax.text((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, edge.label, fontsize=6, color='gray')
-                
-        # Depending on the order of the plots, it can be choosen if the links are plotted on top of the nodes or viceversa
-        # to show the links on top of the nodes, the links should be plotted last
-        # to show the nodes on top of the links, the nodes should be plotted last
-        plot_links()
-        plot_nodes()
-        
-    
-    @staticmethod
-    def plot_without_map(graph: GraphComplete, path: str | None = None, include_node_labes: bool = True, include_edge_labels: bool = True):
-        fig, ax = plt.subplots(figsize=(40, 40))
-        
-        GraphCompletePlots.plot_on_figure(graph, fig, ax, include_node_labes, include_edge_labels)
-        
-        ax.set_title("Grafo de Red", fontsize=16)
-        plt.axis('off')
-        plt.tight_layout()
-        plt.show()
-        
-        
-    @staticmethod
-    def plot_for_node_degree(graph: GraphComplete, path: str | None = None, include_node_labes: bool = True, include_edge_labels: bool = True):
-        fig, ax = plt.subplots(figsize=(40, 40))
-        
-        hl4_shape = '*'
-        hl5_shape = 'o'
-        
-        # Plot nodes (vertexs)
-        def plot_nodes():
-            x, y = Vertex.obtain_x_y_vectors(graph.vertexs)
-            degrees = Vertex.obtain_degree_vector(graph.vertexs)
-            types = Vertex.obtain_type_vector(graph.vertexs)
-            names = Vertex.obtain_name_vector(graph.vertexs)
-        
-            # Normalize degrees for color mapping
-            norm = plt.Normalize(min(degrees), max(degrees))
-            cmap = plt.cm.viridis
-            node_colors = [cmap(norm(deg)) for deg in degrees]
-        
-            # Separate indices for circle and square nodes
-            circle_indices = [i for i, t in enumerate(types) if t == "HL4"]
-            square_indices = [i for i, t in enumerate(types) if t == "HL5"]
-        
-            # Plot circle nodes
-            ax.scatter([x[i] for i in circle_indices],
-                    [y[i] for i in circle_indices],
-                    c="red",
-                    # c=[node_colors[i] for i in circle_indices],
-                    s=150,
-                    marker=hl4_shape,
-                    label='HL4')
-        
-            # Plot square nodes
-            ax.scatter([x[i] for i in square_indices],
-                    [y[i] for i in square_indices],
-                    c=[node_colors[i] for i in square_indices],
-                    s=100,
-                    marker=hl5_shape,
-                    label='HL5')
-        
-            # Optional: add labels
-            if include_node_labes:
-                for i, name in enumerate(names):
-                    ax.text(x[i], y[i], name, fontsize=6, ha='right', va='bottom')
-        
-            # Add colorbar
-            sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-            sm.set_array([])
-            plt.colorbar(sm, ax=ax, label='Node Degree (HL5 nodes only)')
-        
-        def plot_links():
-            # Plot links (edges)
-            for edge in graph.edges:
-                a = edge.a
-                b = edge.b
-                
-                ax.plot([a[0], b[0]], [a[1], b[1]], 'k-', lw=1)
-                if include_edge_labels:
-                    ax.text((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, edge.label, fontsize=6, color='gray')
-        
-        # Create custom legend handles
-        hl5_patch = mpatches.Patch(color='blue', label='HL5 (colored by degree)')
-        hl4_patch = mlines.Line2D([], [], color='red', marker=hl4_shape, linestyle='None', markersize=10, label='HL4')
-        
-        # Add the legend to the plot
-        plt.legend(handles=[hl5_patch, hl4_patch], loc='upper right')
-        
-        plot_links()
-        plot_nodes()
-        
-        ax.set_title("Grafo de Red", fontsize=16)
-        plt.axis('off')
-        plt.tight_layout()
-        plt.show()
-        

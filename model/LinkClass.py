@@ -1,22 +1,9 @@
 from pydantic import BaseModel
-from typing import Any
+from model.NodeClass import Node
 
-
-class LinkRaw(BaseModel):
-    source: int
-    target: int
-    distance: float
-    label: str
-    
 class Link(BaseModel):
-    source_pos: tuple[float, float]
-    target_pos: tuple[float, float]
-    distance_km: float
-    label: str
-
-class LinkCrossRef(BaseModel):
-    a: Any
-    b: Any
+    a: Node
+    b: Node
     distance_km: float
     label: str
     name: str

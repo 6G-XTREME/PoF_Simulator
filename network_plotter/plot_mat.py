@@ -3,8 +3,6 @@ import scipy.io
 import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
-from model.NodeClass import Node
-from model.LinkClass import LinkRaw
 
 
 # --- FUNCIÓN PRINCIPAL ---
