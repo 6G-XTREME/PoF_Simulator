@@ -15,21 +15,21 @@ def plot_test(mat_path, xlsx_path):
     
     
 def plot_test_2():
-    graph = CompleteGraph.of("network_plotter/Passion_Xtreme_III.mat", "network_plotter/NameTypes.xlsx")
+    graph = CompleteGraph.of("Passion_Xtreme_III.mat", "NameTypes.xlsx")
     graph.plot_graph()
     with open("graph.json", "w") as f:
         json.dump(graph.to_json(), f)
         
 def plot_test_3():
-    graph = CompleteGraph.of("network_plotter/Passion_Xtreme_III.mat", "network_plotter/NameTypes.xlsx")
+    graph = CompleteGraph.of("Passion_Xtreme_III.mat", "NameTypes.xlsx")
     graph.plot_graph_with_map()
     
 def plot_test_4():
-    graph = CompleteGraph.of("network_plotter/Passion_Xtreme_III.mat", "network_plotter/NameTypes.xlsx")
+    graph = CompleteGraph.of("Passion_Xtreme_III.mat", "NameTypes.xlsx")
     GraphCompletePlots.plot_without_map(graph)
 
 def plot_test_5():
-    graph = CompleteGraph.of("network_plotter/Passion_Xtreme_III.mat", "network_plotter/NameTypes.xlsx")
+    graph = CompleteGraph.of("Passion_Xtreme_III.mat", "NameTypes.xlsx")
     GraphCompletePlots.plot_for_node_degree(graph, include_node_labes=False)
 
 
