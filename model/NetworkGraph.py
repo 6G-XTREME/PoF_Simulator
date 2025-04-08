@@ -28,7 +28,7 @@ class CompleteGraph(BaseModel):
     nodes_to_discard: list[int]
     links_to_discard: list[int]
     scale_factor: float | None = None
-    network_bounds: tuple[tuple[float, float], tuple[float, float]] | None = None
+    network_polygon_bounds: list[tuple[float, float]] | None = None
     
     # ---------------------------------------------------------------------------------------------------------------- #
     # -- Wrapper to create from files -------------------------------------------------------------------------------- #
@@ -263,11 +263,12 @@ class CompleteGraph(BaseModel):
             
             
         # Find the network bounds
-        min_x = min([node.pos[0] for node in self.nodes])
-        max_x = max([node.pos[0] for node in self.nodes])
-        min_y = min([node.pos[1] for node in self.nodes])
-        max_y = max([node.pos[1] for node in self.nodes])
-        self.network_bounds = ((min_x, max_x), (min_y, max_y))
+        margin = 2
+        min_x = min([node.pos[0] for node in self.nodes]) - margin
+        max_x = max([node.pos[0] for node in self.nodes]) + margin
+        min_y = min([node.pos[1] for node in self.nodes]) - margin
+        max_y = max([node.pos[1] for node in self.nodes]) + margin
+        self.network_polygon_bounds = [(min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)]
         self.scale_factor = scale_factor
     
     # ---------------------------------------------------------------------------------------------------------------- #

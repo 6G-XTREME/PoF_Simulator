@@ -1,5 +1,8 @@
 from pydantic import BaseModel
 import uuid
+from shapely.geometry import Polygon
+
+
 
 class MacroCell(BaseModel):
     """
@@ -10,6 +13,8 @@ class MacroCell(BaseModel):
     hosting_node_id: str
     capacity: float | None = None
     radius: float | None = None
+    transmission_power: float | None = None
+    coverage_shape: Polygon | None = None
     
     
 class FemtoCell(BaseModel):
@@ -20,4 +25,9 @@ class FemtoCell(BaseModel):
     pos: tuple[float, float]
     hosting_node_id: str
     capacity: float | None = None
-    radius: float | None = None
+    transmission_power: float | None = None
+    coverage_shape: Polygon | None = None
+    
+    
+    
+    
