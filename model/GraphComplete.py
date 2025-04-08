@@ -12,6 +12,10 @@ import contextily as ctx
 from shapely.geometry import LineString, Point
 from pydantic import BaseModel
 
+from scipy.spatial import KDTree
+from scipy.interpolate import griddata
+from sklearn.preprocessing import MinMaxScaler
+
 import matplotlib.patches as mpatches
 import matplotlib.lines as mlines
 
@@ -152,8 +156,69 @@ class GraphComplete:
         print(f'LinksObj: {len(self.linksObj)}')
         print(f'NodesObj: {len(self.nodesObj)}')
         
+        self.compute_traffic_profiles()
         self.print_network()
         
+        
+    
+    
+    def compute_traffic_profiles(
+            self, 
+            radio: float = 0.5, 
+            alpha: float = 1.0, 
+            beta: float = 1.0,
+            traffic_profile_threshold_low: float = 0.4,
+            traffic_profile_threshold_medium: float = 0.7,
+            traffic_profile_threshold_high: float = 1.0,
+            traffic_profile_mbps_low: float = 250,
+            traffic_profile_mbps_medium: float = 500,
+            traffic_profile_mbps_high: float = 1000,
+        ):
+        x, y = Vertex.obtain_x_y_vectors(self.vertexs)
+        degree = Vertex.obtain_degree_vector(self.vertexs)
+        
+        map_coords_to_node_obj = {(x[i], y[i]): self.nodesObj[i] for i in range(len(self.nodesObj))}
+
+        df = pd.DataFrame({'x': x, 'y': y, 'degree': degree})
+
+        # Calcular densidad local: cuántos vecinos en cierto radio
+        tree = KDTree(df[['x', 'y']])
+        densidad = []
+        
+        for i in range(len(df)):
+            vecinos = tree.query_ball_point([df.loc[i, 'x'], df.loc[i, 'y']], r=radio)
+            densidad.append(len(vecinos) - 1)  # excluye el propio nodo
+            
+        df['densidad'] = densidad
+
+        # Estimar intensidad de tráfico
+        df['intensidad'] = alpha * df['densidad'] + beta * df['degree']
+        
+        
+        # Normalizar para visualización
+        scaler = MinMaxScaler()
+        df['intensidad_norm'] = scaler.fit_transform(df[['intensidad']])
+        
+        
+        
+        # Clasificar cada nodo según su intensidad
+        # [0, 0.4) -> 0
+        # [0.4, 0.7) -> 1
+        # [0.7, 1.0] -> 2
+        
+        for i in range(len(df)):
+            if df.loc[i, 'intensidad_norm'] < traffic_profile_threshold_low:
+                self.nodesObj[i].traffic_profile = "low"
+                self.nodesObj[i].estimated_traffic_injection = traffic_profile_mbps_low
+            elif df.loc[i, 'intensidad_norm'] < traffic_profile_threshold_medium:
+                self.nodesObj[i].traffic_profile = "medium"
+                self.nodesObj[i].estimated_traffic_injection = traffic_profile_mbps_medium
+            elif df.loc[i, 'intensidad_norm'] <= traffic_profile_threshold_high:
+                self.nodesObj[i].traffic_profile = "high"
+                self.nodesObj[i].estimated_traffic_injection = traffic_profile_mbps_high
+                
+                
+                
     
     def print_network(self):
         print('\n*-*-* Printing information about the imported network *-*-*\n')

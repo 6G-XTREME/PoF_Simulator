@@ -14,7 +14,8 @@ class NodeCrossRef(BaseModel):
     node_degree: int
     type: str
     
-    traffic_profile: int | None = None
+    traffic_profile: str | None = None
+    estimated_traffic_injection: float | None = None
 
     assoc_links: list = []
     assoc_nodes: list = []
@@ -24,3 +25,6 @@ class NodeCrossRef(BaseModel):
 
     def add_node_association(self, node):
         self.assoc_nodes.append(node)
+        
+    def to_x_y(self):
+        return self.pos[0], self.pos[1]
