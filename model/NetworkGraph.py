@@ -3,18 +3,10 @@ from model.NodeClass import Node
 import networkx as nx
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import scipy.io
-import geopandas as gpd
-import contextily as ctx
-from shapely.geometry import LineString, Point
 from pydantic import BaseModel
-
 from scipy.spatial import KDTree
 from sklearn.preprocessing import MinMaxScaler
-
-import matplotlib.patches as mpatches
-import matplotlib.lines as mlines
 
 graph_functions = {
     "spring_layout": lambda G: nx.spring_layout(G, seed=42),
@@ -25,10 +17,18 @@ graph_functions = {
 }
     
 class CompleteGraph(BaseModel):
+    """
+    CompleteGraph is a class that represents the network of a PoF system. It contains the nodes and links of the network, and subyacent data.
+    """
+    
+    
+    
     nodes: list[Node]
     links: list[Link]
     nodes_to_discard: list[int]
     links_to_discard: list[int]
+    scale_factor: float | None = None
+    network_bounds: tuple[tuple[float, float], tuple[float, float]] | None = None
     
     # ---------------------------------------------------------------------------------------------------------------- #
     # -- Wrapper to create from files -------------------------------------------------------------------------------- #
@@ -36,6 +36,13 @@ class CompleteGraph(BaseModel):
     # ---------------------------------------------------------------------------------------------------------------- #
     @staticmethod
     def of_sources(distance_matrix_path: str, xlsx_data_path: str, layout_function: str = "spring_layout"):
+        """
+        Create a CompleteGraph from a distance matrix and an Excel file.
+        :param distance_matrix_path (str): Path to the distance matrix file.
+        :param xlsx_data_path (str): Path to the Excel file.
+        :param layout_function (str, optional): Layout function to use. Defaults to "spring_layout".
+        :return: CompleteGraph object.
+        """
         distance_matrix = scipy.io.loadmat(distance_matrix_path)['crossMatrix']
         xlsx_data = pd.read_excel(xlsx_data_path)
         
@@ -67,19 +74,18 @@ class CompleteGraph(BaseModel):
         # Compute layout positions
         pos = graph_functions[layout_function](graph)
 
+        # Create nodes
         for i in range(num_nodes):
             if i not in nodes_to_discard:
-                # node_id = i
                 node_name = xlsx_data.iloc[i, 0]
                 node_type = xlsx_data.iloc[i, 1]
                 node_degree = int(sum(distance_matrix[i] > 0))
                 node_x, node_y = pos[i]
 
-                # self.nodes.append(Node(id=node_id, type=node_type, x=node_x, y=node_y, node_degree=node_degree, name=node_name))
                 nodes.append(Node(name=node_name, pos=(node_x, node_y), node_degree=node_degree, type=node_type))
-                # self.vertexs.append(Vertex(pos=(node_x, node_y), degree=node_degree, name=node_name, type=node_type))
                 map_id_to_obj[i] = len(nodes) - 1
         
+        # Create links
         for i in range(num_nodes):
             for j in range(i+1, num_nodes):
                 if i == j or i in nodes_to_discard or j in nodes_to_discard:
@@ -91,7 +97,6 @@ class CompleteGraph(BaseModel):
                 if distance > 0:
                     node_a = nodes[id_a]
                     node_b = nodes[id_b]
-                    # self.edges.append(Edge(a=self.vertexs[id_a].pos, b=self.vertexs[id_b].pos, distance=distance, label=f'{distance:.2f}km'))
                     newLink = Link(a=node_a, b=node_b, distance_km=distance, label=f'{distance:.2f}km', name=f'{node_a.name} <-> {node_b.name}')
                     links.append(newLink)
 
@@ -113,6 +118,14 @@ class CompleteGraph(BaseModel):
         nodes_to_discard: list[int],
         links_to_discard: list[int],
     ):
+        """
+        Constructor for the CompleteGraph class.
+        :param nodes: List of nodes.
+        :param links: List of links.
+        :param nodes_to_discard: List of nodes to discard.
+        :param links_to_discard: List of links to discard.
+        :return: CompleteGraph object.
+        """
         super().__init__(nodes=nodes, links=links, nodes_to_discard=nodes_to_discard, links_to_discard=links_to_discard)
                     
         print(f'Discarded nodes: {len(self.nodes_to_discard)}')
@@ -125,7 +138,7 @@ class CompleteGraph(BaseModel):
         
         self.compute_traffic_profiles()
         self.print_network()
-        
+        self.transform_nodes_coordinates()
         
     
     # ---------------------------------------------------------------------------------------------------------------- #
@@ -219,7 +232,43 @@ class CompleteGraph(BaseModel):
                 self.nodes[i].estimated_traffic_injection = traffic_profile_mbps_high
                 
                 
+    
+    # ---------------------------------------------------------------------------------------------------------------- #
+    # -- Transform nodes coordinates from normalized to scaled by the distance in km --------------------------------- #
+    #                                                                                                                  #
+    # Find the largest distance link, find both ends of the link, and scale the coordinates of the nodes to the        #
+    # distance in km.                                                                                                  #
+    # ---------------------------------------------------------------------------------------------------------------- #
+    def transform_nodes_coordinates(self):
+        """
+        Transform nodes coordinates from normalized to scaled by the distance in km.
+        """
+        # Find the largest distance link (best precission)
+        max_distance = 0
+        max_distance_link = None
+        for link in self.links:
+            if link.distance_km > max_distance:
+                max_distance = link.distance_km
+                max_distance_link = link
                 
+        # Find both ends of the link
+        node_a = max_distance_link.a
+        node_b = max_distance_link.b
+        norm_distance = np.sqrt((node_a.pos[0] - node_b.pos[0])**2 + (node_a.pos[1] - node_b.pos[1])**2)
+        scale_factor = max_distance / norm_distance
+        
+        # Scale the coordinates of each node
+        for node in self.nodes:
+            node.pos = (node.pos[0] * scale_factor, node.pos[1] * scale_factor)
+            
+            
+        # Find the network bounds
+        min_x = min([node.pos[0] for node in self.nodes])
+        max_x = max([node.pos[0] for node in self.nodes])
+        min_y = min([node.pos[1] for node in self.nodes])
+        max_y = max([node.pos[1] for node in self.nodes])
+        self.network_bounds = ((min_x, max_x), (min_y, max_y))
+        self.scale_factor = scale_factor
     
     # ---------------------------------------------------------------------------------------------------------------- #
     # -- Print network ----------------------------------------------------------------------------------------------- #
@@ -273,97 +322,97 @@ class CompleteGraph(BaseModel):
     # -- Plot with map ----------------------------------------------------------------------------------------------- #
     #                                                                                                                  #
     # ---------------------------------------------------------------------------------------------------------------- #
-    def plot_graph_with_map(self, guardar_figura=True, nombre_figura="grafo_distancias.png"):
-        # 1. Centro del grafo en 0,0
-        pos_array = np.array(list(self.pos.values()))
-        pos_centered = pos_array - pos_array.mean(axis=0)
+    # def plot_graph_with_map(self, guardar_figura=True, nombre_figura="grafo_distancias.png"):
+    #     # 1. Centro del grafo en 0,0
+    #     pos_array = np.array(list(self.pos.values()))
+    #     pos_centered = pos_array - pos_array.mean(axis=0)
     
-        # 2. Escalado: ajusta este valor si los nodos están muy separados o muy juntos
-        scale_factor = 10  # en km
-        pos_km = pos_centered * scale_factor
+    #     # 2. Escalado: ajusta este valor si los nodos están muy separados o muy juntos
+    #     scale_factor = 10  # en km
+    #     pos_km = pos_centered * scale_factor
     
-        # 3. Conversión de km a grados geográficos
-        lat_center = 40.4168
-        lon_center = -3.7038
-        deg_per_km_lat = 1 / 111
-        deg_per_km_lon = 1 / (111 * np.cos(np.radians(lat_center)))
+    #     # 3. Conversión de km a grados geográficos
+    #     lat_center = 40.4168
+    #     lon_center = -3.7038
+    #     deg_per_km_lat = 1 / 111
+    #     deg_per_km_lon = 1 / (111 * np.cos(np.radians(lat_center)))
     
-        pos_latlon = {
-            node_id: (
-                lon_center + x * deg_per_km_lon,
-                lat_center + y * deg_per_km_lat
-            )
-            for (node_id, (x, y)) in zip(self.pos.keys(), pos_km)
-        }
+    #     pos_latlon = {
+    #         node_id: (
+    #             lon_center + x * deg_per_km_lon,
+    #             lat_center + y * deg_per_km_lat
+    #         )
+    #         for (node_id, (x, y)) in zip(self.pos.keys(), pos_km)
+    #     }
     
-        # 4. GeoDataFrame de nodos
-        node_colors = ["yellow" if node.type == "HL4" else "green" if node.type == "HL5" else "blue" for node in self.nodes]
+    #     # 4. GeoDataFrame de nodos
+    #     node_colors = ["yellow" if node.type == "HL4" else "green" if node.type == "HL5" else "blue" for node in self.nodes]
     
-        gdf_nodes = gpd.GeoDataFrame(
-            {
-                "id": [n.id for n in self.nodes],
-                "name": [n.name for n in self.nodes],
-                "color": node_colors,
-            },
-            geometry=[Point(pos_latlon[n.id][0], pos_latlon[n.id][1]) for n in self.nodes],
-            crs="EPSG:4326"
-        ).to_crs(epsg=3857)
+    #     gdf_nodes = gpd.GeoDataFrame(
+    #         {
+    #             "id": [n.id for n in self.nodes],
+    #             "name": [n.name for n in self.nodes],
+    #             "color": node_colors,
+    #         },
+    #         geometry=[Point(pos_latlon[n.id][0], pos_latlon[n.id][1]) for n in self.nodes],
+    #         crs="EPSG:4326"
+    #     ).to_crs(epsg=3857)
     
-        # 5. GeoDataFrame de aristas
-        lines = []
-        edge_labels = []
+    #     # 5. GeoDataFrame de aristas
+    #     lines = []
+    #     edge_labels = []
     
-        for link in self.links:
-            if link.source in pos_latlon and link.target in pos_latlon:
-                source_coords = pos_latlon[link.source]
-                target_coords = pos_latlon[link.target]
-                line = LineString([source_coords, target_coords])
-                lines.append(line)
-                edge_labels.append(f"{link.distance:.1f} km")
+    #     for link in self.links:
+    #         if link.source in pos_latlon and link.target in pos_latlon:
+    #             source_coords = pos_latlon[link.source]
+    #             target_coords = pos_latlon[link.target]
+    #             line = LineString([source_coords, target_coords])
+    #             lines.append(line)
+    #             edge_labels.append(f"{link.distance:.1f} km")
     
-        gdf_edges = gpd.GeoDataFrame(
-            {"label": edge_labels},
-            geometry=lines,
-            crs="EPSG:4326"
-        ).to_crs(epsg=3857)
+    #     gdf_edges = gpd.GeoDataFrame(
+    #         {"label": edge_labels},
+    #         geometry=lines,
+    #         crs="EPSG:4326"
+    #     ).to_crs(epsg=3857)
     
-        # 6. Plot
-        fig, ax = plt.subplots(figsize=(15, 15))
-        fig.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+    #     # 6. Plot
+    #     fig, ax = plt.subplots(figsize=(15, 15))
+    #     fig.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
 
     
-        # Dibujar edges primero
-        gdf_edges.plot(ax=ax, linewidth=0.8, alpha=0.5, color='gray')
+    #     # Dibujar edges primero
+    #     gdf_edges.plot(ax=ax, linewidth=0.8, alpha=0.5, color='gray')
     
-        # Dibujar nodos
-        gdf_nodes.plot(ax=ax, color=gdf_nodes["color"], markersize=30)
+    #     # Dibujar nodos
+    #     gdf_nodes.plot(ax=ax, color=gdf_nodes["color"], markersize=30)
     
-        # Mostrar nombres de nodos si hay pocos
-        # if len(self.nodes) <= 200:
-            # for x, y, name in zip(gdf_nodes.geometry.x, gdf_nodes.geometry.y, gdf_nodes["name"]):
-                # ax.text(x, y, name, fontsize=6, ha='right', va='bottom')
+    #     # Mostrar nombres de nodos si hay pocos
+    #     # if len(self.nodes) <= 200:
+    #         # for x, y, name in zip(gdf_nodes.geometry.x, gdf_nodes.geometry.y, gdf_nodes["name"]):
+    #             # ax.text(x, y, name, fontsize=6, ha='right', va='bottom')
     
-        # Mostrar etiquetas de aristas si hay pocas
-        if len(gdf_edges) <= 1000:
-            for geom, label in zip(gdf_edges.geometry, gdf_edges["label"]):
-                x, y = geom.interpolate(0.5, normalized=True).xy
-                ax.text(x[0], y[0], label, fontsize=5, color='gray')
+    #     # Mostrar etiquetas de aristas si hay pocas
+    #     if len(gdf_edges) <= 1000:
+    #         for geom, label in zip(gdf_edges.geometry, gdf_edges["label"]):
+    #             x, y = geom.interpolate(0.5, normalized=True).xy
+    #             ax.text(x[0], y[0], label, fontsize=5, color='gray')
     
-        # Añadir mapa base
-        ctx.add_basemap(ax, source=ctx.providers.CartoDB.Positron)
+    #     # Añadir mapa base
+    #     ctx.add_basemap(ax, source=ctx.providers.CartoDB.Positron)
     
-        # Zoom automático a los nodos# Zoom automático a los nodos (con margen)
-        margin_x = (gdf_nodes.total_bounds[2] - gdf_nodes.total_bounds[0]) * 0.1  # 10% extra
-        margin_y = (gdf_nodes.total_bounds[3] - gdf_nodes.total_bounds[1]) * 0.1
-        ax.set_xlim(gdf_nodes.total_bounds[0] - margin_x, gdf_nodes.total_bounds[2] + margin_x)
-        ax.set_ylim(gdf_nodes.total_bounds[1] - margin_y, gdf_nodes.total_bounds[3] + margin_y)
+    #     # Zoom automático a los nodos# Zoom automático a los nodos (con margen)
+    #     margin_x = (gdf_nodes.total_bounds[2] - gdf_nodes.total_bounds[0]) * 0.1  # 10% extra
+    #     margin_y = (gdf_nodes.total_bounds[3] - gdf_nodes.total_bounds[1]) * 0.1
+    #     ax.set_xlim(gdf_nodes.total_bounds[0] - margin_x, gdf_nodes.total_bounds[2] + margin_x)
+    #     ax.set_ylim(gdf_nodes.total_bounds[1] - margin_y, gdf_nodes.total_bounds[3] + margin_y)
 
     
-        ax.set_title("Red de nodos sobre mapa real", fontsize=15)
-        ax.axis("off")
+    #     ax.set_title("Red de nodos sobre mapa real", fontsize=15)
+    #     ax.axis("off")
     
-        plt.show()
-        if guardar_figura:
-            fig.savefig(nombre_figura, dpi=300)
-            print(f"✅ Mapa guardado como: {nombre_figura}")
+    #     plt.show()
+    #     if guardar_figura:
+    #         fig.savefig(nombre_figura, dpi=300)
+    #         print(f"✅ Mapa guardado como: {nombre_figura}")
             

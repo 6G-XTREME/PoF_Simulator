@@ -63,6 +63,17 @@ def create_regions(Npoints, BaseStations, ax, alpha_loss, config_parameters, can
     return Regions
 
 def apollonius_circle_path_loss (P1, P2, w1, w2, alpha):
+    """
+    Apollonius circle path loss is a function that calculates the apollonius circle for two points and two weights.
+    Args:
+        P1: tuple[float, float] - First point
+        P2: tuple[float, float] - Second point
+        w1: float - First weight
+        w2: float - Second weight
+        alpha: float - Alpha
+    Returns:
+        tuple[float, float, float] - Center (x, y) and radius of the apollonius circle
+    """
     try:
         _lambda = (w1/w2)**(1/alpha)
         _lambda = _lambda.real

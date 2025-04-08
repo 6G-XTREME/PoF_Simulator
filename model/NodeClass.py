@@ -1,6 +1,13 @@
 from pydantic import BaseModel
 from typing import List
+import uuid
+
+
 class Node(BaseModel):
+    """
+    Node is a class that represents a node in the network.
+    """
+    id: str = uuid.uuid4().hex
     name: str
     pos: tuple[float, float]
     node_degree: int

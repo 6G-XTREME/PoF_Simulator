@@ -1,7 +1,11 @@
 from pydantic import BaseModel
 from model.NodeClass import Node
-
+import uuid
 class Link(BaseModel):
+    """
+    Link is a class that represents a link in the network.
+    """
+    id: str = uuid.uuid4().hex
     a: Node
     b: Node
     distance_km: float
