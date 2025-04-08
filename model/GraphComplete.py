@@ -161,7 +161,20 @@ class GraphComplete:
         
         
     
-    
+    # ---------------------------------------------------------------------------------------------------------------- #
+    # -- Compute traffic profiles ------------------------------------------------------------------------------------ #
+    #                                                                                                                  #
+    # Inputs:                                                                                                          #
+    # - radio: radio de la ventana de vecinos                                                                          #
+    # - alpha: coeficiente de ponderación de la densidad                                                               #
+    # - beta: coeficiente de ponderación del grado                                                                     #
+    # - traffic_profile_threshold_low: umbral de intensidad para el perfil de tráfico bajo                             #
+    # - traffic_profile_threshold_medium: umbral de intensidad para el perfil de tráfico medio                         #
+    # - traffic_profile_threshold_high: umbral de intensidad para el perfil de tráfico alto                            #
+    # - traffic_profile_mbps_low: intensidad de tráfico en Mbps para el perfil de tráfico bajo                         #
+    # - traffic_profile_mbps_medium: intensidad de tráfico en Mbps para el perfil de tráfico medio                     #
+    # - traffic_profile_mbps_high: intensidad de tráfico en Mbps para el perfil de tráfico alto                        #
+    # ---------------------------------------------------------------------------------------------------------------- #
     def compute_traffic_profiles(
             self, 
             radio: float = 0.5, 
@@ -174,11 +187,31 @@ class GraphComplete:
             traffic_profile_mbps_medium: float = 500,
             traffic_profile_mbps_high: float = 1000,
         ):
+        """
+        Compute traffic profiles estimation for each node in the network, based on the density and degree of the nodes in a neighborhood window.
+        
+        The density is computed as the number of nodes in a neighborhood window of radius `radio`.
+        The degree is the number of edges connected to the node.
+        The intensity is computed as a linear combination of the density and the degree, weighted by `alpha` and `beta` respectively.
+        The intensity is then normalized to the range [0, 1] and classified into one of the three traffic profiles: low, medium, or high.
+        
+        The traffic profiles are used to estimate the traffic injection for each node in the network.
+        
+        Args:
+            radio (float, optional): Radio of the neighborhood window. Defaults to 0.5.
+            alpha (float, optional): Weighting coefficient for density. Defaults to 1.0.
+            beta (float, optional): Weighting coefficient for degree. Defaults to 1.0.
+            traffic_profile_threshold_low (float, optional): Threshold for low traffic profile. Defaults to 0.4.
+            traffic_profile_threshold_medium (float, optional): Threshold for medium traffic profile. Defaults to 0.7.
+            traffic_profile_threshold_high (float, optional): Threshold for high traffic profile. Defaults to 1.0.
+            traffic_profile_mbps_low (float, optional): Traffic intensity in Mbps for low traffic profile. Defaults to 250.
+            traffic_profile_mbps_medium (float, optional): Traffic intensity in Mbps for medium traffic profile. Defaults to 500.
+            traffic_profile_mbps_high (float, optional): Traffic intensity in Mbps for high traffic profile. Defaults to 1000.
+        """
+        
+        # Get map coordinates and degree
         x, y = Vertex.obtain_x_y_vectors(self.vertexs)
         degree = Vertex.obtain_degree_vector(self.vertexs)
-        
-        map_coords_to_node_obj = {(x[i], y[i]): self.nodesObj[i] for i in range(len(self.nodesObj))}
-
         df = pd.DataFrame({'x': x, 'y': y, 'degree': degree})
 
         # Calcular densidad local: cuántos vecinos en cierto radio
@@ -193,7 +226,6 @@ class GraphComplete:
 
         # Estimar intensidad de tráfico
         df['intensidad'] = alpha * df['densidad'] + beta * df['degree']
-        
         
         # Normalizar para visualización
         scaler = MinMaxScaler()
@@ -220,6 +252,9 @@ class GraphComplete:
                 
                 
     
+    # ---------------------------------------------------------------------------------------------------------------- #
+    # -- Print network ----------------------------------------------------------------------------------------------- #
+    # ---------------------------------------------------------------------------------------------------------------- #
     def print_network(self):
         print('\n*-*-* Printing information about the imported network *-*-*\n')
         # Num nodes
