@@ -139,7 +139,7 @@ class CompleteGraph(BaseModel):
         self.compute_traffic_profiles()
         self.print_network()
         self.transform_nodes_coordinates()
-        
+        self.translate_coordinates_to_possitive_values()
     
     # ---------------------------------------------------------------------------------------------------------------- #
     # -- Compute traffic profiles ------------------------------------------------------------------------------------ #
@@ -270,6 +270,37 @@ class CompleteGraph(BaseModel):
         max_y = max([node.pos[1] for node in self.nodes]) + margin
         self.network_polygon_bounds = [(min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)]
         self.scale_factor = scale_factor
+
+    
+    # ---------------------------------------------------------------------------------------------------------------- #
+    # -- Translate coordinates to possitive values, thus, the first quadrant ----------------------------------------- #
+    #                                                                                                                  #
+    # ---------------------------------------------------------------------------------------------------------------- #
+    def translate_coordinates_to_possitive_values(self):
+        """
+        Translate coordinates to possitive values, thus, the first quadrant.
+        """
+        min_x = min([node.pos[0] for node in self.nodes])
+        min_y = min([node.pos[1] for node in self.nodes])
+        
+        margin = 2
+
+
+        if min_x > margin:
+            min_x = 0 # avoid translating to the left
+        if min_y > margin:
+            min_y = 0 # avoid translating to the bottom
+        
+        for node in self.nodes:
+            node.pos = (node.pos[0] - min_x + margin, node.pos[1] - min_y + margin)
+            
+        # Find the network bounds
+        min_x = min([node.pos[0] for node in self.nodes]) - margin
+        max_x = max([node.pos[0] for node in self.nodes]) + margin
+        min_y = min([node.pos[1] for node in self.nodes]) - margin
+        max_y = max([node.pos[1] for node in self.nodes]) + margin
+        self.network_polygon_bounds = [(min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)]
+            
     
     # ---------------------------------------------------------------------------------------------------------------- #
     # -- Print network ----------------------------------------------------------------------------------------------- #

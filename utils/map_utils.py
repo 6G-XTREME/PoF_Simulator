@@ -4,9 +4,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon as MplPolygon
 
+from model.CellClass import MacroCell, FemtoCell
 
 
-def create_regions(Npoints, BaseStations, ax, alpha_loss, config_parameters, canvas_widget):
+
+def calculate_regions(Npoints, BaseStations, alpha_loss):
     _WholeRegion = Polygon([(0 ,0), (0 ,1000), (1000 ,1000) ,(1000, 0), (0 ,0)])
     _UnsoldRegion = _WholeRegion
     Regions = {}
@@ -33,23 +35,15 @@ def create_regions(Npoints, BaseStations, ax, alpha_loss, config_parameters, can
             for geom in _Region.geoms:
                 if isinstance(geom, Polygon):
                     _polygon = MplPolygon(geom.exterior.coords, facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
-                    ax.add_patch(_polygon)
 
         elif isinstance(_Region, MultiPolygon):
             col = np.random.rand(3)
             for _Reg in _Region.geoms:
                 _polygon = MplPolygon(_Reg.exterior.coords, facecolor=col, alpha=0.5, edgecolor=None)
-                ax.add_patch(_polygon)
         else:
             _polygon = MplPolygon(_Region.exterior.coords, facecolor=np.random.rand(3), alpha=0.5, edgecolor=None)
-            ax.add_patch(_polygon)
 
         _UnsoldRegion = _UnsoldRegion.difference(_Region)
 
-        # Slow down for the viewer
-        if config_parameters['show_plots']:
-            if canvas_widget is None:
-                plt.pause(config_parameters['speed_live_plots'])
-        if canvas_widget is not None:
-            canvas_widget.draw()
+            
     return Regions

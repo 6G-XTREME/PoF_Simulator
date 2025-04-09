@@ -14,8 +14,22 @@ from shapely.geometry import Point, GeometryCollection, MultiPolygon, Polygon
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon as MplPolygon
 
-def create_regions(Npoints, BaseStations, ax, alpha_loss, config_parameters, canvas_widget):
-    _WholeRegion = Polygon([(0,0), (0,1000), (1000,1000),(1000, 0), (0,0)])
+def create_regions(Npoints, BaseStations, ax, alpha_loss, config_parameters, canvas_widget, polygon_bounds: list[tuple[float, float]] = [(0,0), (0,1000), (1000,1000),(1000, 0), (0,0)]):
+    """
+    Create regions for the coverage of the base stations.
+    
+    Args:
+        Npoints: int - Number of points to create regions for.
+        BaseStations: list - List of base stations. Each base station is a tuple (x, y, p_tx).
+        ax: matplotlib.axes.Axes - Axes to plot the regions on.
+        alpha_loss: float - Alpha loss.
+        config_parameters: dict - Configuration parameters.
+        canvas_widget: matplotlib.widgets.Canvas - Canvas to plot the regions on.
+        polygon_bounds: list[tuple[float, float]] - Bounds of the polygon that represents the whole region.
+    """
+    _WholeRegion = Polygon(polygon_bounds)
+    if not _WholeRegion.is_valid:
+        _WholeRegion = _WholeRegion.buffer(0)
     _UnsoldRegion = _WholeRegion
     Regions = {}
         
@@ -30,10 +44,12 @@ def create_regions(Npoints, BaseStations, ax, alpha_loss, config_parameters, can
                     _Reg2 = Polygon(_Circ)
                     if not _Reg2.is_valid:
                         _Reg2 = _Reg2.buffer(0)
-                    _Region = _Region.intersection(_Reg2)
+                    _Region = _Region.buffer(0.0001).intersection(_Reg2.buffer(0.0001))
                 else:
                     _R = get_dominance_area(BaseStations[k][:2], BaseStations[j][:2])
-                    _Region = _Region.intersection(_R)
+                    if not _R.is_valid:
+                        _R = _R.buffer(0)
+                    _Region = _Region.buffer(0.0001).intersection(_R.buffer(0.0001))
 
             Regions[k] = _Region
             
@@ -55,9 +71,9 @@ def create_regions(Npoints, BaseStations, ax, alpha_loss, config_parameters, can
         _UnsoldRegion = _UnsoldRegion.difference(_Region)
 
         # Slow down for the viewer
-        if config_parameters['show_plots']:
+        if config_parameters.get('show_plots', False):
             if canvas_widget is None:
-                plt.pause(config_parameters['speed_live_plots'])
+                plt.pause(config_parameters.get('speed_live_plots', 0.01))
         if canvas_widget is not None: 
             canvas_widget.draw() 
     return Regions
