@@ -23,7 +23,6 @@ def create_regions(
         alpha_loss,
         polygon_bounds: list[tuple[float, float]] = [(0,0), (0,1000), (1000,1000),(1000, 0), (0,0)],
         euclidean_to_km_scale: float = 1,
-        use_power_based_radius: bool = False,
         max_radius_km_list: list[float] = None,
     ):
     """
@@ -46,90 +45,89 @@ def create_regions(
     Npoints = len(BaseStations)
     default_coverage_radius_km = 1
     
+
+    # Check if max_radius_km_list is provided
+    if max_radius_km_list is None:
+        max_radius_km_list = [default_coverage_radius_km] * Npoints
     
-    # Calculate maximum coverage radius for all base stations
-    radius_km = []
-    for i in range(Npoints):
-        max_radius = max_radius_km_list[i] if max_radius_km_list is not None else default_coverage_radius_km
-        radius = calculate_radius_km(BaseStations[i][2], alpha_loss, euclidean_to_km_scale)
-        radius_km.append(radius)
+    
     
     # Resolve conflicts and create regions
     BaseStations = np.array(BaseStations)
-    for k in range(Npoints-1, -1, -1):
-        _Region = _UnsoldRegion     # Initialize the region with the unsold region
+    for this_bs_idx in range(Npoints-1, -1, -1):
+        
+        this_bs = BaseStations[this_bs_idx]
+        
+        # Initialize the region with the unsold region
+        this_bs_region = _UnsoldRegion    
             
         # Create circular region for maximum coverage
-        max_coverage = Point(BaseStations[k,0], BaseStations[k,1]).buffer(radius_km[k])
-        _Region = _Region.intersection(max_coverage)
+        max_coverage = create_base_region_for_bs(this_bs, max_radius_km_list[this_bs_idx], euclidean_to_km_scale)
+        this_bs_region = this_bs_region.intersection(max_coverage)
         
-        # # Start with the base station's coverage circle
-        # _Region = _Region.intersection(max_coverage)
-        # if not _Region.is_valid:
-        #     _Region = _Region.buffer(0)
         
         # Handle conflicts with other base stations
-        for j in range(Npoints):
-            if j < k:
+        for other_bs_idx in range(Npoints):
+            if other_bs_idx >= this_bs_idx:
+                continue
                 
-                this_bs = BaseStations[k]
-                other_bs = BaseStations[j]
+            other_bs = BaseStations[other_bs_idx]
+            
+            # If base stations have different powers, use Apollonius circle
+            if this_bs[2] != other_bs[2]:
+                _resp = apollonius_circle_path_loss(
+                    this_bs[0:2],
+                    other_bs[0:2],
+                    this_bs[2],
+                    other_bs[2],
+                    alpha_loss
+                )
+                # Get the circle from the apollonius circle
+                _Circ = get_circle(_resp)
                 
-                # If base stations have different powers, use Apollonius circle
-                if this_bs[2] != other_bs[2]:
-                    _resp = apollonius_circle_path_loss(
-                        this_bs[0:2],
-                        other_bs[0:2],
-                        this_bs[2],
-                        other_bs[2],
-                        alpha_loss
-                    )
-                    # Get the circle from the apollonius circle
-                    _Circ = get_circle(_resp)
-                    
-                    # Create a buffer around the circle
-                    _Reg2 = Polygon(_Circ).buffer(0.0001)
-                    if not _Reg2.is_valid:
-                        _Reg2 = _Reg2.buffer(0)
-                    
-                    # Intersect the circle with the maximum coverage of the bs
-                    _Reg2 = _Reg2.intersection(max_coverage)
-                    if not _Reg2.is_valid:
-                        _Reg2 = _Reg2.buffer(0)
+                # Create a buffer around the circle
+                _Reg2 = Polygon(_Circ).buffer(0.0001)
+                if not _Reg2.is_valid:
+                    _Reg2 = _Reg2.buffer(0)
+                
+                # Intersect the circle with the maximum coverage of the bs
+                _Reg2 = _Reg2.intersection(max_coverage)
+                if not _Reg2.is_valid:
+                    _Reg2 = _Reg2.buffer(0)
 
-                    # Remove the circle from the global region
-                    _Region = _Region.intersection(_Reg2)
-                    if not _Region.is_valid:
-                        _Region = _Region.buffer(0)
-                        
-                else:
-                    # If same power, use dominance area
-                    _R = get_dominance_area(this_bs[0:2], other_bs[0:2])
+                # Remove the circle from the global region
+                this_bs_region = this_bs_region.intersection(_Reg2)
+                if not this_bs_region.is_valid:
+                    this_bs_region = this_bs_region.buffer(0)
                     
-                    # Create a buffer around the dominance area
-                    _R = _R.buffer(0.0001)
-                    if not _R.is_valid:
-                        _R = _R.buffer(0)
-                    
-                    # Intersect the dominance area with the maximum coverage of the bs
-                    _R = _R.intersection(max_coverage)
-                    if not _R.is_valid:
-                        _R = _R.buffer(0)
-                    
-                    # 
-                    _Region = _Region.intersection(_R)
-                    if not _Region.is_valid:
-                        _Region = _Region.buffer(0)
+            else:
+                # If same power, use dominance area
+                _R = get_dominance_area(this_bs[0:2], other_bs[0:2])
+                
+                # Create a buffer around the dominance area
+                _R = _R.buffer(0.0001)
+                if not _R.is_valid:
+                    _R = _R.buffer(0)
+                
+                # Intersect the dominance area with the maximum coverage of the bs
+                _R = _R.intersection(max_coverage)
+                if not _R.is_valid:
+                    _R = _R.buffer(0)
+                
+                # 
+                this_bs_region = this_bs_region.intersection(_R)
+                if not this_bs_region.is_valid:
+                    this_bs_region = this_bs_region.buffer(0)
         
         # Ensure the final region is valid
-        if not _Region.is_valid:
-            _Region = _Region.buffer(0)
+        if not this_bs_region.is_valid:
+            this_bs_region = this_bs_region.buffer(0)
         
         if not _UnsoldRegion.is_valid:
             _UnsoldRegion = _UnsoldRegion.buffer(0)
         
-        Regions[k] = _Region
-        _UnsoldRegion = _UnsoldRegion.difference(_Region)
+        Regions[this_bs_idx] = this_bs_region
+        _UnsoldRegion = _UnsoldRegion.difference(this_bs_region)
         if not _UnsoldRegion.is_valid:
             _UnsoldRegion = _UnsoldRegion.buffer(0)
     
@@ -140,19 +138,14 @@ def create_regions(
 
 def create_base_region_for_bs(
         bs_position: tuple[float, float],
-        bs_power: float,
-        alpha_loss: float,
         max_radius_km: float = 1,
         euclidean_to_km_scale: float = 1
     ):
     """
     Create a base region for a base station.
     """
-    # Calculate the radius of coverage for the base station
-    radius_km = calculate_radius_km(bs_power, alpha_loss, euclidean_to_km_scale)
-    
     # Create a circular region for the base station
-    region = Point(bs_position[0], bs_position[1]).buffer(radius_km)
+    region = Point(bs_position[0], bs_position[1]).buffer(max_radius_km * euclidean_to_km_scale)
     
     return region
 
