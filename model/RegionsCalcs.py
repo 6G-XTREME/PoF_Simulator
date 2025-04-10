@@ -136,7 +136,7 @@ def create_base_region_for_bs(
     Create a base region for a base station.
     """
     # Create a circular region for the base station
-    region = Point(bs_position[0], bs_position[1]).buffer(2 * max_radius_km * euclidean_to_km_scale)
+    region = Point(bs_position[0], bs_position[1]).buffer(max_radius_km * euclidean_to_km_scale)
     return region
 
 

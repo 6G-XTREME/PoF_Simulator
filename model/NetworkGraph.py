@@ -7,9 +7,15 @@ import scipy.io
 from pydantic import BaseModel
 from scipy.spatial import KDTree
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.manifold import MDS
+
+def mds_layout(matrix: np.ndarray):
+    mds = MDS(dissimilarity="precomputed", random_state=42)
+    pos = mds.fit_transform(matrix)
+    return pos
 
 graph_functions = {
-    "spring_layout": lambda G: nx.spring_layout(G, seed=42),
+    "spring_layout": lambda G: nx.spring_layout(G, seed=42, tol=1e-4),
     "circular_layout": lambda G: nx.circular_layout(G),             # TODO: tune
     "kamada_kawai_layout": lambda G: nx.kamada_kawai_layout(G),     # TODO: tune
     "random_layout": lambda G: nx.random_layout(G),                 # TODO: tune
@@ -72,7 +78,10 @@ class CompleteGraph(BaseModel):
                     graph.add_edge(i, j, weight=1/distance)
 
         # Compute layout positions
-        pos = graph_functions[layout_function](graph)
+        if layout_function == "mds_layout":
+            pos = mds_layout(distance_matrix)
+        else:
+            pos = graph_functions[layout_function](graph)
 
         # Create nodes
         for i in range(num_nodes):
@@ -244,19 +253,15 @@ class CompleteGraph(BaseModel):
         Transform nodes coordinates from normalized to scaled by the distance in km.
         """
         # Find the largest distance link (best precission)
-        max_distance = 0
-        max_distance_link = None
+        scale_factors = []
         for link in self.links:
-            if link.distance_km > max_distance:
-                max_distance = link.distance_km
-                max_distance_link = link
+            node_a = link.a
+            node_b = link.b
+            norm_distance = np.sqrt((node_a.pos[0] - node_b.pos[0])**2 + (node_a.pos[1] - node_b.pos[1])**2)
+            scale_factors.append(link.distance_km / norm_distance)
+            
+        scale_factor = np.mean(scale_factors)
                 
-        # Find both ends of the link
-        node_a = max_distance_link.a
-        node_b = max_distance_link.b
-        norm_distance = np.sqrt((node_a.pos[0] - node_b.pos[0])**2 + (node_a.pos[1] - node_b.pos[1])**2)
-        scale_factor = max_distance / norm_distance
-        
         # Scale the coordinates of each node
         for node in self.nodes:
             node.pos = (node.pos[0] * scale_factor, node.pos[1] * scale_factor)
