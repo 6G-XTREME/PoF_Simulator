@@ -151,6 +151,8 @@ class NodeDegreeHeatMapPlot:
             ax.set_title("Grafo de Red", fontsize=16)
             fig.tight_layout()
             fig.show()
+        
+        return fig, ax
 
 
 

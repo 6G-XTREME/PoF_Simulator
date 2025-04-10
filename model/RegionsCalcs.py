@@ -136,34 +136,33 @@ def create_base_region_for_bs(
     Create a base region for a base station.
     """
     # Create a circular region for the base station
-    region = Point(bs_position[0], bs_position[1]).buffer(max_radius_km * euclidean_to_km_scale)
-    
+    region = Point(bs_position[0], bs_position[1]).buffer(2 * max_radius_km * euclidean_to_km_scale)
     return region
 
 
 # ---------------------------------------------------------------------------------------------------------------- #
 # -- Calculate radius --------------------------------------------------------------------------------------------- #
 # ---------------------------------------------------------------------------------------------------------------- #
-def calculate_radius_km(power: float, alpha_loss: float, euclidean_to_km_scale: float = 1) -> float:
-    """
-    Calculate the radius of coverage for a base station based on its power or max radius.
+# def calculate_radius_km(power: float, alpha_loss: float, euclidean_to_km_scale: float = 1) -> float:
+#     """
+#     Calculate the radius of coverage for a base station based on its power or max radius.
     
-    Args:
-        power: float - Transmit power of the base station
-        alpha_loss: float - Path loss exponent
-        euclidean_to_km_scale: float - Scale factor to convert map units to kilometers
+#     Args:
+#         power: float - Transmit power of the base station
+#         alpha_loss: float - Path loss exponent
+#         euclidean_to_km_scale: float - Scale factor to convert map units to kilometers
         
-    Returns:
-        float - Radius in map units
-    """
+#     Returns:
+#         float - Radius in map units
+#     """
     
-    # Otherwise calculate based on power
-    # Using a simplified path loss model: P_r = P_t * d^(-alpha)
-    # We'll use a minimum received power threshold of -100 dBm (1e-10 mW)
-    min_rx_power = 1e-10  # -100 dBm
-    radius_eu = (power / min_rx_power) ** (1/alpha_loss)
-    radius_m = radius_eu * euclidean_to_km_scale
-    return radius_m / 1000
+#     # Otherwise calculate based on power
+#     # Using a simplified path loss model: P_r = P_t * d^(-alpha)
+#     # We'll use a minimum received power threshold of -100 dBm (1e-10 mW)
+#     min_rx_power = 1e-10  # -100 dBm
+#     radius_eu = (power / min_rx_power) ** (1/alpha_loss)
+#     radius_m = radius_eu * euclidean_to_km_scale
+#     return radius_m / 1000
 
 
 

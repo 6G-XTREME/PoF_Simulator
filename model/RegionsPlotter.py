@@ -13,6 +13,7 @@ def standard_plot(
         macrocell_config: dict = {},
         femtocell_config: dict = {},
         plot_config: dict = {},
+        extra_plot_functions: list[callable] = [],
     ):
     is_own_figure = canvas is None
     if is_own_figure:
@@ -88,7 +89,10 @@ def standard_plot(
         ax.scatter([], [], label="Femtocell", **final_femtocell_config)
         ax.legend()
         
+        for extra_plot_function in extra_plot_functions:
+            extra_plot_function(fig, ax)
+        
         plt.show()
-    else:
-        return fig, ax
+    
+    return fig, ax
     
