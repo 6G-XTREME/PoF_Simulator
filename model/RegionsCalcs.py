@@ -38,59 +38,85 @@ def create_regions(
         max_radius_km_list: list[float] - List of maximum radii in kilometers for each base station.
     """
     # Create the whole region with a small buffer to ensure validity
-    _WholeRegion = Polygon(polygon_bounds).buffer(0.0001)
+    _WholeRegion = Polygon(polygon_bounds)
     if not _WholeRegion.is_valid:
         _WholeRegion = _WholeRegion.buffer(0)
     _UnsoldRegion = _WholeRegion
     Regions = {}
     Npoints = len(BaseStations)
+    default_coverage_radius_km = 1
     
-    # Calculate radii for all base stations
-    radii = []
-    for i in range(Npoints):
-        max_radius = max_radius_km_list[i] if max_radius_km_list is not None else None
-        radius = calculate_radius(BaseStations[i][2], alpha_loss, max_radius, euclidean_to_km_scale)
-        radii.append(radius)
     
-    # Create initial coverage circles with small buffer
-    coverage_circles = []
+    # Calculate maximum coverage radius for all base stations
+    radius_km = []
     for i in range(Npoints):
-        center = BaseStations[i][:2]
-        radius = radii[i]
-        circle = Point(center).buffer(radius)
-        if not circle.is_valid:
-            circle = circle.buffer(0)
-        coverage_circles.append(circle)
+        max_radius = max_radius_km_list[i] if max_radius_km_list is not None else default_coverage_radius_km
+        radius = calculate_radius_km(BaseStations[i][2], alpha_loss, euclidean_to_km_scale)
+        radius_km.append(radius)
     
     # Resolve conflicts and create regions
+    BaseStations = np.array(BaseStations)
     for k in range(Npoints-1, -1, -1):
-        _Region = _UnsoldRegion
+        _Region = _UnsoldRegion     # Initialize the region with the unsold region
+            
+        # Create circular region for maximum coverage
+        max_coverage = Point(BaseStations[k,0], BaseStations[k,1]).buffer(radius_km[k])
+        _Region = _Region.intersection(max_coverage)
         
-        # Start with the base station's coverage circle
-        _Region = _Region.intersection(coverage_circles[k])
-        if not _Region.is_valid:
-            _Region = _Region.buffer(0)
+        # # Start with the base station's coverage circle
+        # _Region = _Region.intersection(max_coverage)
+        # if not _Region.is_valid:
+        #     _Region = _Region.buffer(0)
         
         # Handle conflicts with other base stations
-        for j in range(0, Npoints):
+        for j in range(Npoints):
             if j < k:
+                
+                this_bs = BaseStations[k]
+                other_bs = BaseStations[j]
+                
                 # If base stations have different powers, use Apollonius circle
-                if BaseStations[k][2] != BaseStations[j][2]:
-                    _resp = apollonius_circle_path_loss(BaseStations[k][:2], BaseStations[j][:2], 
-                                                      BaseStations[k][2], BaseStations[j][2], alpha_loss)
+                if this_bs[2] != other_bs[2]:
+                    _resp = apollonius_circle_path_loss(
+                        this_bs[0:2],
+                        other_bs[0:2],
+                        this_bs[2],
+                        other_bs[2],
+                        alpha_loss
+                    )
+                    # Get the circle from the apollonius circle
                     _Circ = get_circle(_resp)
+                    
+                    # Create a buffer around the circle
                     _Reg2 = Polygon(_Circ).buffer(0.0001)
                     if not _Reg2.is_valid:
                         _Reg2 = _Reg2.buffer(0)
+                    
+                    # Intersect the circle with the maximum coverage of the bs
+                    _Reg2 = _Reg2.intersection(max_coverage)
+                    if not _Reg2.is_valid:
+                        _Reg2 = _Reg2.buffer(0)
+
+                    # Remove the circle from the global region
                     _Region = _Region.intersection(_Reg2)
                     if not _Region.is_valid:
                         _Region = _Region.buffer(0)
+                        
                 else:
                     # If same power, use dominance area
-                    _R = get_dominance_area(BaseStations[k][:2], BaseStations[j][:2])
+                    _R = get_dominance_area(this_bs[0:2], other_bs[0:2])
+                    
+                    # Create a buffer around the dominance area
+                    _R = _R.buffer(0.0001)
                     if not _R.is_valid:
                         _R = _R.buffer(0)
-                    _R = _R.buffer(0.0001)
+                    
+                    # Intersect the dominance area with the maximum coverage of the bs
+                    _R = _R.intersection(max_coverage)
+                    if not _R.is_valid:
+                        _R = _R.buffer(0)
+                    
+                    # 
                     _Region = _Region.intersection(_R)
                     if not _Region.is_valid:
                         _Region = _Region.buffer(0)
@@ -111,32 +137,49 @@ def create_regions(
 
 
 
+
+def create_base_region_for_bs(
+        bs_position: tuple[float, float],
+        bs_power: float,
+        alpha_loss: float,
+        max_radius_km: float = 1,
+        euclidean_to_km_scale: float = 1
+    ):
+    """
+    Create a base region for a base station.
+    """
+    # Calculate the radius of coverage for the base station
+    radius_km = calculate_radius_km(bs_power, alpha_loss, euclidean_to_km_scale)
+    
+    # Create a circular region for the base station
+    region = Point(bs_position[0], bs_position[1]).buffer(radius_km)
+    
+    return region
+
+
 # ---------------------------------------------------------------------------------------------------------------- #
 # -- Calculate radius --------------------------------------------------------------------------------------------- #
 # ---------------------------------------------------------------------------------------------------------------- #
-def calculate_radius(power: float, alpha_loss: float, max_radius_km: float = None, euclidean_to_km_scale: float = 1) -> float:
+def calculate_radius_km(power: float, alpha_loss: float, euclidean_to_km_scale: float = 1) -> float:
     """
     Calculate the radius of coverage for a base station based on its power or max radius.
     
     Args:
         power: float - Transmit power of the base station
         alpha_loss: float - Path loss exponent
-        max_radius_km: float - Maximum radius in kilometers (optional)
         euclidean_to_km_scale: float - Scale factor to convert map units to kilometers
         
     Returns:
         float - Radius in map units
     """
-    # If max_radius_km is provided, use it
-    if max_radius_km is not None:
-        return max_radius_km / euclidean_to_km_scale
     
     # Otherwise calculate based on power
     # Using a simplified path loss model: P_r = P_t * d^(-alpha)
     # We'll use a minimum received power threshold of -100 dBm (1e-10 mW)
     min_rx_power = 1e-10  # -100 dBm
-    radius_km = (power / min_rx_power) ** (1/alpha_loss)
-    return radius_km / euclidean_to_km_scale
+    radius_eu = (power / min_rx_power) ** (1/alpha_loss)
+    radius_m = radius_eu * euclidean_to_km_scale
+    return radius_m / 1000
 
 
 

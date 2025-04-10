@@ -66,12 +66,12 @@ def standard_plot(
     if is_own_figure:
         
         # Adjust axis ticks to show real scale values
-        current_xticks = ax.get_xticks()
-        current_yticks = ax.get_yticks()
-        ax.xaxis.set_major_locator(plt.FixedLocator(current_xticks))
-        ax.yaxis.set_major_locator(plt.FixedLocator(current_yticks))
-        ax.xaxis.set_major_formatter(plt.FixedFormatter([f'{round(x/scaling_factor, 1)}' for x in current_xticks]))
-        ax.yaxis.set_major_formatter(plt.FixedFormatter([f'{round(y/scaling_factor, 1)}' for y in current_yticks]))
+        # current_xticks = ax.get_xticks()
+        # current_yticks = ax.get_yticks()
+        # ax.xaxis.set_major_locator(plt.FixedLocator(current_xticks))
+        # ax.yaxis.set_major_locator(plt.FixedLocator(current_yticks))
+        # ax.xaxis.set_major_formatter(plt.FixedFormatter([f'{round(x/scaling_factor, 1)}' for x in current_xticks]))
+        # ax.yaxis.set_major_formatter(plt.FixedFormatter([f'{round(y/scaling_factor, 1)}' for y in current_yticks]))
         ax.set_xlabel(f"x ({scaling_factor} km)")
         ax.set_ylabel(f"y ({scaling_factor} km)")
         
