@@ -241,7 +241,7 @@ class CompleteGraph(BaseModel):
     # ---------------------------------------------------------------------------------------------------------------- #
     def transform_nodes_coordinates(self):
         """
-        Transform nodes coordinates from normalized to scaled by the distance in km.
+        Transform nodes coordinates from normalized to scaled by the distance in meters.
         """
         # Find the largest distance link (best precission)
         max_distance = 0
@@ -256,10 +256,11 @@ class CompleteGraph(BaseModel):
         node_b = max_distance_link.b
         norm_distance = np.sqrt((node_a.pos[0] - node_b.pos[0])**2 + (node_a.pos[1] - node_b.pos[1])**2)
         scale_factor = max_distance / norm_distance
+        scale_factor_m = scale_factor * 1000
         
         # Scale the coordinates of each node
         for node in self.nodes:
-            node.pos = (node.pos[0] * scale_factor, node.pos[1] * scale_factor)
+            node.pos = (node.pos[0] * scale_factor_m, node.pos[1] * scale_factor_m)
             
             
         # Find the network bounds
@@ -269,7 +270,7 @@ class CompleteGraph(BaseModel):
         min_y = min([node.pos[1] for node in self.nodes]) - margin
         max_y = max([node.pos[1] for node in self.nodes]) + margin
         self.network_polygon_bounds = [(min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)]
-        self.scale_factor = scale_factor
+        self.scale_factor = scale_factor_m
 
     
     # ---------------------------------------------------------------------------------------------------------------- #

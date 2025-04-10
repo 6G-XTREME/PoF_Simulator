@@ -12,10 +12,11 @@ def standard_plot(
         coverage_area_config: dict = {},
         macrocell_config: dict = {},
         femtocell_config: dict = {},
+        plot_config: dict = {},
     ):
     is_own_figure = canvas is None
-    if is_own_figure :
-        fig, ax = plt.subplots()
+    if is_own_figure:
+        fig, ax = plt.subplots(figsize=plot_config.get("figsize", (10, 10)))
     else:
         fig, ax = canvas
     
@@ -71,11 +72,11 @@ def standard_plot(
         ax.yaxis.set_major_locator(plt.FixedLocator(current_yticks))
         ax.xaxis.set_major_formatter(plt.FixedFormatter([f'{x/scaling_factor:.1f}' for x in current_xticks]))
         ax.yaxis.set_major_formatter(plt.FixedFormatter([f'{y/scaling_factor:.1f}' for y in current_yticks]))
-        ax.set_xlabel("x (km)")
-        ax.set_ylabel("y (km)")
+        ax.set_xlabel(f"x ({scaling_factor} m)")
+        ax.set_ylabel(f"y ({scaling_factor} m)")
         
-        
-        fig.suptitle(f"Regions for {len(painting_nodes)} base stations")
+        # Add title
+        fig.suptitle(plot_config.get("title", "Regions for base stations"))
         
         # Add legend for cell types
         ax.scatter([], [], label="Macrocell", **final_macrocell_config)

@@ -22,21 +22,20 @@ def create_regions(
         BaseStations,
         alpha_loss,
         polygon_bounds: list[tuple[float, float]] = [(0,0), (0,1000), (1000,1000),(1000, 0), (0,0)],
-        euclidean_to_km_factor: float = 1,
+        euclidean_to_m_factor: float = 1,
         use_power_based_radius: bool = False,
-        max_radius_km_list: list[float] = None,
+        max_radius_m_list: list[float] = None,
     ):
     """
     Create regions for the coverage of the base stations.
     
     Args:
-        Npoints: int - Number of points to create regions for
-        BaseStations: list - List of base stations. Each base station is a tuple (x, y, p_tx (W))
+        BaseStations: list - List of base stations. Each base station is a tuple (x (m), y (m), p_tx (W)). 
         alpha_loss: float - Alpha loss
-        polygon_bounds: list[tuple[float, float]] - Bounds of the polygon that represents the whole region
-        euclidean_to_km_factor: float - Factor to convert euclidean distance to kilometers
+        polygon_bounds: list[tuple[float, float]] - Bounds of the polygon that represents the whole region in meters
+        euclidean_to_m_factor: float - Factor to convert euclidean distance to meters
         use_power_based_radius: bool - Whether to use power-based radius calculation
-        max_radius_km_list: list[float] - List of maximum radius in km for each base station
+        max_radius_m_list: list[float] - List of maximum radius in meters for each base station
     """
     _WholeRegion = Polygon(polygon_bounds)
     if not _WholeRegion.is_valid:
@@ -46,8 +45,9 @@ def create_regions(
     
     # Convert coordinates to meters if needed
     BaseStations_m = np.array(BaseStations)
-    if euclidean_to_km_factor != 1:
-        BaseStations_m[:, :2] *= 1000  # Convert km to meters
+    if euclidean_to_m_factor != 1:
+        BaseStations_m[:, :2] *= euclidean_to_m_factor
+        max_radius_m_list[:] *= euclidean_to_m_factor
     
     Npoints = len(BaseStations)
     for k in range(Npoints-1,-1,-1):
@@ -55,13 +55,13 @@ def create_regions(
         
         # Calculate maximum radius for this base station
         if use_power_based_radius:
-            # Convert power to dBm (assuming input is in mW)
-            p_tx_dbm = 10 * np.log10(BaseStations[k, 2] * 1000)
+            # Convert power to dBm (assuming input is in W)
+            p_tx_dbm = 10 * np.log10(BaseStations[k, 2] * 1000)  # Convert W to mW to dBm
             max_radius_m = calculate_cell_radius(p_tx_dbm)
-        elif max_radius_km_list is not None:
-            max_radius_m = max_radius_km_list[k] * 1000  # Convert km to meters
+        elif max_radius_m_list is not None:
+            max_radius_m = max_radius_m_list[k]
         else:
-            max_radius_m = 1000  # Convert km to meters
+            max_radius_m = 1000  # Default 1km radius
             
         # Create circular region for maximum coverage
         max_coverage = Point(BaseStations_m[k, 0], BaseStations_m[k, 1]).buffer(max_radius_m)
@@ -83,7 +83,7 @@ def create_regions(
                         _Reg2 = _Reg2.buffer(0)
                     _Region = _Region.buffer(0.0001).intersection(_Reg2.buffer(0.0001))
                 else:
-                    _R = get_dominance_area(BaseStations_m[k][:2], BaseStations_m[j][:2])
+                    _R = get_dominance_area(BaseStations_m[k][:2], BaseStations_m[j][:2], polygon_bounds)
                     if not _R.is_valid:
                         _R = _R.buffer(0)
                     _Region = _Region.buffer(0.0001).intersection(_R.buffer(0.0001))
@@ -101,6 +101,10 @@ def create_regions(
 
 
 
+# -------------------------------------------------------------------------------------------------------------------- #
+# -- Calculate cell radius -------------------------------------------------------------------------------------------- #
+#                                                                                                                      #
+# -------------------------------------------------------------------------------------------------------------------- #
 def calculate_cell_radius(p_tx_dbm, sensitivity_dbm=-90, frequency_mhz=900, path_loss_exponent=2.5):
     """
     Calculate the cell radius based on path loss model.
@@ -129,6 +133,11 @@ def calculate_cell_radius(p_tx_dbm, sensitivity_dbm=-90, frequency_mhz=900, path
     return radius_m
 
 
+
+# -------------------------------------------------------------------------------------------------------------------- #
+# -- Calculate Apollonius circle -------------------------------------------------------------------------------------- #
+#                                                                                                                      #
+# -------------------------------------------------------------------------------------------------------------------- #
 def apollonius_circle_path_loss(P1, P2, w1, w2, alpha):
     """
     Calculate the Apollonius circle for two points based on path loss model.
@@ -167,6 +176,11 @@ def apollonius_circle_path_loss(P1, P2, w1, w2, alpha):
         print(e)
 
 
+
+# -------------------------------------------------------------------------------------------------------------------- #
+# -- Get circle ------------------------------------------------------------------------------------------------------ #
+#                                                                                                                      #
+# -------------------------------------------------------------------------------------------------------------------- #
 def get_circle(var):
     """
     Get the circle for a given point and radius.
@@ -189,65 +203,76 @@ def get_circle(var):
         print(bcolors.FAIL + 'Error in file: '+ sys._getframe( ).f_code.co_filename + bcolors.ENDC)
         print(e)
 
-def get_dominance_area(P1, P2):
+
+# -------------------------------------------------------------------------------------------------------------------- #
+# -- Get dominance area ---------------------------------------------------------------------------------------------- #
+#                                                                                                                      #
+# -------------------------------------------------------------------------------------------------------------------- #
+def get_dominance_area(P1, P2, polygon_bounds: list[tuple[float, float]] = [(0,0), (0,1000), (1000,1000), (1000, 0)]):
     """
     Get the dominance area for a given point and another point.
     Args:
-        P1: tuple[float, float] - First point
-        P2: tuple[float, float] - Second point
+        P1: tuple[float, float] - First point coordinates in meters
+        P2: tuple[float, float] - Second point coordinates in meters
     Returns:
-        Polygon - Dominance area.
+        Polygon - Dominance area in meters.
     """
     _medZero, _medOne = perpendicular_bisector(P1, P2)
-    _WholeRegion = Polygon([(0,0), (0,1000), (1000,1000), (1000, 0)])
+    _WholeRegion = Polygon(polygon_bounds)
     
-    _c =polyclip(_WholeRegion, [0, _medZero], [1, _medOne])
+    _c = polyclip(_WholeRegion, [0, _medZero], [1, _medOne])
 
     _point = Point(P1[0], P1[1])    
     _polygon = Polygon(_c)
     
-    
     if(_polygon.contains(_point) is False):
         _Reg1 = Polygon(_WholeRegion)
-        
         _Reg = _Reg1.difference(_polygon)
-        # xx, yy = _Reg.exterior.coords.xy
-        # _a = xx.tolist()                    
-        # _b = yy.tolist()
         return _Reg
     else:
-        # _a = _c[:,0]
-        # _b = _c[:,1]
         return _polygon
 
+
+# -------------------------------------------------------------------------------------------------------------------- #
+# -- Get Euclidean distance ------------------------------------------------------------------------------------------- #
+#                                                                                                                      #
+# -------------------------------------------------------------------------------------------------------------------- #
 def get_euclidean_distance(X, Y):
     """
-    Get the Euclidean distance between two points.
+    Get the Euclidean distance between two points in meters.
     Args:
-        X: tuple[float, float] - First point
-        Y: tuple[float, float] - Second point
+        X: tuple[float, float] - First point coordinates in meters
+        Y: tuple[float, float] - Second point coordinates in meters
     Returns:
-        float - Euclidean distance.
+        float - Euclidean distance in meters.
     """
     return sqrt((X[0]-Y[0])**2 + (X[1]-Y[1])**2)
 
-def get_distance_in_kilometers(X, Y, scale):
+
+# -------------------------------------------------------------------------------------------------------------------- #
+# -- Get distance in kilometers --------------------------------------------------------------------------------------- #
+#                                                                                                                      #
+# -------------------------------------------------------------------------------------------------------------------- #
+def get_distance_in_kilometers(X, Y):
     """
     Get the distance in kilometers between two points.
     Args:
-        X: tuple[float, float] - First point
-        Y: tuple[float, float] - Second point
-        scale: float - Scale of the map.
+        X: tuple[float, float] - First point coordinates in meters
+        Y: tuple[float, float] - Second point coordinates in meters
     Returns:
         float - Distance in kilometers.
     """
+    # Calculate Euclidean distance in meters
+    d_meters = get_euclidean_distance(X, Y)
     
-    # Calculate Euclidean distance in map units
-    d_units = get_euclidean_distance(X, Y)
+    # Convert to kilometers
+    return d_meters / 1000
 
-    # Convert distance to kilometers, based on the provided scale
-    return d_units * scale
 
+# -------------------------------------------------------------------------------------------------------------------- #
+# -- Get perpendicular bisector ---------------------------------------------------------------------------------------- #
+#                                                                                                                      #
+# -------------------------------------------------------------------------------------------------------------------- #
 def perpendicular_bisector(P1, P2):
     """
     Get the perpendicular bisector for two points.
@@ -266,6 +291,11 @@ def perpendicular_bisector(P1, P2):
 
     return _b, (_a + _b)
 
+
+# -------------------------------------------------------------------------------------------------------------------- #
+# -- Search for the closest base station ------------------------------------------------------------------------------ #
+#                                                                                                                      #
+# -------------------------------------------------------------------------------------------------------------------- #
 def search_closest_bs(point, regions, backup_regions = None):
     """
     Search for the closest base station for a given point.
