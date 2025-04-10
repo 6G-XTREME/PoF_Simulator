@@ -1,4 +1,4 @@
-from shapely.geometry import MultiPolygon, Polygon
+from shapely.geometry import MultiPolygon, Polygon, GeometryCollection
 import matplotlib.pyplot as plt
 from model.NodeClass import Node
 
@@ -52,6 +52,11 @@ def standard_plot(
             for reg in region.geoms:
                 x, y = reg.exterior.coords.xy
                 ax.fill(x, y, **final_cover_area_config)
+        elif isinstance(region, GeometryCollection):
+            for geom in region.geoms:
+                if isinstance(geom, Polygon):
+                    x, y = geom.exterior.coords.xy
+                    ax.fill(x, y, **final_cover_area_config)
         else:
             x, y = region.exterior.coords.xy
             ax.fill(x, y, **final_cover_area_config)

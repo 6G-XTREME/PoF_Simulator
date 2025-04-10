@@ -51,6 +51,8 @@ def create_regions(
         max_radius_km_list = [default_coverage_radius_km] * Npoints
     
     
+    # New (and better) approach -> do apollonius map and then, for each bs, restrict the region to the max coverage
+    
     
     # Resolve conflicts and create regions
     BaseStations = np.array(BaseStations)
@@ -63,7 +65,7 @@ def create_regions(
             
         # Create circular region for maximum coverage
         max_coverage = create_base_region_for_bs(this_bs, max_radius_km_list[this_bs_idx], euclidean_to_km_scale)
-        this_bs_region = this_bs_region.intersection(max_coverage)
+        
         
         
         # Handle conflicts with other base stations
@@ -73,56 +75,45 @@ def create_regions(
                 
             other_bs = BaseStations[other_bs_idx]
             
-            # If base stations have different powers, use Apollonius circle
-            if this_bs[2] != other_bs[2]:
-                _resp = apollonius_circle_path_loss(
-                    this_bs[0:2],
-                    other_bs[0:2],
-                    this_bs[2],
-                    other_bs[2],
-                    alpha_loss
-                )
+            # Check if the base stations have different powers
+            if this_bs[2] != other_bs[2]:   # Base stations have different powers, use apollonius circle
+                _resp = apollonius_circle_path_loss(this_bs[0:2], other_bs[0:2], this_bs[2], other_bs[2], alpha_loss)
                 # Get the circle from the apollonius circle
                 _Circ = get_circle(_resp)
-                
                 # Create a buffer around the circle
-                _Reg2 = Polygon(_Circ).buffer(0.0001)
-                if not _Reg2.is_valid:
-                    _Reg2 = _Reg2.buffer(0)
+                assigned_region = Polygon(_Circ)
                 
-                # Intersect the circle with the maximum coverage of the bs
-                _Reg2 = _Reg2.intersection(max_coverage)
-                if not _Reg2.is_valid:
-                    _Reg2 = _Reg2.buffer(0)
-
-                # Remove the circle from the global region
-                this_bs_region = this_bs_region.intersection(_Reg2)
-                if not this_bs_region.is_valid:
-                    this_bs_region = this_bs_region.buffer(0)
-                    
-            else:
-                # If same power, use dominance area
-                _R = get_dominance_area(this_bs[0:2], other_bs[0:2])
+            else:   # Base stations have the same power, use dominance area
+                assigned_region = get_dominance_area(this_bs[0:2], other_bs[0:2])
                 
-                # Create a buffer around the dominance area
-                _R = _R.buffer(0.0001)
-                if not _R.is_valid:
-                    _R = _R.buffer(0)
+            
+            # Check if the region is valid
+            if not assigned_region.is_valid:
+                assigned_region = assigned_region.buffer(0)
                 
-                # Intersect the dominance area with the maximum coverage of the bs
-                _R = _R.intersection(max_coverage)
-                if not _R.is_valid:
-                    _R = _R.buffer(0)
                 
-                # 
-                this_bs_region = this_bs_region.intersection(_R)
-                if not this_bs_region.is_valid:
-                    this_bs_region = this_bs_region.buffer(0)
+            # Intersect the region with the circle to ensure the region is inside the circle
+            try:
+                this_bs_region = this_bs_region.buffer(0.0001).intersection(assigned_region.buffer(0.0001))
+            except Exception as e:
+                print(e)
+                print(assigned_region)
+                print(this_bs_region)
+                
+            if not this_bs_region.is_valid:
+                this_bs_region = this_bs_region.buffer(0)
         
+            
+        # Intersect the circle with the maximum coverage of the bs to ensure the region is inside the circle
+        this_bs_region = this_bs_region.buffer(0.0001).intersection(max_coverage.buffer(0.0001))
+        if not this_bs_region.is_valid:
+            this_bs_region = this_bs_region.buffer(0)
+            
         # Ensure the final region is valid
         if not this_bs_region.is_valid:
             this_bs_region = this_bs_region.buffer(0)
         
+        # Ensure the unsold region is valid
         if not _UnsoldRegion.is_valid:
             _UnsoldRegion = _UnsoldRegion.buffer(0)
         
