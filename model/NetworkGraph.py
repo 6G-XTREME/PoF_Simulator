@@ -15,7 +15,7 @@ def mds_layout(matrix: np.ndarray):
     return pos
 
 graph_functions = {
-    "spring_layout": lambda G: nx.spring_layout(G, seed=42, tol=1e-4),
+    "spring_layout": lambda G: nx.spring_layout(G, seed=42),
     "circular_layout": lambda G: nx.circular_layout(G),             # TODO: tune
     "kamada_kawai_layout": lambda G: nx.kamada_kawai_layout(G),     # TODO: tune
     "random_layout": lambda G: nx.random_layout(G),                 # TODO: tune
@@ -52,6 +52,7 @@ class CompleteGraph(BaseModel):
         distance_matrix = scipy.io.loadmat(distance_matrix_path)['crossMatrix']
         xlsx_data = pd.read_excel(xlsx_data_path)
         
+        
         graph = nx.Graph()
         nodes = []
         links = []
@@ -65,6 +66,7 @@ class CompleteGraph(BaseModel):
             if xlsx_data.iloc[i, 1] != "HL4" and xlsx_data.iloc[i, 1] != "HL5":
                 nodes_to_discard.append(i)
 
+
         for i in range(num_nodes):
             if i not in nodes_to_discard:
                 graph.add_node(i)
@@ -74,6 +76,7 @@ class CompleteGraph(BaseModel):
                 if i == j or i in nodes_to_discard or j in nodes_to_discard:
                     continue
                 distance = distance_matrix[i, j]
+                
                 if distance > 0:
                     graph.add_edge(i, j, weight=1/distance)
 
@@ -353,6 +356,23 @@ class CompleteGraph(BaseModel):
         # Is connex graph
       
             
+            
+    
+    def adjacency_matrix(self) -> np.ndarray:
+        """
+        Returns the adjacency matrix of the graph.
+        :return: Adjacency matrix of the graph.
+        """
+        
+        adj_matrix = np.zeros((len(self.nodes), len(self.nodes)))
+        for link in self.links:
+            idx_a = self.nodes.index(link.a)
+            idx_b = self.nodes.index(link.b)
+            adj_matrix[idx_a, idx_b] = link.distance_km
+            adj_matrix[idx_b, idx_a] = link.distance_km
+        
+        return adj_matrix
+            
     
     
     # ---------------------------------------------------------------------------------------------------------------- #
@@ -452,4 +472,4 @@ class CompleteGraph(BaseModel):
     #     if guardar_figura:
     #         fig.savefig(nombre_figura, dpi=300)
     #         print(f"✅ Mapa guardado como: {nombre_figura}")
-            
+    
