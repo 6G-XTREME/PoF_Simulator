@@ -1,46 +1,5 @@
-from model.NetworkGraph import CompleteGraph
-from model.NodeClass import Node
-from model.LinkClass import Link
 import numpy as np
-import networkx as nx
-
-
-
-
-
-
-
-class Utility:
-    """
-    Utility is a class that contains utility functions for the dimensioning algorithm.
-    """
-    
-    @staticmethod
-    def dijkstra_distances_matrix(adjacencies_matrix: np.ndarray) -> np.ndarray:
-        """
-        dijkstra_distances_matrix calculates the shortest path distances between all pairs of nodes in the network using Dijkstra's algorithm.
-        
-        :param adjacencies_matrix: The adjacency matrix of the network.
-        :return: A matrix containing the shortest path distances between all pairs of nodes.
-        """
-        graph = nx.from_numpy_array(adjacencies_matrix)
-        raw_dijkstra_matrix = dict(nx.all_pairs_dijkstra_path_length(graph))
-        # return np.ndarray(shape=(len(raw_dijstra_matrix), len(raw_dijstra_matrix)), dtype=float, order='C', buffer=nx.to_numpy_array(graph, weight='weight'))
-        
-        num_nodes = len(raw_dijkstra_matrix)
-        # shortest_distances = np.full((num_nodes, num_nodes), float('inf'))  # Initialize with infinity
-        shortest_distances = np.full((num_nodes, num_nodes), 0)  # Initialize with infinity
-    
-        # Fill the shortest distances into the matrix
-        for i in range(num_nodes):
-            for j in range(num_nodes):
-                # Check if there's a path from node i to node j
-                if j in raw_dijkstra_matrix[i]:
-                    shortest_distances[i][j] = raw_dijkstra_matrix[i][j]
-    
-        return shortest_distances
-    
-    
+import tecno_analysis.utility as Utils
 
 
 
@@ -56,11 +15,13 @@ class DimensioningAlgorithmTecnoeconomics:
             node_type_hl4: list[int],   # Quizás no hace falta. Nodos tentativos pueden sustituir
             node_type_hl5: list[int],   # Quizás no hace falta. Nodos tentativos pueden sustituir
             node_traffic_injection: list[float],
+            fixed_nodes_for_hpld: list[int],
             tentative_nodes_for_hpld: list[int],
             tentative_nodes_for_femtocells: list[int],
             tentative_range_for_femtocells: list[float],
             nodes_for_macrocells: list[int],
             range_for_macrocells: list[float],
+            max_runtime_seconds: float = 180.0, # 3 minutes
             euclidean_to_km_scale: float = 1.0,
             power_for_hpld: list[float] = None,
             power_for_femtocells: list[float] = None,
@@ -79,8 +40,9 @@ class DimensioningAlgorithmTecnoeconomics:
         :param node_type_hl4: The types of the nodes in the network. List of N integers, 1 if the node is a HL4 node, 0 otherwise.
         :param node_type_hl5: The types of the nodes in the network. List of N integers, 1 if the node is a HL5 node, 0 otherwise.
         :param node_traffic_injection: The traffic injection for each node in the network. List of N floats where each float represents the traffic injection estimate for a node.
-        :param tentative_nodes_for_hpld: The tentative nodes for HPLD. List of N integers, 1 if the node is a tentative node for HPLD, 0 otherwise.
-        :param tentative_nodes_for_femtocells: The tentative nodes for femtocells. List of N integers, 1 if the node is a tentative node for femtocells, 0 otherwise.
+        :param fixed_nodes_for_hpld: The fixed nodes for HPLD. List of N integers, 1 if the node has an HPLD, 0 otherwise.
+        :param tentative_nodes_for_hpld: The tentative nodes for HPLD. List of N integers, 1 if the node is a tentative to have HPLD, 0 otherwise.
+        :param tentative_nodes_for_femtocells: The tentative nodes for femtocells. List of N integers, 1 if the node is a tentative to have a femtocell, 0 otherwise.
         :param tentative_range_for_femtocells: The tentative range for femtocells. List of N floats where each float represents the maximum estimated range for a femtocell at node i. The range at index i is the maximum estimated range (km) for the femtocell at node i. Node i must be a tentative node for femtocells.
         :param nodes_for_macrocells: The nodes for macrocells. List of N integers, 1 if the node contains a macrocell, 0 otherwise.
         :param range_for_macrocells: The range for macrocells. List of N floats where each float represents the maximum estimated range for a macrocell at node i. The range at index i is the maximum estimated range (km) for the macrocell at node i. Node i must be a node for macrocells.
@@ -95,20 +57,24 @@ class DimensioningAlgorithmTecnoeconomics:
         
         # Store values
         self.node_adjacencies_matrix = node_adjacencies_matrix
-        self.node_adjacencies_matrix_dijkstra = Utility.dijkstra_distances_matrix(node_adjacencies_matrix)
+        self.node_adjacencies_matrix_dijkstra = Utils.dijkstra_distances_matrix(node_adjacencies_matrix)
         self.node_positions = node_positions
         self.node_type_hl4 = node_type_hl4
         self.node_type_hl5 = node_type_hl5
         self.node_traffic_injection = node_traffic_injection
+        self.fixed_nodes_for_hpld = fixed_nodes_for_hpld
         self.tentative_nodes_for_hpld = tentative_nodes_for_hpld
         self.tentative_nodes_for_femtocells = tentative_nodes_for_femtocells
         self.tentative_range_for_femtocells = tentative_range_for_femtocells
         self.nodes_for_macrocells = nodes_for_macrocells
         self.range_for_macrocells = range_for_macrocells
+        self.max_runtime_seconds = max_runtime_seconds
         self.euclidean_to_km_scale = euclidean_to_km_scale
         self.power_for_hpld = power_for_hpld
         self.power_for_femtocells = power_for_femtocells
         self.power_for_macrocells = power_for_macrocells
+        
+        # Solution variables
         self.nodes_with_hpld = np.zeros(len(node_adjacencies_matrix), dtype=int)
         self.nodes_with_femtocells = np.zeros(len(node_adjacencies_matrix), dtype=int)
         self.hpld_to_femtocell_association = np.zeros((len(node_adjacencies_matrix), len(node_adjacencies_matrix)), dtype=int)
@@ -135,6 +101,17 @@ class DimensioningAlgorithmTecnoeconomics:
         
         
         
+        # Overview of the algorithm:
+        # 1. Dimension the location of the femtocells. Most costly part of the algorithm (computational cost of objective function).
+        # 2. Dimension the location of the HPLDs and associate them to the femtocells.
+        
+        
+        # 1. Dimension the location of the femtocells
+        
+        
+        
+        # 2. Dimension the location of the HPLDs and associate them to the femtocells.
+        
         
         
         # Save and return the results
@@ -145,3 +122,114 @@ class DimensioningAlgorithmTecnoeconomics:
         
         
         
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    # ---------------------------------------------------------------------------------------------------------------- #
+    # -- Objective cost functions ------------------------------------------------------------------------------------ #
+    #                                                                                                                  #
+    #                                                                                                                  #
+    # ---------------------------------------------------------------------------------------------------------------- #
+
+    
+    def cost_function_hpld(self):
+        pass
+    def augmented_cost_function_hpld(self):
+        pass
+    
+    
+    
+    
+    
+    # ---------------------------------------------------------------------------------------------------------------- #
+    # -- Auxiliary functions ----------------------------------------------------------------------------------------- #
+    #                                                                                                                  #
+    # Auxiliary functions to calculate parameters from the network graph.                                              #
+    # ---------------------------------------------------------------------------------------------------------------- #
+    
+    @staticmethod
+    def num_associated_femtos_to_hpld(association_matrix:np.ndarray, hpld_index: int):
+        pass
+    
+    
+    
+    
+    
+    
+
+
+
+    
+def cost_function_femtocell(self):
+    pass
+
+def augmented_cost_function_femtocell(self):
+    pass
+
+    
+
+def determine_best_femtos(
+    node_positions: list[tuple[float, float]],
+    tentative_nodes_for_femtocells: list[int],
+    tentative_range_for_femtocells: list[float],
+    traffic_injection: list[float],
+    base_area: list[tuple[float, float]],
+) -> list[int]:
+    num_tentative_femtos = sum(tentative_nodes_for_femtocells)
+    num_nodes = len(node_positions)
+    
+    initial_solution = np.zeros(len(node_positions), dtype=int)
+    
+    # Random initial solution
+    num_femtos = np.random.randint(tentative_nodes_for_femtocells/4, tentative_nodes_for_femtocells)
+    random_nodes = np.random.choice(num_nodes, num_femtos, replace=False)
+    
+    initial_solution[random_nodes] = 1
+    
+    
+    # 
+    
+    num_loops_no_improvement = 0
+    num_loops_max = 100
+    best_solution = initial_solution
+    best_cost = cost_function_femtocell(initial_solution, traffic_injection)
+    
+    while num_loops_no_improvement < num_loops_max:
+        
+        # this_loop_solution = best_solution.copy()
+        this_loop_cost = best_cost
+        
+        for node in range(num_nodes):
+            local_solution = initial_solution.copy()
+            
+            # Flip the node state
+            if local_solution[node] == 1:
+                local_solution[node] = 0
+            else:
+                local_solution[node] = 1
+                
+            # Calculate the cost of the new solution
+            new_cost = cost_function_femtocell(local_solution, traffic_injection)
+            
+            # Check if the new solution is better
+            if new_cost < best_cost:
+                best_cost = new_cost
+                best_solution = local_solution
+                
+        
+        if best_cost < this_loop_cost:      # If the cost has improved, reset the counter
+            num_loops_no_improvement = 0
+        else:   
+            num_loops_no_improvement += 1
+                
+            
+        
+    
+    
