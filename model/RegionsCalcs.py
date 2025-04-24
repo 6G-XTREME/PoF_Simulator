@@ -124,6 +124,69 @@ def create_regions(
     
     return Regions, _UnsoldRegion
 
+def create_regions_overlapping(
+        BaseStations,
+        alpha_loss,
+        polygon_bounds: list[tuple[float, float]] = [(0,0), (0,1000), (1000,1000),(1000, 0), (0,0)],
+        euclidean_to_km_scale: float = 1,
+        max_radius_km_list: list[float] = None,
+    ):
+    """
+    Create regions for the coverage of the base stations.
+    
+    Args:
+        BaseStations: list - List of base stations. Each base station is a tuple (x, y, p_tx). x,y in km, p_tx in W.
+        alpha_loss: float - Path loss exponent.
+        polygon_bounds: list[tuple[float, float]] - Bounds of the polygon that represents the whole region.
+        euclidean_to_km_scale: float - Scale factor to convert map units to kilometers.
+        use_power_based_radius: bool - Whether to use power-based radius calculation.
+        max_radius_km_list: list[float] - List of maximum radii in kilometers for each base station.
+    """
+    # Create the whole region with a small buffer to ensure validity
+    _WholeRegion = Polygon(polygon_bounds)
+    if not _WholeRegion.is_valid:
+        _WholeRegion = _WholeRegion.buffer(0)
+    _UnsoldRegion = _WholeRegion
+    Regions = {}
+    Npoints = len(BaseStations)
+    default_coverage_radius_km = 1
+    
+
+    # Check if max_radius_km_list is provided
+    if max_radius_km_list is None:
+        max_radius_km_list = [default_coverage_radius_km] * Npoints
+    
+    
+    # New (and better) approach -> do apollonius map and then, for each bs, restrict the region to the max coverage
+    
+    
+    # Resolve conflicts and create regions
+    BaseStations = np.array(BaseStations)
+    for this_bs_idx in range(Npoints-1, -1, -1):
+        
+        this_bs = BaseStations[this_bs_idx]
+        
+        # Initialize the region with the unsold region
+        # this_bs_region = _UnsoldRegion    
+            
+        # Create circular region for maximum coverage
+        this_bs_region = create_base_region_for_bs(this_bs, max_radius_km_list[this_bs_idx], euclidean_to_km_scale)
+            
+        # Ensure the final region is valid
+        if not this_bs_region.is_valid:
+            this_bs_region = this_bs_region.buffer(0)
+        
+        # Ensure the unsold region is valid
+        if not _UnsoldRegion.is_valid:
+            _UnsoldRegion = _UnsoldRegion.buffer(0)
+        
+        Regions[this_bs_idx] = this_bs_region
+        _UnsoldRegion = _UnsoldRegion.difference(this_bs_region)
+        if not _UnsoldRegion.is_valid:
+            _UnsoldRegion = _UnsoldRegion.buffer(0)
+    
+    return Regions, _UnsoldRegion
+
 
 
 

@@ -2,7 +2,7 @@ import numpy as np
 import tecno_analysis.utility as Utils
 import time
 
-from model.RegionsCalcs import create_regions
+from model.RegionsCalcs import create_regions, create_regions_overlapping
 from shapely.geometry import Polygon
 from numpy.typing import NDArray
 from typing import Optional
@@ -187,7 +187,7 @@ def augmented_cost_function_femtocell(
     # femtos_positions = node_positions[evaluating_solution == 1]
     femtos_ranges = tentative_range_for_femtocells[evaluating_solution == 1]
 
-    regions, _unsold_region = create_regions(
+    regions, _unsold_region = create_regions_overlapping(
         BaseStations=femtos_positions_and_power,
         alpha_loss=alpha_loss,
         polygon_bounds=base_area,
