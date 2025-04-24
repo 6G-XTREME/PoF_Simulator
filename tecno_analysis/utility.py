@@ -1,8 +1,9 @@
 import numpy as np
 import networkx as nx
+from numpy.typing import NDArray
 
 
-def dijkstra_distances_matrix(adjacencies_matrix: np.ndarray) -> np.ndarray:
+def dijkstra_distances_matrix(adjacencies_matrix: NDArray[np.float64]) -> NDArray[np.float64]:
     """
     dijkstra_distances_matrix calculates the shortest path distances between all pairs of nodes in the network using Dijkstra's algorithm.
     
@@ -15,7 +16,7 @@ def dijkstra_distances_matrix(adjacencies_matrix: np.ndarray) -> np.ndarray:
     
     num_nodes = len(raw_dijkstra_matrix)
     # shortest_distances = np.full((num_nodes, num_nodes), float('inf'))  # Initialize with infinity
-    shortest_distances = np.full((num_nodes, num_nodes), 0)  # Initialize with infinity
+    shortest_distances = np.full((num_nodes, num_nodes), 0)  # Initialize with 0
 
     # Fill the shortest distances into the matrix
     for i in range(num_nodes):
