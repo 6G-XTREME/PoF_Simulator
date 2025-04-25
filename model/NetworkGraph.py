@@ -27,14 +27,13 @@ class CompleteGraph(BaseModel):
     CompleteGraph is a class that represents the network of a PoF system. It contains the nodes and links of the network, and subyacent data.
     """
     
-    
-    
     nodes: list[Node]
     links: list[Link]
     nodes_to_discard: list[int]
     links_to_discard: list[int]
     scale_factor: float | None = None
     network_polygon_bounds: list[tuple[float, float]] | None = None
+    adjacency_matrix: list[list[float]] | None = None
     
     # ---------------------------------------------------------------------------------------------------------------- #
     # -- Wrapper to create from files -------------------------------------------------------------------------------- #
@@ -59,8 +58,10 @@ class CompleteGraph(BaseModel):
         nodes_to_discard = []
         links_to_discard = []
         
+        
         num_nodes = distance_matrix.shape[0]
         map_id_to_obj = {}
+        adjacency_matrix = np.zeros((num_nodes, num_nodes))
 
         for i in range(num_nodes):
             if xlsx_data.iloc[i, 1] != "HL4" and xlsx_data.iloc[i, 1] != "HL5":
@@ -76,6 +77,7 @@ class CompleteGraph(BaseModel):
                 if i == j or i in nodes_to_discard or j in nodes_to_discard:
                     continue
                 distance = distance_matrix[i, j]
+                adjacency_matrix[i, j] = distance
                 
                 if distance > 0:
                     graph.add_edge(i, j, weight=1/distance)
@@ -116,8 +118,10 @@ class CompleteGraph(BaseModel):
                     node_b.assoc_links.append(newLink.name)
                     node_a.assoc_nodes.append(node_b.name)
                     node_b.assoc_nodes.append(node_a.name)
+
+        adjacency_matrix = [[float(adjacency_matrix[i][j]) for j in range(len(adjacency_matrix[0]))] for i in range(len(adjacency_matrix))]
         
-        return CompleteGraph(nodes=nodes, links=links, nodes_to_discard=nodes_to_discard, links_to_discard=links_to_discard)
+        return CompleteGraph(nodes=nodes, links=links, nodes_to_discard=nodes_to_discard, links_to_discard=links_to_discard, adjacency_matrix=adjacency_matrix)
       
     
     # ---------------------------------------------------------------------------------------------------------------- #
@@ -129,6 +133,7 @@ class CompleteGraph(BaseModel):
         links: list[Link],
         nodes_to_discard: list[int],
         links_to_discard: list[int],
+        adjacency_matrix: list[list[float]],
     ):
         """
         Constructor for the CompleteGraph class.
@@ -138,7 +143,7 @@ class CompleteGraph(BaseModel):
         :param links_to_discard: List of links to discard.
         :return: CompleteGraph object.
         """
-        super().__init__(nodes=nodes, links=links, nodes_to_discard=nodes_to_discard, links_to_discard=links_to_discard)
+        super().__init__(nodes=nodes, links=links, nodes_to_discard=nodes_to_discard, links_to_discard=links_to_discard, adjacency_matrix=adjacency_matrix)
                     
         print(f'Discarded nodes: {len(self.nodes_to_discard)}')
         print(f'Discarded links: {len(self.links_to_discard)}')

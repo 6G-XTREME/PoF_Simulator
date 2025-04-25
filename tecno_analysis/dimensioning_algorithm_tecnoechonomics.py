@@ -1,6 +1,8 @@
 import numpy as np
 import tecno_analysis.utility as Utils
 import time
+from math import ceil
+
 
 from model.RegionsCalcs import create_regions, create_regions_overlapping
 from shapely.geometry import Polygon
@@ -22,11 +24,15 @@ class DimensioningAlgorithmTecnoeconomics:
         tentative_range_for_femtocells: NDArray[np.float64],
         nodes_for_macrocells: NDArray[np.int_],
         range_for_macrocells: NDArray[np.float64],
+        alpha_loss: float = 3,
         max_runtime_seconds: float = 180.0,
         euclidean_to_km_scale: float = 1.0,
         power_for_hpld: Optional[NDArray[np.float64]] = None,
         power_for_femtocells: Optional[NDArray[np.float64]] = None,
         power_for_macrocells: Optional[NDArray[np.float64]] = None,
+        base_area: list[tuple[float, float]] = None,
+        
+        alpha: float = 0.31,
     ):
         self.node_adjacencies_matrix = node_adjacencies_matrix
         self.node_adjacencies_matrix_dijkstra = Utils.dijkstra_distances_matrix(node_adjacencies_matrix)
@@ -45,27 +51,45 @@ class DimensioningAlgorithmTecnoeconomics:
         self.power_for_hpld = power_for_hpld
         self.power_for_femtocells = power_for_femtocells
         self.power_for_macrocells = power_for_macrocells
+        self.alpha_loss = alpha_loss
+        self.alpha = alpha
+        self.base_area = base_area
+        self.bss = np.array(
+            [
+                [node_positions[i][0], node_positions[i][1], self.power_for_femtocells[i]]
+                for i in range(len(node_positions))
+            ]
+        )
 
         self.nodes_with_hpld = np.zeros(len(node_adjacencies_matrix), dtype=int)
         self.nodes_with_femtocells = np.zeros(len(node_adjacencies_matrix), dtype=int)
         self.hpld_to_femtocell_association = np.zeros((len(node_adjacencies_matrix), len(node_adjacencies_matrix)), dtype=int)
+        self.heuristic_1_evolution = []
+        self.heuristic_2_evolution = []
 
     def run_algorithm(
         self,
         max_runtime_seconds: float = 180.0,
+        time_division_between_phases: float = 0.5,
         alpha: float = 0.31,     # Balance between cost of HPLDs and femtocells. Recommended value: femto c.u. / hpld c.u.
+        area_cost_magnifier: float = 1.0,
+        throughput_cost_magnifier: float = 30.0,
+        num_femtos_cost_magnifier: float = 1.0,
+        penalization_cost: float = 100.0,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         
-        nodes_with_hpld = np.zeros(len(self.node_adjacencies_matrix), dtype=int)
-        nodes_with_femtocells = np.zeros(len(self.node_adjacencies_matrix), dtype=int)
-        hpld_to_femtocell_association = np.zeros((len(self.node_adjacencies_matrix), len(self.node_adjacencies_matrix)), dtype=int)      
+        nodes_with_hpld = np.zeros(len(self.node_positions), dtype=int)
+        nodes_with_femtocells = np.zeros(len(self.node_positions), dtype=int)
+        hpld_to_femtocell_association = np.zeros((len(self.node_positions), len(self.node_positions)), dtype=int)      
                 
+     
+        # Some previous definitions
+        num_nodes = len(self.node_positions)
+        num_fixed_hplds = sum(self.fixed_nodes_for_hpld)
+        num_tentative_hplds = sum(self.tentative_nodes_for_hpld)
+        num_tentative_femtos = np.sum(self.tentative_nodes_for_femtocells)
         
-        fixed_hplds = sum(self.fixed_nodes_for_hpld)
-        tentative_hplds = sum(self.tentative_nodes_for_hpld)
-        max_hplds = fixed_hplds + tentative_hplds
-        # max_femtos = max_hplds * 5
-        
+        candidate_femtos_indices = np.where(self.tentative_nodes_for_femtocells == 1)[0]
         
         
         
@@ -75,68 +99,154 @@ class DimensioningAlgorithmTecnoeconomics:
         
         
         
+        max_time_heuristic_1 = max_runtime_seconds * time_division_between_phases
+        max_time_heuristic_2 = max_runtime_seconds * (1 - time_division_between_phases)
+        # ----------------------------------------------------------------------------------------------------- #
+        # -- Heuristic 1: Greedy approach for femtocells dimensioning ----------------------------------------- #
+        #                                                                                                       #
+        # ----------------------------------------------------------------------------------------------------- #
         # 1. Dimension the location of the femtocells
-        start_time = time.time()
-        num_nodes = len(self.node_positions)
-        num_tentative_femtos = np.sum(self.tentative_nodes_for_femtocells)
+        start_time_heuristic_1 = time.time()
+        heuristic_1_evolution = [] # (iteration, cost, best cost, time)
     
         # Random initial solution
         initial_solution = np.zeros(num_nodes, dtype=int)
-        num_femtos = np.random.randint(max(1, num_tentative_femtos // 4), num_tentative_femtos + 1)
-        candidate_indices = np.where(self.tentative_nodes_for_femtocells == 1)[0]
-        random_nodes = np.random.choice(candidate_indices, num_femtos, replace=False)
-        initial_solution[random_nodes] = 1
+        rand_num_femtos = np.random.randint(max(1, num_tentative_femtos // 4), num_tentative_femtos + 1)
+        random_nodes_indices = np.random.choice(candidate_femtos_indices, rand_num_femtos, replace=False)
+        initial_solution[random_nodes_indices] = 1
     
         best_solution = initial_solution
-        best_cost = augmented_cost_function_femtocell(
-            self.node_positions,
+        best_cost = self.augmented_cost_femtocell(
+            self.bss,
             self.power_for_femtocells,
             self.tentative_range_for_femtocells,
             self.node_traffic_injection,
             self.base_area,
             best_solution,
             alpha=alpha,
+            num_hplds=num_fixed_hplds,
+            area_cost_magnifier=area_cost_magnifier,
+            throughput_cost_magnifier=throughput_cost_magnifier,
+            num_femtos_cost_magnifier=num_femtos_cost_magnifier,
+            penalization_cost=penalization_cost,
         )
     
         num_loops_no_improvement = 0
         num_loops_max = 20
-    
-        while (time.time() - start_time) < max_runtime_seconds:
+        
+        count_iterations = 0
+        
+        
+        while num_loops_no_improvement < num_loops_max and (time.time() - start_time_heuristic_1) < max_time_heuristic_1:
             
-            while num_loops_no_improvement < num_loops_max:
-                this_loop_cost = best_cost
-        
-                # Randomize the order of candidate indices for this iteration
-                shuffled_indices = np.random.permutation(candidate_indices)
-                for node in shuffled_indices:
-                    local_solution = best_solution.copy()
-                    local_solution[node] = 1 - local_solution[node]  # Toggle. 1 -> 0 or 0 -> 1
-        
-                    new_cost = augmented_cost_function_femtocell(
-                        self.node_positions,
-                        self.power_for_femtocells,
-                        self.tentative_range_for_femtocells,
-                        self.node_traffic_injection,
-                        self.base_area,
-                        local_solution,
-                        alpha=alpha,
-                    )
-        
-                    if new_cost < best_cost:
-                        best_cost = new_cost
-                        best_solution = local_solution
-        
-                    if (time.time() - start_time) > max_runtime_seconds:
-                        break
-                if best_cost < this_loop_cost:
-                    num_loops_no_improvement = 0
-                else:
-                    num_loops_no_improvement += 1
+            # Local Search Best Fit -> Evaluate all the neighbors and obtain the best one
+            this_loop_cost = best_cost
     
-        return best_solution
+            # Randomize the order of candidate indices for this iteration
+            shuffled_indices = np.random.permutation(candidate_femtos_indices)
+            for node in shuffled_indices:
+                local_solution = best_solution.copy()
+                local_solution[node] = 1 - local_solution[node]  # Toggle. 1 -> 0 or 0 -> 1
+    
+                new_cost = self.augmented_cost_femtocell(
+                    self.bss,
+                    self.power_for_femtocells,
+                    self.tentative_range_for_femtocells,
+                    self.node_traffic_injection,
+                    self.base_area,
+                    local_solution,
+                    num_hplds=num_fixed_hplds,
+                    alpha_loss=self.alpha_loss,
+                    area_cost_magnifier=area_cost_magnifier,
+                    throughput_cost_magnifier=throughput_cost_magnifier,
+                    num_femtos_cost_magnifier=num_femtos_cost_magnifier,
+                    penalization_cost=penalization_cost,
+                    alpha=alpha,
+                )
+                
+                count_iterations += 1
+                heuristic_1_evolution.append((count_iterations, new_cost, best_cost, time.time() - start_time_heuristic_1))
+    
+                if new_cost < best_cost:
+                    best_cost = new_cost
+                    best_solution = local_solution
+    
+                if (time.time() - start_time_heuristic_1) > max_time_heuristic_1:
+                    break
+                
+            if best_cost < this_loop_cost:
+                num_loops_no_improvement = 0
+            else:
+                num_loops_no_improvement += 1
+                
+            # heuristic_1_evolution.append((time.time() - start_time_heuristic_1, best_cost, count_iterations))
+        
+    
+        # while (time.time() - start_time) < max_runtime_seconds:
+            
+        #     # Random solution
+        #     solution = np.zeros(num_nodes, dtype=int)
+        #     num_hplds = num_fixed_hplds + np.random.randint(0, max(0, ceil((num_tentative_femtos - 5 * num_tentative_hplds) / 5)))
+        #     num_max_femtos = num_hplds * 5
+            
+        #     rand_num_femtos = np.random.randint(num_max_femtos // 4, num_max_femtos + 1)
+        #     random_nodes_indices = np.random.choice(candidate_femtos_indices, rand_num_femtos, replace=False)
+        #     solution[random_nodes_indices] = 1
+            
+        #     # Optimize the solution
+        #     while num_loops_no_improvement < num_loops_max:
+        #         this_loop_cost = best_cost
+        #         this_loop_solution = solution.copy()
+                
+                
+        
+        #         # Randomize the order of candidate indices for this iteration
+        #         shuffled_indices = np.random.permutation(candidate_femtos_indices)
+        #         for node in shuffled_indices:
+        #             new_solution = this_loop_solution.copy()
+        #             new_solution[node] = 1 - new_solution[node]  # Toggle. 1 -> 0 or 0 -> 1
+        
+        #             new_cost = self.augmented_cost_femtocell(
+        #                 self.bss,
+        #                 self.power_for_femtocells,
+        #                 self.tentative_range_for_femtocells,
+        #                 self.node_traffic_injection,
+        #                 self.base_area,
+        #                 new_solution,
+        #                 alpha=alpha,
+        #                 num_hplds=num_hplds,
+        #                 area_cost_magnifier=area_cost_magnifier,
+        #                 throughput_cost_magnifier=throughput_cost_magnifier,
+        #                 num_femtos_cost_magnifier=num_femtos_cost_magnifier,
+        #                 penalization_cost=penalization_cost,
+        #             )
+                    
+        #             count_iterations += 1
+        
+        #             if new_cost < best_cost:
+        #                 best_cost = new_cost
+        #                 best_solution = this_loop_solution
+                        
+        #             if new_cost < this_loop_cost:
+        #                 this_loop_cost = new_cost
+        #                 this_loop_solution = new_solution
+        
+        #             if (time.time() - start_time) > max_runtime_seconds:
+        #                 break
+                    
+        #         if best_cost < this_loop_cost:
+        #             num_loops_no_improvement = 0
+        #         else:
+        #             num_loops_no_improvement += 1
+                    
+        #         heuristic_1_evolution.append((time.time() - start_time_heuristic_1, best_cost, count_iterations))
+    
+        # # return best_solution
         
         
         
+        
+        heuristic_2_evolution = [] # (iteration, cost, best cost, time)
         
         
         
@@ -147,22 +257,17 @@ class DimensioningAlgorithmTecnoeconomics:
         
         
         # Save and return the results
+        self.nodes_with_femtocells = best_solution
+        self.heuristic_1_evolution = heuristic_1_evolution
         
         
-        
+        # TODO: after HPLDs are dimensioned
         self.nodes_with_hpld = nodes_with_hpld
-        self.nodes_with_femtocells = nodes_with_femtocells
         self.hpld_to_femtocell_association = hpld_to_femtocell_association
-        return nodes_with_hpld, nodes_with_femtocells, hpld_to_femtocell_association
+        self.heuristic_2_evolution = heuristic_2_evolution
+        return self.nodes_with_hpld, self.nodes_with_femtocells, self.hpld_to_femtocell_association, self.heuristic_1_evolution, self.heuristic_2_evolution
 
-    @staticmethod
-    def num_associated_femtos_to_hpld(association_matrix: np.ndarray, hpld_index: int):
-        return np.sum(association_matrix[hpld_index])
-    
-    
-    
-    
-    
+        
     @staticmethod
     def augmented_cost_femtocell(
         node_positions: NDArray[np.float64],
@@ -171,14 +276,62 @@ class DimensioningAlgorithmTecnoeconomics:
         traffic_injection: NDArray[np.float64],
         base_area: list[tuple[float, float]],
         evaluating_solution: NDArray[np.int_],
-        alpha: float = 0.31,
+        num_hplds: int,
+        alpha_loss: float = 3,
         area_cost_magnifier: float = 1.0,
         throughput_cost_magnifier: float = 30.0,
         num_femtos_cost_magnifier: float = 1.0,
         penalization_cost: float = 100.0,
-        max_hplds: int = 100,
+        alpha: float = 0.31,    # Balance between cost of HPLDs and femtocells. Recommended value: femto c.u. / hpld c.u.
     ) -> float:
-        pass
+    
+        # total_nodes_for_femtos = np.sum(evaluating_solution)
+        femtos_positions_and_power = []
+        for i in range(len(node_positions)):
+            if evaluating_solution[i] == 1:
+                femtos_positions_and_power.append([node_positions[i][0], node_positions[i][1], node_power[i]])
+                
+        femtos_ranges = tentative_range_for_femtocells[evaluating_solution == 1]
+    
+        regions, _unsold_region = create_regions_overlapping(
+            BaseStations=femtos_positions_and_power,
+            alpha_loss=alpha_loss,
+            polygon_bounds=base_area,
+            max_radius_km_list=femtos_ranges,
+        )
+    
+        # Calculate the covered area
+        complete_area = Polygon(base_area)
+        covered_area = (complete_area.area - _unsold_region.area)
+        covered_area_percentage = covered_area / complete_area.area
+    
+        # Calculate the total throughput
+        maximum_throughput = traffic_injection.sum()
+        total_throughput = traffic_injection[evaluating_solution == 1].sum()
+        throughput_percentage = total_throughput / maximum_throughput
+        
+        
+        # Calculate the number of femtos
+        num_femtos = np.sum(evaluating_solution)
+        num_femtos_percentage = num_femtos / len(evaluating_solution)
+    
+    
+    
+        # Calculate the augmented cost function
+        base_cost = (
+            area_cost_magnifier / covered_area_percentage +
+            throughput_cost_magnifier / throughput_percentage +
+            num_femtos_cost_magnifier / num_femtos_percentage
+        )
+        
+        # Penalizations
+        # Penalize if the solution is empty
+        # Penalize if the number of femtos exceeds the capacity
+        penalizations = 0
+        penalizations += penalization_cost * (num_femtos == 0)
+        penalizations += penalization_cost * max(0, num_femtos - 5 * num_hplds)
+        
+        return base_cost + penalizations
         
 
 
