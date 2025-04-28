@@ -78,10 +78,6 @@ class DimensioningAlgorithmTecnoeconomics:
         penalization_cost: float = 100.0,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         
-        nodes_with_hpld = np.zeros(len(self.node_positions), dtype=int)
-        nodes_with_femtocells = np.zeros(len(self.node_positions), dtype=int)
-        hpld_to_femtocell_association = np.zeros((len(self.node_positions), len(self.node_positions)), dtype=int)      
-                
      
         # Some previous definitions
         num_nodes = len(self.node_positions)
@@ -299,13 +295,10 @@ class DimensioningAlgorithmTecnoeconomics:
         while num_loops_no_improvement < num_loops_max and (time.time() - start_time_heuristic_2) < max_time_heuristic_2:
             this_loop_cost = best_cost
             
-            inner_loop_cost = best_cost_hplds
-            
-            
-            
-            while inner_loop_cost < this_loop_cost:
-                
-               pass 
+            # inner_loop_cost = best_cost_hplds
+            # while inner_loop_cost < this_loop_cost:
+                # 
+            #    pass 
                 
                 
                 
