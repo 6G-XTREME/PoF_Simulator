@@ -153,6 +153,7 @@ class NodeDegreeHeatMapPlot:
             fig.show()
         
         return fig, ax
+    
 
 
 

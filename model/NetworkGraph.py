@@ -123,6 +123,111 @@ class CompleteGraph(BaseModel):
         
         return CompleteGraph(nodes=nodes, links=links, nodes_to_discard=nodes_to_discard, links_to_discard=links_to_discard, adjacency_matrix=adjacency_matrix)
       
+
+      
+      
+      
+    @staticmethod
+    def of_sources_only_core_nodes(
+        distance_matrix_path: str,
+        xlsx_data_path: str,
+        layout_function: str = "spring_layout",
+        node_types_to_discard: list[str] = ["HL4", "HL5"],
+    ):
+        """
+        Create a CompleteGraph from a distance matrix and an Excel file.
+        
+        Args:
+            distance_matrix_path (str): Path to the .mat file containing the distance matrix
+            xlsx_data_path (str): Path to the Excel file containing node information
+            layout_function (str, optional): Name of the layout function to use. Defaults to "spring_layout"
+            node_types_to_discard (list[str], optional): List of node types to exclude. Defaults to ["HL4", "HL5"]
+            
+        Returns:
+            CompleteGraph: A CompleteGraph object containing only core nodes (excluding specified node types)
+            
+        The distance matrix file should be a .mat file containing a matrix named 'crossMatrix' with distances between nodes.
+        The Excel file should contain node names in the first column and node types in the second column.
+        """
+        distance_matrix = scipy.io.loadmat(distance_matrix_path)['crossMatrix']
+        xlsx_data = pd.read_excel(xlsx_data_path)
+        
+        
+        graph = nx.Graph()
+        nodes = []
+        links = []
+        nodes_to_discard = []
+        links_to_discard = []
+        
+        
+        num_nodes = distance_matrix.shape[0]
+        map_id_to_obj = {}
+        adjacency_matrix = np.zeros((num_nodes, num_nodes))
+
+        # Add nodes to discard based on node type
+        for i in range(num_nodes):
+            if xlsx_data.iloc[i, 1] in node_types_to_discard:
+                nodes_to_discard.append(i)
+
+        # Only add non-discarded nodes to graph
+        for i in range(num_nodes):
+            if i not in nodes_to_discard:
+                graph.add_node(i)
+        
+        for i in range(num_nodes):
+            for j in range(num_nodes):
+                if i == j or i in nodes_to_discard or j in nodes_to_discard:
+                    continue
+                distance = distance_matrix[i, j]
+                adjacency_matrix[i, j] = distance
+                
+                if distance > 0:
+                    graph.add_edge(i, j, weight=1/distance)
+
+        # Compute layout positions
+        if layout_function == "mds_layout":
+            pos = mds_layout(distance_matrix)
+        else:
+            pos = graph_functions[layout_function](graph)
+
+        # Create nodes
+        for i in range(num_nodes):
+            if i not in nodes_to_discard:
+                node_name = xlsx_data.iloc[i, 0]
+                node_type = xlsx_data.iloc[i, 1]
+                node_degree = int(sum(distance_matrix[i] > 0))
+                node_x, node_y = pos[i]
+
+                nodes.append(Node(name=node_name, pos=(node_x, node_y), node_degree=node_degree, type=node_type))
+                map_id_to_obj[i] = len(nodes) - 1
+        
+        # Create links
+        for i in range(num_nodes):
+            for j in range(i+1, num_nodes):
+                if i == j or i in nodes_to_discard or j in nodes_to_discard:
+                    continue
+                distance = distance_matrix[i, j]
+                id_a = map_id_to_obj[i]
+                id_b = map_id_to_obj[j]
+                
+                if distance > 0:
+                    node_a = nodes[id_a]
+                    node_b = nodes[id_b]
+                    newLink = Link(a=node_a, b=node_b, distance_km=distance, label=f'{distance:.2f}km', name=f'{node_a.name} <-> {node_b.name}')
+                    links.append(newLink)
+
+                    node_a.assoc_links.append(newLink.name)
+                    node_b.assoc_links.append(newLink.name)
+                    node_a.assoc_nodes.append(node_b.name)
+                    node_b.assoc_nodes.append(node_a.name)
+
+        adjacency_matrix = [[float(adjacency_matrix[i][j]) for j in range(len(adjacency_matrix[0]))] for i in range(len(adjacency_matrix))]
+        
+        return CompleteGraph(nodes=nodes, links=links, nodes_to_discard=nodes_to_discard, links_to_discard=links_to_discard, adjacency_matrix=adjacency_matrix)
+      
+   
+                    
+                
     
     # ---------------------------------------------------------------------------------------------------------------- #
     # -- Constructor ------------------------------------------------------------------------------------------------- #
@@ -313,6 +418,31 @@ class CompleteGraph(BaseModel):
         min_y = min([node.pos[1] for node in self.nodes]) - margin
         max_y = max([node.pos[1] for node in self.nodes]) + margin
         self.network_polygon_bounds = [(min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)]
+      
+            
+            
+    
+    # ---------------------------------------------------------------------------------------------------------------- #
+    # -- Calculate adjacency matrix ---------------------------------------------------------------------------------- #
+    #                                                                                                                  #
+    # ---------------------------------------------------------------------------------------------------------------- #
+    def calc_adjacency_matrix(self) -> np.ndarray:
+        """
+        Returns the adjacency matrix of the graph.
+        :return: Adjacency matrix of the graph.
+        """
+        
+        adj_matrix = np.zeros((len(self.nodes), len(self.nodes)))
+        for link in self.links:
+            idx_a = self.nodes.index(link.a)
+            idx_b = self.nodes.index(link.b)
+            adj_matrix[idx_a, idx_b] = link.distance_km
+            adj_matrix[idx_b, idx_a] = link.distance_km
+        
+        return adj_matrix
+            
+            
+            
             
     
     # ---------------------------------------------------------------------------------------------------------------- #
@@ -359,122 +489,4 @@ class CompleteGraph(BaseModel):
         # Num links HL4 - HL4
         
         # Is connex graph
-      
-            
-            
-    
-    def adjacency_matrix(self) -> np.ndarray:
-        """
-        Returns the adjacency matrix of the graph.
-        :return: Adjacency matrix of the graph.
-        """
-        
-        adj_matrix = np.zeros((len(self.nodes), len(self.nodes)))
-        for link in self.links:
-            idx_a = self.nodes.index(link.a)
-            idx_b = self.nodes.index(link.b)
-            adj_matrix[idx_a, idx_b] = link.distance_km
-            adj_matrix[idx_b, idx_a] = link.distance_km
-        
-        return adj_matrix
-            
-    
-    
-    # ---------------------------------------------------------------------------------------------------------------- #
-    # -- Plot with map ----------------------------------------------------------------------------------------------- #
-    #                                                                                                                  #
-    # ---------------------------------------------------------------------------------------------------------------- #
-    # def plot_graph_with_map(self, guardar_figura=True, nombre_figura="grafo_distancias.png"):
-    #     # 1. Centro del grafo en 0,0
-    #     pos_array = np.array(list(self.pos.values()))
-    #     pos_centered = pos_array - pos_array.mean(axis=0)
-    
-    #     # 2. Escalado: ajusta este valor si los nodos están muy separados o muy juntos
-    #     scale_factor = 10  # en km
-    #     pos_km = pos_centered * scale_factor
-    
-    #     # 3. Conversión de km a grados geográficos
-    #     lat_center = 40.4168
-    #     lon_center = -3.7038
-    #     deg_per_km_lat = 1 / 111
-    #     deg_per_km_lon = 1 / (111 * np.cos(np.radians(lat_center)))
-    
-    #     pos_latlon = {
-    #         node_id: (
-    #             lon_center + x * deg_per_km_lon,
-    #             lat_center + y * deg_per_km_lat
-    #         )
-    #         for (node_id, (x, y)) in zip(self.pos.keys(), pos_km)
-    #     }
-    
-    #     # 4. GeoDataFrame de nodos
-    #     node_colors = ["yellow" if node.type == "HL4" else "green" if node.type == "HL5" else "blue" for node in self.nodes]
-    
-    #     gdf_nodes = gpd.GeoDataFrame(
-    #         {
-    #             "id": [n.id for n in self.nodes],
-    #             "name": [n.name for n in self.nodes],
-    #             "color": node_colors,
-    #         },
-    #         geometry=[Point(pos_latlon[n.id][0], pos_latlon[n.id][1]) for n in self.nodes],
-    #         crs="EPSG:4326"
-    #     ).to_crs(epsg=3857)
-    
-    #     # 5. GeoDataFrame de aristas
-    #     lines = []
-    #     edge_labels = []
-    
-    #     for link in self.links:
-    #         if link.source in pos_latlon and link.target in pos_latlon:
-    #             source_coords = pos_latlon[link.source]
-    #             target_coords = pos_latlon[link.target]
-    #             line = LineString([source_coords, target_coords])
-    #             lines.append(line)
-    #             edge_labels.append(f"{link.distance:.1f} km")
-    
-    #     gdf_edges = gpd.GeoDataFrame(
-    #         {"label": edge_labels},
-    #         geometry=lines,
-    #         crs="EPSG:4326"
-    #     ).to_crs(epsg=3857)
-    
-    #     # 6. Plot
-    #     fig, ax = plt.subplots(figsize=(15, 15))
-    #     fig.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
-
-    
-    #     # Dibujar edges primero
-    #     gdf_edges.plot(ax=ax, linewidth=0.8, alpha=0.5, color='gray')
-    
-    #     # Dibujar nodos
-    #     gdf_nodes.plot(ax=ax, color=gdf_nodes["color"], markersize=30)
-    
-    #     # Mostrar nombres de nodos si hay pocos
-    #     # if len(self.nodes) <= 200:
-    #         # for x, y, name in zip(gdf_nodes.geometry.x, gdf_nodes.geometry.y, gdf_nodes["name"]):
-    #             # ax.text(x, y, name, fontsize=6, ha='right', va='bottom')
-    
-    #     # Mostrar etiquetas de aristas si hay pocas
-    #     if len(gdf_edges) <= 1000:
-    #         for geom, label in zip(gdf_edges.geometry, gdf_edges["label"]):
-    #             x, y = geom.interpolate(0.5, normalized=True).xy
-    #             ax.text(x[0], y[0], label, fontsize=5, color='gray')
-    
-    #     # Añadir mapa base
-    #     ctx.add_basemap(ax, source=ctx.providers.CartoDB.Positron)
-    
-    #     # Zoom automático a los nodos# Zoom automático a los nodos (con margen)
-    #     margin_x = (gdf_nodes.total_bounds[2] - gdf_nodes.total_bounds[0]) * 0.1  # 10% extra
-    #     margin_y = (gdf_nodes.total_bounds[3] - gdf_nodes.total_bounds[1]) * 0.1
-    #     ax.set_xlim(gdf_nodes.total_bounds[0] - margin_x, gdf_nodes.total_bounds[2] + margin_x)
-    #     ax.set_ylim(gdf_nodes.total_bounds[1] - margin_y, gdf_nodes.total_bounds[3] + margin_y)
-
-    
-    #     ax.set_title("Red de nodos sobre mapa real", fontsize=15)
-    #     ax.axis("off")
-    
-    #     plt.show()
-    #     if guardar_figura:
-    #         fig.savefig(nombre_figura, dpi=300)
-    #         print(f"✅ Mapa guardado como: {nombre_figura}")
     
