@@ -244,6 +244,10 @@ class CompleteGraph(BaseModel):
             for j in range(i+1, num_nodes):
                 if i == j or i in nodes_to_discard or j in nodes_to_discard:
                     continue
+                
+                if core_nodes is not None and (i not in core_nodes_ids and j not in core_nodes_ids):
+                    continue
+                
                 distance = distance_matrix[i, j]
                 id_a = map_id_to_obj[i]
                 id_b = map_id_to_obj[j]
