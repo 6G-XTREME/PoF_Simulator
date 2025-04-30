@@ -164,6 +164,9 @@ class CompleteGraph(BaseModel):
         links = []
         nodes_to_discard = []
         links_to_discard = []
+
+        
+        banned_links = [] # Tuple (node, node)
         
         
         num_nodes = distance_matrix.shape[0]
@@ -202,6 +205,26 @@ class CompleteGraph(BaseModel):
                 
                 if not is_connected_to_core:
                     nodes_to_discard.append(node)
+                    
+            # Find non-core nodes with more than 1 link
+            for node in range(num_nodes):
+                if node in core_nodes_ids or node in nodes_to_discard:
+                    continue
+                
+                # Count links to core nodes and track connections
+                connected_to = []
+                for core_node in core_nodes_ids:
+                    if distance_matrix[node, core_node] > 0:
+                        connected_to.append(core_node)
+                
+                # If connected to more than one core node, discard links until only one remains
+                if len(connected_to) > 1:
+                    # Sort connections by distance to prioritize closer links
+                    connected_to.sort(key=lambda core_node: distance_matrix[node, core_node])
+                    
+                    # Keep only the closest link and discard the rest
+                    for core_node in connected_to[1:]:
+                        banned_links.append((node, core_node))
                 
                 
         
@@ -216,6 +239,14 @@ class CompleteGraph(BaseModel):
             for j in range(num_nodes):
                 if i == j or i in nodes_to_discard or j in nodes_to_discard:
                     continue
+
+                
+                if core_nodes is not None and (i not in core_nodes_ids and j not in core_nodes_ids):
+                    continue
+                
+                if (i, j) in banned_links or (j, i) in banned_links:
+                    continue
+                
                 distance = distance_matrix[i, j]
                 adjacency_matrix[i, j] = distance
                 
@@ -246,6 +277,9 @@ class CompleteGraph(BaseModel):
                     continue
                 
                 if core_nodes is not None and (i not in core_nodes_ids and j not in core_nodes_ids):
+                    continue
+                
+                if (i, j) in banned_links or (j, i) in banned_links:
                     continue
                 
                 distance = distance_matrix[i, j]
