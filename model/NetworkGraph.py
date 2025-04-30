@@ -133,6 +133,7 @@ class CompleteGraph(BaseModel):
         xlsx_data_path: str,
         layout_function: str = "spring_layout",
         node_types_to_discard: list[str] = ["HL4", "HL5"],
+        core_nodes: list[str] = None,
     ):
         """
         Create a CompleteGraph from a distance matrix and an Excel file.
@@ -153,6 +154,11 @@ class CompleteGraph(BaseModel):
         xlsx_data = pd.read_excel(xlsx_data_path)
         
         
+        
+        # If core nodes, only allow nodes and links directly connected to core nodes, thus, discarding all others
+        
+        
+        
         graph = nx.Graph()
         nodes = []
         links = []
@@ -168,12 +174,44 @@ class CompleteGraph(BaseModel):
         for i in range(num_nodes):
             if xlsx_data.iloc[i, 1] in node_types_to_discard:
                 nodes_to_discard.append(i)
+                
+                
+                
+        # If core nodes, only allow nodes and links directly connected to core nodes
+        if core_nodes is not None:
+            core_nodes_ids = []
+
+            # Find indices of core nodes
+            for i in range(num_nodes):
+                name = xlsx_data.iloc[i, 0]
+                if name in core_nodes:
+                    core_nodes_ids.append(i)
+                    
+            
+            # Find adjacencies to core nodes, discard elsewhere
+            for node in range(num_nodes):
+                if node in core_nodes_ids:
+                    continue
+                
+                # Check if the node is connected to any core node
+                is_connected_to_core = False
+                for core_node in core_nodes_ids:
+                    if distance_matrix[node, core_node] > 0:
+                        is_connected_to_core = True
+                        break
+                
+                if not is_connected_to_core:
+                    nodes_to_discard.append(node)
+                
+                
+        
 
         # Only add non-discarded nodes to graph
         for i in range(num_nodes):
             if i not in nodes_to_discard:
                 graph.add_node(i)
         
+        # Only add non-discarded links to graph
         for i in range(num_nodes):
             for j in range(num_nodes):
                 if i == j or i in nodes_to_discard or j in nodes_to_discard:
