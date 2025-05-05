@@ -168,7 +168,8 @@ def perpendicular_bisector(P1, P2):
 
 def search_closest_bs(P, Regions):
     # Regions are sorted from lowest to highest preference or weight.
-    closest = 0
+    closest = -1 # Return negative so it does not confuses with node 0
+                 # If not found, default value should be -1
 
     for l in range(len(Regions)):
         if isinstance(Regions[l], Polygon):
@@ -188,3 +189,59 @@ def search_closest_bs(P, Regions):
                 closest = l
 
     return closest
+
+def search_closest_bs_optimized(P, Regions, BaseStations, NMacroCells):
+    # Regions are sorted from lowest to highest preference or weight.
+    femtos = BaseStations[NMacroCells:] # (NMacrocells - len(BaseSations))
+    macros = BaseStations[:NMacroCells] # (0 - NMacroCells)
+    
+    # Optimized algorithm for finding the best BS based on priority
+    # 1. Find the closest Femtocell to the user, based on distance
+    # 2. Check if the user is within the femtocell area
+    #    2a. User within area -> return that femtocell
+    #    2b. User not within area -> find, and return, closest macrocell
+    
+    closest_bs = -1
+    lowest_dist = float('inf')
+    
+   
+    # 1. Find the closest Femtocell to the user, based on distance
+    for i, femto in enumerate(femtos):
+        distance = get_euclidean_distance(P, femto)
+        if distance < lowest_dist:
+            closest_bs = i + NMacroCells # Need to correct the index, femtos real index start at NMacroCells
+   
+    # 2. Check if the user is within the femtocell area
+    selected_region = Regions[closest_bs]
+    if isinstance(selected_region, Polygon):
+        if selected_region.contains(Point(P)):
+            #    2a. User within area -> return that femtocell
+            return closest_bs
+    # Undetermined case that a region is a MultiPolygon... 
+    elif isinstance(selected_region, MultiPolygon):
+        poly = selected_region.envelope
+        if poly.contains(Point(P)):
+            #    2a. User within area -> return that femtocell
+            return closest_bs
+    # Undetermined case that a region is a GeometryCollection...
+    elif isinstance(selected_region, GeometryCollection):
+        poly = selected_region.convex_hull
+        if poly.contains(Point(P)):
+            #    2a. User within area -> return that femtocell
+            return closest_bs
+    
+    #    2b. User not within area -> find, and return, closest macrocell  
+    return search_closest_macro(P, macros) # no need to correct the index, macros start at index 0
+
+
+def search_closest_macro(Device, BaseStations):
+    temp_dist = float('inf')
+    closestMacro = None
+
+    for station in range(len(BaseStations)):
+        temp = get_euclidean_distance(Device, BaseStations[station, :])
+        if temp < temp_dist:
+            temp_dist = temp
+            closestMacro = station
+    
+    return closestMacro

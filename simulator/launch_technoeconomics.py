@@ -5,30 +5,32 @@ __maintainer__ = "Jose-Manuel Martinez-Caro"
 __email__ = "jmmartinez@e-lighthouse.com"
 __status__ = "Validated"
 
-import matplotlib.pyplot as plt
 import numpy as np
 import scipy.io, uuid, logging, sys
 
 from simulator.bcolors import bcolors
 import simulator.map_utils, simulator.mobility_utils, simulator.user_association_utils, simulator.radio_utils
+import model.RegionsCalcs
+from datetime import datetime, timezone
 
 # Default input_parameters. Copy and modify ad-hoc  [Legacy version]
 INPUT_PARAMETERS = {
+        'Users': 30,
+        'timeStep': 3600,                       # In seconds, 1 hour
+        'Simulation_Time': 2592000,             # In seconds, 1 month of 30 days
+        'NMacroCells': 20,
+        'NFemtoCells': 134,
+        'Maplimit': 40,                       # Size of Map grid, [dont touch]
+
         'battery_capacity': 3.3,                # Ah
         'small_cell_consumption_on': 0.7,       # In Watts
         'small_cell_consumption_sleep': 0.05,   # In Watts
         'small_cell_voltage_min': 0.028,        # In mVolts
         'small_cell_voltage_max': 0.033,        # In mVolts
-        'Maplimit': 1000,                       # Size of Map grid, [dont touch]
-        'Users': 30,
         'mean_user_speed': 5.5,                 # In m/s
-        'Simulation_Time': 50,                  # In seconds
-        'timeStep': 0.5,                        # In seconds
         'numberOfLasers': 5,
         'noise': 2.5e-14,
         'SMA_WINDOW': 5, 
-        'NMacroCells': 3,
-        'NFemtoCells': 20,
         'TransmittingPower' : {
             'PMacroCells': 40,
             'PFemtoCells': 0.1,
@@ -40,39 +42,33 @@ INPUT_PARAMETERS = {
     }
 
 CONFIG_PARAMETERS = {
-        'algorithm': 'uc3m',         # Select over: uc3m or e-li
         'use_nice_setup': True,
         'use_user_list': False,
-        'show_plots': True,
-        'show_live_plots': False,
-        'speed_live_plots': 0.05,
         'save_output': False,
         'output_folder': None,
+        'use_nice_setup_file': "mocks/pruebas_algoritmo/use_case_1.mat"
     }
 
 logger = logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 logging.getLogger("PIL.PngImagePlugin").setLevel(logging.WARNING)
 
-# -------------------------------------------------------------------------------------------------------------------- #
-# -- Execute Simulator ----------------------------------------------------------------------------------------------- #
-#                                                                                                                      #
-# -------------------------------------------------------------------------------------------------------------------- #
-
 def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name: str = "", input_parameters: dict = INPUT_PARAMETERS, config_parameters: dict = CONFIG_PARAMETERS, custom_parameters: dict = {}):
     if run_name == "":
         run_name = str(uuid.uuid4())[:8]
+
+        
+    
+    now_utc = datetime.now(timezone.utc)
+    now_str = now_utc.strftime('%Y%m%d %H:%M')
+    run_name = f"{now_str} - {run_name}"
     logger.info(f"Run_name: {run_name}")
     
-    if canvas_widget is None:
-        # In CLI execution, Tk works better than Qt
-        import matplotlib
-        matplotlib.use('TkAgg')  # Set the Matplotlib backend
-
-    # ---------------------------------------------------------------------------------------------------------------- #
-    # -- Input Parameters -------------------------------------------------------------------------------------------- #
-    #                                                                                                                  #
-    # ---------------------------------------------------------------------------------------------------------------- #
+    # if canvas_widget is None:
+    #     # In CLI execution, Tk works better than Qt
+    #     import matplotlib
+    #     matplotlib.use('TkAgg')  # Set the Matplotlib backend
+    
     # Import input_parameters from dict
     try:
         battery_capacity = input_parameters['battery_capacity']
@@ -124,20 +120,17 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         logger.error(bcolors.FAIL + 'Error importing parameters into local variables' + bcolors.ENDC)
         logger.error(e)
         return
-
-
-    # ---------------------------------------------------------------------------------------------------------------- #
-    # -- Users and Base Stations Placement --------------------------------------------------------------------------- #
-    #                                                                                                                  #
-    # ---------------------------------------------------------------------------------------------------------------- #
+    
     if config_parameters['use_user_list']:
         logger.info("Using defined 'user_list', overriding Simulation Time to 50s...")
         Simulation_Time = 50
-
+    
     if config_parameters['use_nice_setup']:
         # Use nice_setup from .mat file. Already selected distribution of BaseStations
         try:
-            nice_setup_mat = scipy.io.loadmat('simulator/nice_setup.mat')
+            # TODO
+            file_name = config_parameters.get('use_nice_setup_file', 'simulator/nice_setup.mat')
+            nice_setup_mat = scipy.io.loadmat(file_name)
             BaseStations = nice_setup_mat['BaseStations']
             Stations = BaseStations.shape
             Npoints = Stations[0]
@@ -177,77 +170,52 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
             return
 
 
-    # ---------------------------------------------------------------------------------------------------------------- #
-    # --  -------------------------------------------------------------------------------------------- #
-    #                                                                                                                  #
-    # ---------------------------------------------------------------------------------------------------------------- #
-    try:
-        colorsBS = np.zeros((Npoints, 3))
-        if canvas_widget is None: 
-            fig_map, ax = plt.subplots()
-            plt.axis([0, Maplimit, 0, Maplimit])
-        else:
-            canvas_widget.figure.clf()
-            ax = canvas_widget.figure.add_subplot(111)
-            fig_map = ax.figure
-            ax.set_xlim(0, Maplimit)
-            ax.set_ylim(0, Maplimit)
-        for a in range(0,Npoints):
-            colorsBS[a] = np.random.uniform(size=3, low=0, high=1)
-            ax.plot(BaseStations[a,0], BaseStations[a,1], 'o',color = colorsBS[a])
-            ax.text(BaseStations[a,0], BaseStations[a,1], 'P'+str(a) , ha='center', va='bottom')
-        
-        # Algorithm Centroid of Extra Point of Charge
-        if 'extraPoFCharger' in custom_parameters:
-            if custom_parameters['extraPoFCharger']:
-                if custom_parameters['typeExtraPoFCharger'] == "Random Macro":
-                    # Select randomly a Macro Cell
-                    selected_macro = np.random.randint(0, NMacroCells)
-                    centroid_x = BaseStations[selected_macro, 0]
-                    centroid_y = BaseStations[selected_macro, 1]  
-                    custom_parameters['selected_random_macro'] = selected_macro
-                    logger.info(f"Using random macro method, selected macro: {selected_macro}")
-                else:   # Use "Centroid"
-                    centroid_x = np.mean(BaseStations[NMacroCells:, 0])
-                    centroid_y = np.mean(BaseStations[NMacroCells:, 1])
-                custom_parameters['centroid_x'] = centroid_x
-                custom_parameters['centroid_y'] = centroid_y
-                ax.plot(centroid_x, centroid_y, 'x', color='red', markersize=10, markeredgewidth= 2, label='Centroid')
-                #ax.text(centroid_x, centroid_y, 'Centroid', ha='center', va='bottom')
-        
-        if config_parameters['show_plots']:
-            if canvas_widget is None: 
-                plt.show(block=False)  
-        if canvas_widget is not None: 
-            canvas_widget.draw() 
-
-    except Exception as e:
-        logger.error(bcolors.FAIL + 'Error importing the printing the BSs' + bcolors.ENDC)
-        logger.error(e)
-        return
-
-
-
-
-    # ---------------------------------------------------------------------------------------------------------------- #
-    # --  -------------------------------------------------------------------------------------------- #
-    #                                                                                                                  #
-    # ---------------------------------------------------------------------------------------------------------------- #
     try:
         # Setup Regions!
-        Regions = simulator.map_utils.create_regions(Npoints=Npoints, 
-                                                     BaseStations=BaseStations, 
-                                                     ax=ax, 
-                                                     alpha_loss=alpha_loss, 
-                                                     config_parameters=config_parameters,
-                                                     canvas_widget=canvas_widget)
+
+        # TODO: Modify here
+        # Two Regions map, one for Macrocell coverage and another for Femtocell coveage
+        macro_bs, femto_bs = BaseStations[:NMacroCells], BaseStations[NMacroCells:]
+        
+        # Femtocells
+        Regions_fem, _ = model.RegionsCalcs.create_regions(
+            np.array(femto_bs),
+            alpha_loss,
+            max_radius_km_list=[1] * len(femto_bs)
+        )
+        
+        # Macrocells
+        Regions_mac = simulator.map_utils.create_regions(
+            Npoints=NMacroCells,
+            BaseStations=macro_bs,
+            alpha_loss=alpha_loss,
+            config_parameters=config_parameters,
+        )
+
+        
+        Regions = {}    # (BS Index, Region of BS)
+        for ind, reg in Regions_fem.items(): # 
+            Regions[ind + NMacroCells] = reg
+        for ind, reg in Regions_mac.items():
+            Regions[ind] = reg
+                
+        # Regions = simulator.map_utils.create_regions(Npoints=Npoints, 
+                                                    #  BaseStations=BaseStations, 
+                                                    #  ax=ax, 
+                                                    #  alpha_loss=alpha_loss, 
+                                                    #  config_parameters=config_parameters,
+                                                    #  canvas_widget=canvas_widget)
    
+
+   
+        # TODO: Modify here
+        # RegionsMacrocells
         basestation_dict = {
             'BaseStations': BaseStations,
-            'Regions': Regions,
+            'Regions': Regions_fem,
+            'RegionsMacrocells': Regions_mac,
             'NMacroCells': NMacroCells,
             'NFemtoCells': NFemtoCells,
-            'colorsBS': colorsBS
         }
     except Exception as e:
         logger.error(bcolors.FAIL + 'Error plotting the BSs coverage' + bcolors.ENDC)
@@ -265,10 +233,6 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         'NB_USERS': Users
     }
     logger.debug(sim_input['V_WALK_INTERVAL'])
-
-
-
-
     
     # Generate the mobility path of users
     s_mobility = simulator.mobility_utils.generate_mobility(sim_input)
@@ -303,25 +267,22 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
     user_association_line = []
 
     for userIndex in range(sim_input['NB_USERS']):
-        user_pos = ax.plot(user_list[userIndex]['v_x'][0], user_list[userIndex]['v_y'][0], '+', markersize=10, linewidth=2, color=[0.3, 0.3, 1])
-        user_pos_plot.append(user_pos)
-
-        closestBSDownlink = simulator.map_utils.search_closest_bs([user_list[userIndex]['v_x'][0], user_list[userIndex]['v_y'][0]], Regions)
-        x = [user_list[userIndex]['v_x'][0], BaseStations[closestBSDownlink][0]]
-        y = [user_list[userIndex]['v_y'][0], BaseStations[closestBSDownlink][1]]
-        user_assoc, = ax.plot(x, y, color=colorsBS[closestBSDownlink])
-        user_association_line.append(user_assoc)
+        
+        # TODO
+        
+        user_position = [user_list[userIndex]['v_x'][0], user_list[userIndex]['v_y'][0]]
+        closestBSDownlink = simulator.map_utils.search_closest_bs(user_position, Regions_fem)
+        
+        # If closestBs... == -1 -> no femto found so that covers the user, try with macrocell
+        if closestBSDownlink == -1:
+            closestBSDownlink = simulator.map_utils.search_closest_bs(user_position, Regions_mac)
+        else:
+            # If FemtoBS found: update its index, as the position of the closesBS 
+            # only refers within the femtobs. Globally, on the BSList, the 
+            # femtocells are in the range (NMacrocells:) (from NMacrocell to last)
+            closestBSDownlink += NMacroCells
 
         active_Cells[closestBSDownlink] = 1
-
-    ax.set_title('Downlink association. Distance & Power criterion')
-    ax.set_xlabel('X [m]')
-    ax.set_ylabel('Y [m]')
-    
-    if canvas_widget is None:   # Only show time in the plot when is outside de UI
-        text_plot = ax.text(0, Maplimit, 'Time (sec) = 0')
-    else:
-        text_plot = None
 
     user_dict = {
         'users': s_mobility["NB_USERS"],
@@ -330,75 +291,30 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         'user_association_line': user_association_line
     }
 
-    if config_parameters['show_plots']:
-        if canvas_widget is None :
-            plt.show(block=False)
-        else:
-            canvas_widget.draw()
 
+    # Start the simulation!
+    
+    logger.info("Using E-Lighthouse algorithm...")
+    from simulator.algorithm_technoeconomics import PoF_simulation_ELighthouse_Technoeconomics
+    
+    eli = PoF_simulation_ELighthouse_Technoeconomics(sim_times=sim_times,
+                                    basestation_data=basestation_dict,
+                                    user_data=user_dict,
+                                    battery_data=battery_dict,
+                                    transmit_power_data=transmit_power_dict,
+                                    elighthouse_parameters=custom_parameters)
+    
+    eli.start_simulation(sim_times=sim_times, timeStep=timeStep)
+    
+    eli.plot_output(sim_times=sim_times,
+                        show_plots=config_parameters['show_plots'],
+                        timeStep=timeStep,
+                        is_gui=(canvas_widget is not None))
 
-
-
-    # ---------------------------------------------------------------------------------------------------------------- #
-    # -- Start the Simulation ---------------------------------------------------------------------------------------- #
-    #                                                                                                                  #
-    # ---------------------------------------------------------------------------------------------------------------- #
-    if config_parameters['algorithm'].lower() == 'uc3m':
-        logger.info("Using UC3M algorithm...")
-        from simulator.algorithm_uc3m import PoF_simulation_UC3M
-        uc3m = PoF_simulation_UC3M(sim_times=sim_times,
-                                   basestation_data=basestation_dict,
-                                   user_data=user_dict,
-                                   battery_data=battery_dict,
-                                   transmit_power_data=transmit_power_dict)
-
-        uc3m.start_simulation(sim_times=sim_times, 
-                              timeStep=timeStep,
-                              text_plot=text_plot,
-                              show_plots=config_parameters['show_plots'],
-                              speed_plot=config_parameters['speed_live_plots'],
-                              canvas_widget=canvas_widget,
-                              progressbar_widget=progressbar_widget)
-
-        uc3m.plot_output(sim_times=sim_times,
-                         show_plots=config_parameters['show_plots'],
-                         is_gui=(canvas_widget is not None))
-
-        if config_parameters['save_output']:
-            uc3m.save_run(fig_map=fig_map, 
-                          sim_times=sim_times, 
-                          run_name=run_name, 
-                          output_folder=config_parameters['output_folder'])
-    elif config_parameters['algorithm'].lower() == 'elighthouse':
-        logger.info("Using E-Lighthouse algorithm...")
-        from simulator.algorithm_elighthouse import PoF_simulation_ELighthouse
-        
-        eli = PoF_simulation_ELighthouse(sim_times=sim_times,
-                                        basestation_data=basestation_dict,
-                                        user_data=user_dict,
-                                        battery_data=battery_dict,
-                                        transmit_power_data=transmit_power_dict,
-                                        elighthouse_parameters=custom_parameters)
-        
-        eli.start_simulation(sim_times=sim_times, 
-                             timeStep=timeStep,
-                             text_plot=text_plot,
-                             show_plots=config_parameters['show_plots'],
-                             speed_plot=config_parameters['speed_live_plots'],
-                             canvas_widget=canvas_widget,
-                             progressbar_widget=progressbar_widget)
-        
-        eli.plot_output(sim_times=sim_times,
-                         show_plots=config_parameters['show_plots'],
-                         timeStep=timeStep,
-                         is_gui=(canvas_widget is not None))
-
-        if config_parameters['save_output']:
-            eli.save_run(fig_map=fig_map, 
-                          sim_times=sim_times, 
-                          run_name=run_name, 
-                          output_folder=config_parameters['output_folder'])
-    else:
-        logger.error(f"Unable to select algorithm {config_parameters['algorithm']}")
+    if config_parameters['save_output']:
+        eli.save_run(fig_map=None, 
+                        sim_times=sim_times, 
+                        run_name=run_name, 
+                        output_folder=config_parameters['output_folder'])
         
     logger.info(f"Execution {run_name} finished!")

@@ -1,25 +1,27 @@
 import logging
 
 #from simulator.launch import INPUT_PARAMETERS, CONFIG_PARAMETERS
-from simulator.launch import execute_simulator
+from simulator.launch_technoeconomics import execute_simulator
 
 # Default input_parameters. Copy and modify ad-hoc  [Legacy version]
 INPUT_PARAMETERS = {
+        'Users': 1000,
+        'timeStep': 3600,                       # In seconds, 1 hour
+        'Simulation_Time': 7200,             # In seconds, 1 month of 30 days
+        # 'Simulation_Time': 2592000,             # In seconds, 1 month of 30 days
+        # 'NMacroCells': 20,
+        # 'NFemtoCells': 134,
+        'Maplimit': 40,                       # Size of Map grid, [dont touch]
+        
         'battery_capacity': 3.3,                # Ah
         'small_cell_consumption_on': 0.7,       # In Watts
         'small_cell_consumption_sleep': 0.05,   # In Watts
         'small_cell_voltage_min': 0.028,        # In mVolts
         'small_cell_voltage_max': 0.033,        # In mVolts
-        'Maplimit': 1000,                       # Size of Map grid, [dont touch]
-        'Users': 30,
         'mean_user_speed': 5.5,                 # In m/s
-        'Simulation_Time': 50,                  # In seconds
-        'timeStep': 0.5,                        # In seconds
         'numberOfLasers': 5,
         'noise': 2.5e-14,
         'SMA_WINDOW': 5, 
-        'NMacroCells': 3,
-        'NFemtoCells': 20,
         'TransmittingPower' : {
             'PMacroCells': 40,
             'PFemtoCells': 0.1,
@@ -31,10 +33,11 @@ INPUT_PARAMETERS = {
     }
 
 CONFIG_PARAMETERS = {
-        'algorithm': 'uc3m',         # Select over: uc3m or elighthouse
         'use_nice_setup': True,
+        'use_nice_setup_file': "mocks/pruebas_algoritmo/use_case_1.mat",
+        'show_plots': False,
+
         'use_user_list': False,
-        'show_plots': True,
         'show_live_plots': False,
         'speed_live_plots': 0.05,
         'save_output': False,
@@ -47,8 +50,8 @@ logging.basicConfig(format='%(asctime)s %(levelname)s:%(module)s:%(funcName)s: %
 if __name__ == "__main__":
     logging.info("Configuring input_parameters & config_simulator...")
     simulator_input = INPUT_PARAMETERS.copy()   # Retrieve the default input parameters
-    simulator_input['Simulation_Time'] = 2*60  
-    simulator_input['Users'] = 30
+    # simulator_input['Simulation_Time'] = 2*60  
+    # simulator_input['Users'] = 30
     
     simulator_config = CONFIG_PARAMETERS.copy() # Retrieve the default config of the simulator
     #simulator_config['use_user_list'] = True    # For validate MATLAB output. Always the same execution. Fixed Simulation Time
@@ -67,7 +70,7 @@ if __name__ == "__main__":
     
     custom_config['extraPoFCharger'] = False     # Enable an extra Charger with 1W on the centroid
     custom_config['typeExtraPoFCharger'] = "Centroid"
-    custom_config['use_harvesting'] = True      # Enable the Solar Harvesting Mode -> New graph + solar charging...
+    custom_config['use_harvesting'] = False      # Enable the Solar Harvesting Mode -> New graph + solar charging...
     custom_config['weather'] = "RAINY"          # Select over SUNNY, CLOUDY or RAINY
     custom_config['city'] = "Cartagena"         # Select city
     custom_config['MapScale'] = 100             # 1 km == 100 points (1:100)

@@ -77,7 +77,8 @@ class Contex_Config():
         self.NFemtoCells = basestation_data['NFemtoCells']
         self.association_vector = np.zeros((1, len(self.NUsers)))
         self.association_vector_overflow_alternative = np.zeros((1, len(self.NUsers)))
-        self.colorsBS = basestation_data['colorsBS']
+        self.colorsBS = basestation_data.get('colorsBS', None)
+        self.RegionsMacrocells = basestation_data['RegionsMacrocells']
 
         # Power & Battery Parameters
         self.small_cell_consumption_ON = battery_data['small_cell_consumption_ON']
@@ -241,8 +242,9 @@ class Contex_Config():
         df_output.to_json(os.path.join(data_folder, f'{run_name}-output.json'), orient="index", indent=4)
     
         # Save figures to output folder
-        fig_map.savefig(os.path.join(plot_folder, f'{run_name}-map.png'))
-        plt.close(fig_map)
+        if fig_map is not None:
+            fig_map.savefig(os.path.join(plot_folder, f'{run_name}-map.png'))
+            plt.close(fig_map)
         
         for fig in self.list_figures:
             fig[0].savefig(os.path.join(plot_folder, f'{run_name}-{fig[1]}.png'))

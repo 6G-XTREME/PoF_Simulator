@@ -17,9 +17,7 @@ from simulator.solar_harvesting import SolarPanel, Weather
 import simulator.map_utils, simulator.mobility_utils, simulator.user_association_utils, simulator.radio_utils, simulator.energy_utils
 
 
-
-
-class PoF_simulation_ELighthouse(Contex_Config):
+class PoF_simulation_ELighthouse_Technoeconomics(Contex_Config):
     map_scale: int                              # 1 km == 100 points (1:100) 
     
     user_report_position: int                   # TimeStep between user new position report
@@ -171,7 +169,7 @@ class PoF_simulation_ELighthouse(Contex_Config):
         
         super().__init__(sim_times=sim_times, basestation_data=basestation_data, user_data=user_data, battery_data=battery_data, transmit_power_data=transmit_power_data)
     
-    def start_simulation(self, sim_times, timeStep, text_plot, progressbar_widget, canvas_widget, show_plots: bool = True, speed_plot: float = 0.05):
+    def start_simulation(self, sim_times, timeStep, text_plot = None, progressbar_widget = None, canvas_widget = None, show_plots: bool = False, speed_plot: float = 0.05):
         # Settting up some vars
         self.battery_state = [[] for _ in range(len(sim_times))]
         self.baseStation_users = [[] for _ in range(len(sim_times))]
@@ -225,23 +223,9 @@ class PoF_simulation_ELighthouse(Contex_Config):
                 f.update(100 / len(sim_times))
                 f.set_description("%.2f %% completed..." % (stage))
 
-                if canvas_widget is None:   # Only show time in the plot when is outside de UI
-                    t = sim_times[timeIndex]
-                    text_plot.set_text('Time (sec) = {:.2f}'.format(t))
-
                 self.algorithm_step(timeIndex=timeIndex, timeStep=timeStep)
                 self.compute_statistics_for_plots(timeIndex=timeIndex)                          # Prepare derivate data for plots
                 self.update_battery_state(timeIndex=timeIndex, timeStep=timeStep)               # Update battery state for next timeStep
-                
-                if progressbar_widget is not None: 
-                    progressbar_widget.setValue(int(stage))
-                
-                if show_plots:
-                    if canvas_widget is None:
-                        plt.draw()
-                        plt.pause(speed_plot)
-                if canvas_widget is not None: 
-                    canvas_widget.draw() 
                 
         # Finished
         logger.info("Simulation complete!")
@@ -256,8 +240,11 @@ class PoF_simulation_ELighthouse(Contex_Config):
             timeIndex (int): 
             timeStep (float): 
         """
-        if timeIndex == 0: self.battery_state[timeIndex] = np.zeros(self.NMacroCells+self.NFemtoCells)      # 0 = nothing; 1 = charging; 2 = discharging; 3 = discharging & charging.
-        if self.started_up_femto is None: self.started_up_femto = []                                        # The case that, all the started femto go to off
+        if timeIndex == 0: 
+            self.battery_state[timeIndex] = np.zeros(self.NMacroCells+self.NFemtoCells)      # 0 = nothing; 1 = charging; 2 = discharging; 3 = discharging & charging.
+        if self.started_up_femto is None: 
+            self.started_up_femto = []                                        # The case that, all the started femto go to off
+
         try:
             self.battery_state[timeIndex+1] = np.zeros(self.NMacroCells+self.NFemtoCells)                   # 0 = nothing; 1 = charging; 2 = discharging; 3 = discharging & charging.
             self.baseStation_users[timeIndex+1] = np.zeros(self.NMacroCells+self.NFemtoCells)               # Number of users in each base station.
@@ -274,13 +261,40 @@ class PoF_simulation_ELighthouse(Contex_Config):
         
         for userIndex in range(0, len(self.NUsers)): 
             # Update position on plot of User
-            self.user_pos_plot[userIndex][0].set_data([self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]])
+            # self.user_pos_plot[userIndex][0].set_data([self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]])
 
             # Search serving base station
+
+            
+            
+            # TODO HERE
+            
+            
+            
+            
             if (timeIndex == 0 or timeIndex == self.user_report_position_next_time[userIndex]):
                 # New Position Report
-                closestBSDownlink = simulator.map_utils.search_closest_bs([self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]], self.Regions)
-                if (timeIndex != 0): self.user_report_position_next_time[userIndex] += random.randint(1, self.user_report_position+1)
+                # TODO: change
+                # RegionsMacrocells
+                
+                user_position = [self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]]
+                
+                
+                
+                closestBSDownlink = simulator.map_utils.search_closest_bs(user_position, self.Regions)
+                
+                # If closestBs... == -1 -> no femto found so that covers the user, try with macrocell
+                if closestBSDownlink == -1:
+                    closestBSDownlink = simulator.map_utils.search_closest_bs(user_position, self.RegionsMacrocells)
+                else:
+                    # If FemtoBS found: update its index, as the position of the closesBS 
+                    # only refers within the femtobs. Globally, on the BSList, the 
+                    # femtocells are in the range (NMacrocells:) (from NMacrocell to last)
+                    closestBSDownlink += self.NMacroCells
+
+                
+                if (timeIndex != 0): 
+                    self.user_report_position_next_time[userIndex] += random.randint(1, self.user_report_position+1)
             else:
                 # Use previous position know
                 closestBSDownlink = int(self.user_closest_bs[timeIndex-1][userIndex])
@@ -363,10 +377,10 @@ class PoF_simulation_ELighthouse(Contex_Config):
                             X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closest_Macro, 0]]
                             Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closest_Macro, 1]]
 
-                            self.user_association_line[userIndex].set_data(X, Y)
-                            self.user_association_line[userIndex].set_color('red')
-                            self.user_association_line[userIndex].set_linestyle('--')
-                            self.user_association_line[userIndex].set_linewidth(2)
+                            # self.user_association_line[userIndex].set_data(X, Y)
+                            # self.user_association_line[userIndex].set_color('red')
+                            # self.user_association_line[userIndex].set_linestyle('--')
+                            # self.user_association_line[userIndex].set_linewidth(2)
 
                             self.association_vector[0, userIndex] = closest_Macro # Associate.
                             self.is_in_femto[userIndex][timeIndex] = 2              # In Femto area, but associate with macro
@@ -888,7 +902,7 @@ class PoF_simulation_ELighthouse(Contex_Config):
         ax.set_ylabel('Throughput [Mb/s]')
         
         # Get the context_class method
-        super().plot_output(sim_times=sim_times, show_plots=show_plots, is_gui=is_gui)
+        # super().plot_output(sim_times=sim_times, show_plots=show_plots, is_gui=is_gui)
         
     def save_run(self, fig_map, sim_times, run_name, output_folder):
         # Legacy algorithm save
