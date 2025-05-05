@@ -60,7 +60,7 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         
     
     now_utc = datetime.now(timezone.utc)
-    now_str = now_utc.strftime('%Y%m%d %H:%M')
+    now_str = now_utc.strftime('%Y%m%d_%H:%M')
     run_name = f"{now_str} - {run_name}"
     logger.info(f"Run_name: {run_name}")
     
@@ -212,8 +212,8 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         # RegionsMacrocells
         basestation_dict = {
             'BaseStations': BaseStations,
-            'Regions': Regions_fem,
-            'RegionsMacrocells': Regions_mac,
+            'Regions': Regions,
+            # 'RegionsMacrocells': Regions_mac,
             'NMacroCells': NMacroCells,
             'NFemtoCells': NFemtoCells,
         }
@@ -271,16 +271,16 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         # TODO
         
         user_position = [user_list[userIndex]['v_x'][0], user_list[userIndex]['v_y'][0]]
-        closestBSDownlink = simulator.map_utils.search_closest_bs(user_position, Regions_fem)
+        closestBSDownlink = simulator.map_utils.search_closest_bs_optimized(user_position, Regions, BaseStations, NMacroCells)
         
-        # If closestBs... == -1 -> no femto found so that covers the user, try with macrocell
-        if closestBSDownlink == -1:
-            closestBSDownlink = simulator.map_utils.search_closest_bs(user_position, Regions_mac)
-        else:
-            # If FemtoBS found: update its index, as the position of the closesBS 
-            # only refers within the femtobs. Globally, on the BSList, the 
-            # femtocells are in the range (NMacrocells:) (from NMacrocell to last)
-            closestBSDownlink += NMacroCells
+        # # If closestBs... == -1 -> no femto found so that covers the user, try with macrocell
+        # if closestBSDownlink == -1:
+        #     closestBSDownlink = simulator.map_utils.search_closest_bs(user_position, Regions_mac)
+        # else:
+        #     # If FemtoBS found: update its index, as the position of the closesBS 
+        #     # only refers within the femtobs. Globally, on the BSList, the 
+        #     # femtocells are in the range (NMacrocells:) (from NMacrocell to last)
+        #     closestBSDownlink += NMacroCells
 
         active_Cells[closestBSDownlink] = 1
 

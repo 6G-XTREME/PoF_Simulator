@@ -268,10 +268,7 @@ class PoF_simulation_ELighthouse_Technoeconomics(Contex_Config):
             
             
             # TODO HERE
-            
-            
-            
-            
+                        
             if (timeIndex == 0 or timeIndex == self.user_report_position_next_time[userIndex]):
                 # New Position Report
                 # TODO: change
@@ -279,18 +276,17 @@ class PoF_simulation_ELighthouse_Technoeconomics(Contex_Config):
                 
                 user_position = [self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]]
                 
-                
-                
-                closestBSDownlink = simulator.map_utils.search_closest_bs(user_position, self.Regions)
-                
-                # If closestBs... == -1 -> no femto found so that covers the user, try with macrocell
-                if closestBSDownlink == -1:
-                    closestBSDownlink = simulator.map_utils.search_closest_bs(user_position, self.RegionsMacrocells)
-                else:
-                    # If FemtoBS found: update its index, as the position of the closesBS 
-                    # only refers within the femtobs. Globally, on the BSList, the 
-                    # femtocells are in the range (NMacrocells:) (from NMacrocell to last)
-                    closestBSDownlink += self.NMacroCells
+                closestBSDownlink = simulator.map_utils.search_closest_bs_optimized(user_position, self.Regions, self.BaseStations, self.NMacroCells)
+
+                # closestBSDownlink = simulator.map_utils.search_closest_bs(user_position, self.Regions)
+                # # If closestBs... == -1 -> no femto found so that covers the user, try with macrocell
+                # if closestBSDownlink == -1:
+                #     closestBSDownlink = simulator.map_utils.search_closest_bs(user_position, self.RegionsMacrocells)
+                # else:
+                #     # If FemtoBS found: update its index, as the position of the closesBS 
+                #     # only refers within the femtobs. Globally, on the BSList, the 
+                #     # femtocells are in the range (NMacrocells:) (from NMacrocell to last)
+                #     closestBSDownlink += self.NMacroCells
 
                 
                 if (timeIndex != 0): 
@@ -374,8 +370,8 @@ class PoF_simulation_ELighthouse_Technoeconomics(Contex_Config):
                                                                                                    self.user_list[userIndex]["v_y"][timeIndex]],
                                                                                                    self.BaseStations[0:self.NMacroCells, 0:2])
                             
-                            X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closest_Macro, 0]]
-                            Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closest_Macro, 1]]
+                            # X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closest_Macro, 0]]
+                            # Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closest_Macro, 1]]
 
                             # self.user_association_line[userIndex].set_data(X, Y)
                             # self.user_association_line[userIndex].set_color('red')
@@ -396,13 +392,13 @@ class PoF_simulation_ELighthouse_Technoeconomics(Contex_Config):
                             self.battery_state[timeIndex][closestBSDownlink] = 0.0  # No battery usage.
                         elif closestBSDownlink in self.started_up_femto:
                             # Femto on! Yes, associate
-                            X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
-                            Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
-
-                            self.user_association_line[userIndex].set_data(X, Y)
-                            self.user_association_line[userIndex].set_color(self.colorsBS[closestBSDownlink])
-                            self.user_association_line[userIndex].set_linestyle('-')
-                            self.user_association_line[userIndex].set_linewidth(0.5)
+                            # X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
+                            # Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
+# 
+                            # self.user_association_line[userIndex].set_data(X, Y)
+                            # self.user_association_line[userIndex].set_color(self.colorsBS[closestBSDownlink])
+                            # self.user_association_line[userIndex].set_linestyle('-')
+                            # self.user_association_line[userIndex].set_linewidth(0.5)
 
                             self.association_vector[0, userIndex] = closestBSDownlink       # Associate.
                             self.association_vector_overflow_alternative[0, userIndex] = 0  # I can use PoF. Having batteries makes no difference in this case. Alternative is not needed.
@@ -489,13 +485,13 @@ class PoF_simulation_ELighthouse_Technoeconomics(Contex_Config):
                         self.baseStation_users[timeIndex][closest_Macro] += 1
 
             else: # Associate to a Macrocell
-                X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
-                Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
+                # X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
+                # Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
 
-                self.user_association_line[userIndex].set_data(X, Y)
-                self.user_association_line[userIndex].set_color(self.colorsBS[closestBSDownlink])
-                self.user_association_line[userIndex].set_linestyle('-')
-                self.user_association_line[userIndex].set_linewidth(0.5)
+                # self.user_association_line[userIndex].set_data(X, Y)
+                # self.user_association_line[userIndex].set_color(self.colorsBS[closestBSDownlink])
+                # self.user_association_line[userIndex].set_linestyle('-')
+                # self.user_association_line[userIndex].set_linewidth(0.5)
 
                 self.association_vector[0, userIndex] = closestBSDownlink # Associate.
                 self.association_vector_overflow_alternative[0, userIndex] = 0                

@@ -78,7 +78,7 @@ class Contex_Config():
         self.association_vector = np.zeros((1, len(self.NUsers)))
         self.association_vector_overflow_alternative = np.zeros((1, len(self.NUsers)))
         self.colorsBS = basestation_data.get('colorsBS', None)
-        self.RegionsMacrocells = basestation_data['RegionsMacrocells']
+        # self.RegionsMacrocells = basestation_data['RegionsMacrocells']
 
         # Power & Battery Parameters
         self.small_cell_consumption_ON = battery_data['small_cell_consumption_ON']
