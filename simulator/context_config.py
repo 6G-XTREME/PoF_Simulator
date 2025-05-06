@@ -201,8 +201,7 @@ class Contex_Config():
         else:
             plt.close('all')
         
-        pass
-    
+
     def save_run(self, fig_map, sim_times, run_name, output_folder):
         logger.info("Saving output data...")
         

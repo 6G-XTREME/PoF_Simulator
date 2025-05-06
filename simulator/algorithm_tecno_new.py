@@ -96,7 +96,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                 self.poweroff_max_tokens = 1
                 
             # Solar Harvesting + PoF
-            if elighthouse_parameters['use_harvesting']:
+            if elighthouse_parameters.get('use_harvesting', False):
                 self.use_harvesting = True
                 # Reference Solar Panel:
                 # SeedStudio Panel: https://www.seeedstudio.com/Solar-Panel-PV-12W-with-mounting-bracket-p-5003.html
@@ -104,13 +104,13 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                 self.solar_panel = SolarPanel(power_rating=12, voltage_charging=14, efficiency=0.2, area=(0.35 * 0.25))
                 
                 valid_enum_member_names = {member.name for member in Weather}
-                if elighthouse_parameters['weather'] in valid_enum_member_names:
-                    self.weather = elighthouse_parameters['weather']
+                if elighthouse_parameters.get('weather', "") in valid_enum_member_names:
+                    self.weather = elighthouse_parameters.get('weather')
                 else:
                     self.weather = "SUNNY"
                 
-                if elighthouse_parameters['city'] in self.solar_panel.irradiance_city:
-                    self.city = elighthouse_parameters['city']
+                if elighthouse_parameters.get('city', "") in self.solar_panel.irradiance_city:
+                    self.city = elighthouse_parameters.get('city')
                 else:
                     self.city = "Cartagena"
                 logger.info("Using solar harvesting, located at city: " + self.city)
@@ -118,19 +118,19 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                 self.use_harvesting = False
                 
             # Map Scale
-            if elighthouse_parameters['MapScale'] > 0 and elighthouse_parameters['MapScale'] <= 100:
-                self.map_scale = elighthouse_parameters['MapScale']
+            if elighthouse_parameters.get('MapScale') > 0 and elighthouse_parameters.get('MapScale') <= 100:
+                self.map_scale = elighthouse_parameters.get('MapScale', 100)
             else:
                 self.map_scale = 100
                
             # Fiber dB attenuation per Km 
-            if elighthouse_parameters['fiberAttdBperKm'] > 0.0 and elighthouse_parameters['fiberAttdBperKm'] <= 0.4:
-                self.att_db_per_km = elighthouse_parameters["fiberAttdBperKm"]
+            if elighthouse_parameters.get('fiberAttdBperKm') > 0.0 and elighthouse_parameters.get('fiberAttdBperKm') <= 0.4:
+                self.att_db_per_km = elighthouse_parameters.get('fiberAttdBperKm', 0.2)
             else:
                 self.att_db_per_km = 0.2
                 
             # Centroid Based Charging
-            if elighthouse_parameters['extraPoFCharger']:
+            if elighthouse_parameters.get('extraPoFCharger', False):
                 self.use_centroid = True
                 if 'centroid_x' in elighthouse_parameters:
                     self.centroid_x = elighthouse_parameters['centroid_x']
@@ -275,25 +275,25 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
 
             # Search serving base station
             if (timeIndex == 0 or timeIndex == self.user_report_position_next_time[userIndex]):
-                # New Position Report
                 # TODO: change
-                # RegionsMacrocells
-                
                 user_position = [self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]]
-                
                 closestBSDownlink = simulator.map_utils.search_closest_bs_optimized(user_position, self.Regions, self.BaseStations, self.NMacroCells)
                 
-                # closestBSDownlink = simulator.map_utils.search_closest_bs([self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]], self.Regions)
                 if (timeIndex != 0):
                     self.user_report_position_next_time[userIndex] += random.randint(1, self.user_report_position+1)
             else:
                 # Use previous position know
                 closestBSDownlink = int(self.user_closest_bs[timeIndex-1][userIndex])
+
             # Update the actual BS
             self.user_closest_bs[timeIndex][userIndex] = closestBSDownlink
             
             # If closest is a Femtocell and it is sleeping (it has no users), then, check total energy consumption
-            if closestBSDownlink > self.NMacroCells:
+            # 0 - NMacroCells -> MacroCells. NMacroCells - end -> FemtoCells
+            def is_femtocell(bs_index):
+                return bs_index >= self.NMacroCells
+            
+            if is_femtocell(closestBSDownlink):
                 if self.baseStation_users[timeIndex][closestBSDownlink] == 0: # If inactive
                     # Can I turn it on with PoF?
                     active_femto = np.sum(self.active_Cells[timeIndex][self.NMacroCells:])
@@ -906,6 +906,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             output_folder = os.path.join(root_folder, 'output', output_folder)
         else:
             output_folder = os.path.join(root_folder, 'output')
+
         run_folder = os.path.join(output_folder, run_name)
         data_folder = os.path.join(run_folder, 'data')
         csv = os.path.join(data_folder, f'{run_name}-output.csv')
