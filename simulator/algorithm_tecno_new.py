@@ -992,20 +992,36 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             _ax.plot(line[0], line[1], color='green', linewidth=0.8)
 
         def paint_user(x, y, _ax):
-            _ax.scatter(x, y, color='red', s=20, marker='+')
+            _ax.scatter(x, y, color='red', s=20, marker='+', linewidths=2)
 
         def paint_user_no_active(x, y, _ax):
-            _ax.scatter(x, y, color='blue', s=10, marker='+')
+            _ax.scatter(x, y, color='blue', s=5, marker='+', linewidths=0.5)
 
 
 
 
         fig_user_assoc_only_femto, ax_fem = plt.subplots()
         self.list_figures.append((fig_user_assoc_only_femto, 'output-last-user-association-only-femto'))
+        ax_fem.set_title('Last User Association - Femto Cells')
+        ax_fem.scatter([], [], label="User in FemtoCell", color='red', s=20, marker='+', linewidths=2)
+        ax_fem.scatter([], [], label="User in MacroCell", color='blue', s=20, marker='+', linewidths=2)
+        ax_fem.scatter([], [], label="FemtoCell", color='black', s=10, marker='o')
+        ax_fem.legend()
+        ax_fem.axis('off')
+        # ax_fem.set_xlabel('X [km]')
+        # ax_fem.set_ylabel('Y [km]')
 
 
         fig_user_assoc_only_macro, ax_mac = plt.subplots()
         self.list_figures.append((fig_user_assoc_only_macro, 'output-last-user-association-only-macro'))
+        ax_mac.set_title('Last User Association - Macro Cells')
+        ax_mac.scatter([], [], label="User in MacroCell", color='red', s=20, marker='+', linewidths=2)
+        ax_mac.scatter([], [], label="User in FemtoCell", color='blue', s=20, marker='+', linewidths=2)
+        ax_mac.scatter([], [], label="MacroCell", color='black', s=10, marker='o')
+        ax_mac.legend()
+        ax_mac.axis('off')
+        # ax_mac.set_xlabel('X [km]')
+        # ax_mac.set_ylabel('Y [km]')
 
         # Loop over Femto BSs
         for i in range(self.NMacroCells, len(self.BaseStations)):

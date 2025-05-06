@@ -150,6 +150,17 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
 
             NMacroCells = nice_setup_mat['NMacroCells'][0][0]
             NFemtoCells = nice_setup_mat['NFemtoCells'][0][0]
+
+
+            # Correct the gaps between celds and border
+            min_x, min_y = np.min(BaseStations[:,0]), np.min(BaseStations[:,1])
+
+            BaseStations[:,0] = BaseStations[:,0] - min_x + 1
+            BaseStations[:,1] = BaseStations[:,1] - min_y + 1
+
+            max_x, max_y = np.max(BaseStations[:,0]), np.max(BaseStations[:,1])
+            Maplimit = max(max_x, max_y) + 1
+
         except Exception as e:
             logger.error(bcolors.FAIL + 'Error importing the nice_setup.mat' + bcolors.ENDC)
             logger.error(e)
