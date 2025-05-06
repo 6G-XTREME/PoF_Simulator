@@ -14,7 +14,7 @@ from shapely.geometry import Point, GeometryCollection, MultiPolygon, Polygon
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon as MplPolygon
 
-def create_regions(Npoints, BaseStations, alpha_loss, ax = None, config_parameters = {}, canvas_widget = None, polygon_bounds: list[tuple[float, float]] = [(0,0), (0,1000), (1000,1000),(1000, 0), (0,0)]):
+def create_regions(Npoints, BaseStations, alpha_loss, ax = None, config_parameters = {}, canvas_widget = None, polygon_bounds: list[tuple[float, float]] = None, map_size: float = 1000):
     """
     Create regions for the coverage of the base stations.
     
@@ -27,6 +27,11 @@ def create_regions(Npoints, BaseStations, alpha_loss, ax = None, config_paramete
         canvas_widget: matplotlib.widgets.Canvas - Canvas to plot the regions on.
         polygon_bounds: list[tuple[float, float]] - Bounds of the polygon that represents the whole region.
     """
+
+    if polygon_bounds is None:
+        polygon_bounds = [(0, 0), (0, map_size), (map_size, map_size), (map_size, 0), (0, 0)]
+
+
     _WholeRegion = Polygon(polygon_bounds)
     if not _WholeRegion.is_valid:
         _WholeRegion = _WholeRegion.buffer(0)
@@ -209,6 +214,7 @@ def search_closest_bs_optimized(P, Regions, BaseStations, NMacroCells):
     for i, femto in enumerate(femtos):
         distance = get_euclidean_distance(P, femto)
         if distance < lowest_dist:
+            lowest_dist = distance
             closest_bs = i + NMacroCells # Need to correct the index, femtos real index start at NMacroCells
    
     # 2. Check if the user is within the femtocell area

@@ -22,8 +22,11 @@ INPUT_PARAMETERS = {
         # 'Simulation_Time': 2592000,             # In seconds, 1 month of 30 days
         # 'NMacroCells': 20,
         # 'NFemtoCells': 134,
-        'Maplimit': 40,                       # Size of Map grid, [dont touch]
-        'numberOfLasers': 20,                   # Manually changed? Def 5. Should I input the topology instead?
+        'Maplimit': 40,                         # Size of Map grid, [dont touch]
+        'numberOfLasers': 20,                   # Deprecated
+        'numberOfPofPools': 20,                 # Number of HPLDS
+        'numberOfWattsPerPool': 5,              # Watts. Capacity of each HPLD
+        'N_femto_per_pool': 5,                  # Number of femtocells powered by each HPLD
 
         'battery_capacity': 3.3,                # Ah
         'small_cell_consumption_on': 0.7,       # In Watts
@@ -84,6 +87,9 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         Users = input_parameters.get('Users', 1000)
         timeStep = input_parameters.get('timeStep', 3600)
         numberOfLasers = input_parameters.get('numberOfLasers', 5)
+        numberOfPofPools = input_parameters.get('numberOfPofPools', 20)
+        numberOfWattsPerPool = input_parameters.get('numberOfWattsPerPool', 5)
+        N_femto_per_pool = input_parameters.get('N_femto_per_pool', 5)
         noise = input_parameters.get('noise', 2.5e-14)
         SMA_WINDOW = input_parameters.get('SMA_WINDOW', 1)
         small_cell_voltage_range = np.array([input_parameters.get('small_cell_voltage_min', 0.028), 
@@ -97,8 +103,8 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         
         small_cell_current_draw = small_cell_consumption_ON/np.mean(small_cell_voltage_range)
         
-        max_energy_consumption_total = numberOfLasers * 1                               # 1 Watt each laser, total energy inside PoF Budget (no batteries related)
-        max_energy_consumption_active = numberOfLasers * small_cell_consumption_ON      # One laser per femtocell
+        max_energy_consumption_total = numberOfPofPools * numberOfWattsPerPool                               # 1 Watt each laser, total energy inside PoF Budget (no batteries related)
+        max_energy_consumption_active = numberOfPofPools * N_femto_per_pool * small_cell_consumption_ON      # One laser per femtocell
         
         min_user_speed = 1
         max_user_speed = 2 * input_parameters['mean_user_speed'] - min_user_speed    # Get the max value, [xmin, xmax] that satisfy the mean 
@@ -243,6 +249,7 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
             BaseStations=macro_bs,
             alpha_loss=alpha_loss,
             config_parameters=config_parameters,
+            map_size=Maplimit,
         )
 
         

@@ -5,7 +5,8 @@ from simulator.launch_tecno_new import execute_simulator
 INPUT_PARAMETERS = {
         'Users': 1000,
         'timeStep': 3600,                       # In seconds, 1 hour
-        'Simulation_Time': 720000,             # In seconds, Debug 2 steps
+        'Simulation_Time': 72000,             # In seconds, Debug 2 steps
+        # 'Simulation_Time': 720000,             # In seconds, Debug 2 steps
         # 'Simulation_Time': 2592000,             # In seconds, 1 month of 30 days
         # 'NMacroCells': 20,
         # 'NFemtoCells': 134,

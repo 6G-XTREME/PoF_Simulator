@@ -7,6 +7,7 @@ __status__ = "Validated"
 
 import numpy as np
 import pandas as pd
+from shapely.geometry import Polygon, MultiPolygon, GeometryCollection
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import time, random, os
@@ -274,16 +275,19 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             self.user_pos_plot[userIndex][0].set_data([self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]])
 
             # Search serving base station
-            if (timeIndex == 0 or timeIndex == self.user_report_position_next_time[userIndex]):
-                # TODO: change
-                user_position = [self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]]
-                closestBSDownlink = simulator.map_utils.search_closest_bs_optimized(user_position, self.Regions, self.BaseStations, self.NMacroCells)
-                
-                if (timeIndex != 0):
-                    self.user_report_position_next_time[userIndex] += random.randint(1, self.user_report_position+1)
-            else:
-                # Use previous position know
-                closestBSDownlink = int(self.user_closest_bs[timeIndex-1][userIndex])
+            user_position = [self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]]
+            closestBSDownlink = simulator.map_utils.search_closest_bs_optimized(user_position, self.Regions, self.BaseStations, self.NMacroCells)
+
+            # if (timeIndex == 0 or timeIndex == self.user_report_position_next_time[userIndex]):
+            #     # TODO: change
+            #
+            #     user_position = [self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]]
+            #     closestBSDownlink = simulator.map_utils.search_closest_bs_optimized(user_position, self.Regions, self.BaseStations, self.NMacroCells)
+            #     if (timeIndex != 0):
+            #         self.user_report_position_next_time[userIndex] += random.randint(1, self.user_report_position+1)
+            # else:
+            #     # Use previous position know
+            #     closestBSDownlink = int(self.user_closest_bs[timeIndex-1][userIndex])
 
             # Update the actual BS
             self.user_closest_bs[timeIndex][userIndex] = closestBSDownlink
@@ -299,7 +303,9 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                     active_femto = np.sum(self.active_Cells[timeIndex][self.NMacroCells:])
                     battery_femto = np.count_nonzero(self.battery_state[timeIndex][self.NMacroCells:] == 2.0)   # Battery Cells doesnt count for current_watts budget
                     current_watts = (active_femto * self.small_cell_consumption_ON) + ((self.NFemtoCells - (active_femto + battery_femto)) * self.small_cell_consumption_SLEEP)
+
                     if current_watts >= (self.max_energy_consumption_active - self.small_cell_consumption_ON + self.small_cell_consumption_SLEEP): # No, I cannot. Check battery.
+                    # if current_watts >= (self.max_energy_consumption_active - self.small_cell_consumption_ON + self.small_cell_consumption_SLEEP): # No, I cannot. Check battery.
 
                         # Check if we can use Femtocell's battery
                         if self.battery_vector[0, closestBSDownlink] > (timeStep/3600) * self.small_cell_current_draw:
@@ -892,9 +898,170 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         ax.set_xlabel("Time [s]")
         ax.set_ylabel('Throughput [Mb/s]')
         
+
+
+
+
+        # Plot associations of users to cells. Two plots:
+        # 1. Femto cells regions
+        # 2. Macro cells regions
+
+        last_user_to_bs_assoc = self.association_vector[0, :]
+
+        # regions_fem = self.Regions[self.NMacroCells:]
+        # regions_mac = self.Regions[:self.NMacroCells]
+
+        users_pos = np.array([
+            [self.user_list[user]["v_x"][-1], self.user_list[user]["v_y"][-1]]
+            for user in range(len(self.NUsers))
+        ])
+
+        users_in_fem = np.zeros(len(last_user_to_bs_assoc), dtype=int)
+        users_in_mac = np.zeros(len(last_user_to_bs_assoc), dtype=int)
+
+        for user, bs in enumerate(last_user_to_bs_assoc):
+            if bs >= self.NMacroCells:
+                users_in_fem[user] = 1
+            else:
+                users_in_mac[user] = 1
+
+
+        p2p_lines_fem = []
+        p2p_lines_mac = []
+        users_fem = []
+        users_mac = []
+
+
+
+        for user, bs in enumerate(last_user_to_bs_assoc):
+            user_x = self.user_list[user]["v_x"][-1]
+            user_y = self.user_list[user]["v_y"][-1]
+            bs_x = self.BaseStations[int(bs)][0]
+            bs_y = self.BaseStations[int(bs)][1]
+
+            x_coords = [user_x, bs_x]
+            y_coords = [user_y, bs_y]
+
+            if bs >= self.NMacroCells:
+                p2p_lines_fem.append((x_coords, y_coords))
+                users_fem.append((user_x, user_y))
+            else:
+                p2p_lines_mac.append((x_coords, y_coords))
+                users_mac.append((user_x, user_y))
+
+
+
+
+
+        # Paint the regions (bs areas)
+        region_config = {
+            "alpha": 0.3,
+            "edgecolor": 'black',
+            "linewidth": 0.5,
+            "linestyle": '-',
+        }
+        def paint_regions(_regions, _ax):
+            for i in range(len(_regions) - 1, -1, -1):
+                _region = _regions[i]
+                if isinstance(_region, Polygon):
+                    x, y = _region.exterior.coords.xy
+                    _ax.fill(x, y, **region_config)
+                elif isinstance(_region, MultiPolygon):
+                    for reg in _region.geoms:
+                        x, y = reg.exterior.coords.xy
+                        _ax.fill(x, y, **region_config)
+                elif isinstance(_region, GeometryCollection):
+                    for geom in _region.geoms:
+                        if isinstance(geom, Polygon):
+                            x, y = geom.exterior.coords.xy
+                            _ax.fill(x, y, **region_config)
+                else:
+                    x, y = _region.exterior.coords.xy
+                    _ax.fill(x, y, **region_config)
+
+        node_config = {
+            "marker": "o",
+            "s": 30,
+            "color": 'blue',
+            "alpha": 1,
+        }
+        def paint_node(x, y, _ax):
+            _ax.scatter(x, y, color='black', s=10, marker='o')
+
+        def paint_association(line, _ax):
+            _ax.plot(line[0], line[1], color='green', linewidth=0.8)
+
+        def paint_user(x, y, _ax):
+            _ax.scatter(x, y, color='red', s=20, marker='+')
+
+        def paint_user_no_active(x, y, _ax):
+            _ax.scatter(x, y, color='blue', s=10, marker='+')
+
+
+
+
+        fig_user_assoc_only_femto, ax_fem = plt.subplots()
+        self.list_figures.append((fig_user_assoc_only_femto, 'output-last-user-association-only-femto'))
+
+
+        fig_user_assoc_only_macro, ax_mac = plt.subplots()
+        self.list_figures.append((fig_user_assoc_only_macro, 'output-last-user-association-only-macro'))
+
+        # Loop over Femto BSs
+        for i in range(self.NMacroCells, len(self.BaseStations)):
+            region = self.Regions[i]
+            paint_regions([region], ax_fem)  # wrap single _region in list
+            bs_x, bs_y = self.BaseStations[i][:2]
+            paint_node(bs_x, bs_y, ax_fem)
+
+            for user, bs in enumerate(last_user_to_bs_assoc):
+                if bs == i:
+                    paint_user(*users_pos[user], ax_fem)
+
+        for line in p2p_lines_fem:
+            paint_association(line, ax_fem)
+
+        for user in users_fem:
+            paint_user(*user, ax_fem)
+
+        for user in users_mac:
+            paint_user_no_active(*user, ax_fem)
+
+        # Loop over Macro BSs
+        for i in range(self.NMacroCells):
+            region = self.Regions[i]
+            paint_regions([region], ax_mac)
+            bs_x, bs_y = self.BaseStations[i][:2]
+            paint_node(bs_x, bs_y, ax_mac)
+
+            for user, bs in enumerate(last_user_to_bs_assoc):
+                if bs == i:
+                    paint_user(*users_pos[user], ax_mac)
+
+        for line in p2p_lines_mac:
+            paint_association(line, ax_mac)
+
+        for user in users_mac:
+            paint_user(*user, ax_mac)
+
+        for user in users_fem:
+            paint_user_no_active(*user, ax_mac)
+
+
+
+
+
+
         # Get the context_class method
         super().plot_output(sim_times=sim_times, show_plots=show_plots, is_gui=is_gui)
-        
+
+
+
+
+
+
+
+
     def save_run(self, fig_map, sim_times, run_name, output_folder):
         # Legacy algorithm save
         super().save_run(fig_map, sim_times, run_name, output_folder)
