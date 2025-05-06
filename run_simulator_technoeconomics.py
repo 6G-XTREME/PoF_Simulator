@@ -5,7 +5,7 @@ from simulator.launch_tecno_new import execute_simulator
 INPUT_PARAMETERS = {
         'Users': 1000,
         'timeStep': 3600,                       # In seconds, 1 hour
-        'Simulation_Time': 7200,             # In seconds, Debug 2 steps
+        'Simulation_Time': 720000,             # In seconds, Debug 2 steps
         # 'Simulation_Time': 2592000,             # In seconds, 1 month of 30 days
         # 'NMacroCells': 20,
         # 'NFemtoCells': 134,
@@ -19,7 +19,7 @@ INPUT_PARAMETERS = {
         'small_cell_voltage_max': 0.033,        # In mVolts
         'mean_user_speed': 5.5,                 # In m/s
         'noise': 2.5e-14,
-        'SMA_WINDOW': 5, 
+        'SMA_WINDOW': 1,
         'TransmittingPower' : {
             'PMacroCells': 40,
             'PFemtoCells': 0.1,
@@ -44,8 +44,8 @@ CONFIG_PARAMETERS = {
 
 CUSTOM_CONFIG = {
     'user_report_position': 1,  # For each four timeSteps, the users updates position
-    'startup_max_tokens': 1,   # TimeSlots to startup a FemtoCell
-    'poweroff_unused_cell': 1, # TimeSlots to poweroff an unused Cell
+    'startup_max_tokens': 0,   # TimeSlots to startup a FemtoCell
+    'poweroff_unused_cell': 0, # TimeSlots to poweroff an unused Cell
     'extraPoFCharger': False,     # Enable an extra Charger with 1W on the centroid
     'typeExtraPoFCharger': "Centroid",
     'use_harvesting': False,      # Enable the Solar Harvesting Mode -> New graph + solar charging...

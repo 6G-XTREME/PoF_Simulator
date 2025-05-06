@@ -85,7 +85,109 @@ def Out_setRestrictedWalk_random_waypoint(previousX, previousY, previousDuration
                 flag_mobility_finised = True
 
 
-def generate_mobility (dict):    
+
+
+
+
+
+
+
+def generate_random_mobility(input_dict: dict):
+    data = {
+        'V_TIME': [None] * input_dict['NB_USERS'],
+        'V_POSITION_X': [None] * input_dict['NB_USERS'],
+        'V_POSITION_Y': [None] * input_dict['NB_USERS'],
+        'V_DIRECTION': [None] * input_dict['NB_USERS'],
+        'V_SPEED_MAGNITUDE': [None] * input_dict['NB_USERS'],
+        'V_IS_MOVING': [None] * input_dict['NB_USERS'],
+        'V_DURATION': [None] * input_dict['NB_USERS'],
+        'V_SPEED_X': [None] * input_dict['NB_USERS'],
+        'V_SPEED_Y': [None] * input_dict['NB_USERS']
+    }
+
+    global s_mobility
+    global userIndex_tmp
+    s_mobility = data
+
+    min_x, max_x = input_dict['V_POSITION_X_INTERVAL']
+    min_y, max_y = input_dict['V_POSITION_Y_INTERVAL']
+    n_steps = int(input_dict['N_STEPS'])
+    time_step = input_dict['SIMULATION_TIME'] / input_dict['N_STEPS']
+
+    for userIndex_tmp in range(input_dict['NB_USERS']):
+        s_mobility['V_TIME'][userIndex_tmp] = []
+        s_mobility['V_POSITION_X'][userIndex_tmp] = []
+        s_mobility['V_POSITION_Y'][userIndex_tmp] = []
+        s_mobility['V_DIRECTION'][userIndex_tmp] = []
+        s_mobility['V_SPEED_MAGNITUDE'][userIndex_tmp] = []
+        s_mobility['V_IS_MOVING'][userIndex_tmp] = []
+        s_mobility['V_DURATION'][userIndex_tmp] = []
+        s_mobility['V_SPEED_X'][userIndex_tmp] = []
+        s_mobility['V_SPEED_Y'][userIndex_tmp] = []
+
+        for step in range(n_steps):
+            current_time = step * time_step
+            x = uniform(min_x, max_x)
+            y = uniform(min_y, max_y)
+
+            add_element_to_s_mobility('V_TIME', current_time)
+            add_element_to_s_mobility('V_POSITION_X', x)
+            add_element_to_s_mobility('V_POSITION_Y', y)
+            add_element_to_s_mobility('V_DIRECTION', 0)
+            add_element_to_s_mobility('V_SPEED_MAGNITUDE', 0)
+            add_element_to_s_mobility('V_IS_MOVING', False)
+            add_element_to_s_mobility('V_DURATION', time_step)
+            add_element_to_s_mobility('V_SPEED_X', 0)
+            add_element_to_s_mobility('V_SPEED_Y', 0)
+
+        # Ajustar el tiempo final si es necesario
+        if s_mobility['V_TIME'][userIndex_tmp][-1] < input_dict['SIMULATION_TIME']:
+            s_mobility['V_TIME'][userIndex_tmp].append(input_dict['SIMULATION_TIME'])
+            s_mobility['V_POSITION_X'][userIndex_tmp].append(uniform(min_x, max_x))
+            s_mobility['V_POSITION_Y'][userIndex_tmp].append(uniform(min_y, max_y))
+            s_mobility['V_DIRECTION'][userIndex_tmp].append(0)
+            s_mobility['V_SPEED_MAGNITUDE'][userIndex_tmp].append(0)
+            s_mobility['V_IS_MOVING'][userIndex_tmp].append(False)
+            s_mobility['V_DURATION'][userIndex_tmp].append(0)
+            s_mobility['V_SPEED_X'][userIndex_tmp].append(0)
+            s_mobility['V_SPEED_Y'][userIndex_tmp].append(0)
+
+        user_data = {
+            'V_TIME': s_mobility['V_TIME'][userIndex_tmp],
+            'V_POSITION_X': s_mobility['V_POSITION_X'][userIndex_tmp],
+            'V_POSITION_Y': s_mobility['V_POSITION_Y'][userIndex_tmp],
+            'V_SPEED_X': s_mobility['V_SPEED_X'][userIndex_tmp],
+            'V_SPEED_Y': s_mobility['V_SPEED_Y'][userIndex_tmp]
+        }
+
+        s_mobility[userIndex_tmp] = user_data
+
+    del userIndex_tmp
+
+    return s_mobility
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def generate_mobility (dict):
     data = {
         'V_TIME':           [None] * dict['NB_USERS'], # (m)
         'V_POSITION_X':     [None] * dict['NB_USERS'], # (m)

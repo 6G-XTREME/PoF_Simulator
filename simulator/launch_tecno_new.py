@@ -23,14 +23,14 @@ INPUT_PARAMETERS = {
         # 'NMacroCells': 20,
         # 'NFemtoCells': 134,
         'Maplimit': 40,                       # Size of Map grid, [dont touch]
-        
+        'numberOfLasers': 20,                   # Manually changed? Def 5. Should I input the topology instead?
+
         'battery_capacity': 3.3,                # Ah
         'small_cell_consumption_on': 0.7,       # In Watts
         'small_cell_consumption_sleep': 0.05,   # In Watts
         'small_cell_voltage_min': 0.028,        # In mVolts
         'small_cell_voltage_max': 0.033,        # In mVolts
         'mean_user_speed': 5.5,                 # In m/s
-        'numberOfLasers': 5,
         'noise': 2.5e-14,
         'SMA_WINDOW': 5, 
         'TransmittingPower' : {
@@ -85,7 +85,7 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         timeStep = input_parameters.get('timeStep', 3600)
         numberOfLasers = input_parameters.get('numberOfLasers', 5)
         noise = input_parameters.get('noise', 2.5e-14)
-        SMA_WINDOW = input_parameters.get('SMA_WINDOW', 5)
+        SMA_WINDOW = input_parameters.get('SMA_WINDOW', 1)
         small_cell_voltage_range = np.array([input_parameters.get('small_cell_voltage_min', 0.028), 
                                              input_parameters.get('small_cell_voltage_max', 0.033)])
         
@@ -204,6 +204,11 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
                 else:   # Use "Centroid"
                     centroid_x = np.mean(BaseStations[NMacroCells:, 0])
                     centroid_y = np.mean(BaseStations[NMacroCells:, 1])
+
+                # Caso en que las HPLDs se dan
+                # Determinar los nuevos pools
+
+
                 custom_parameters['centroid_x'] = centroid_x
                 custom_parameters['centroid_y'] = centroid_y
                 ax.plot(centroid_x, centroid_y, 'x', color='red', markersize=10, markeredgewidth= 2, label='Centroid')
@@ -270,17 +275,16 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
     sim_input = {
         'V_POSITION_X_INTERVAL': [0, Maplimit],                         # (m)
         'V_POSITION_Y_INTERVAL': [0, Maplimit],                         # (m)
-        'V_SPEED_INTERVAL': [min_user_speed, max_user_speed],           # (m/s)
-        'V_PAUSE_INTERVAL': [0, 3],                                     # pause time (s)
-        'V_WALK_INTERVAL': [30.00, 60.00],                              # walk time(s)
-        'V_DIRECTION_INTERVAL': [-180, 180],                            # (degrees)
-        'SIMULATION_TIME': Simulation_Time,                             # (s)
+        'SIMULATION_TIME': Simulation_Time,                         # (s)
+        'N_STEPS': Simulation_Time / timeStep,                     # (number of steps)
         'NB_USERS': Users
     }
-    logger.debug(sim_input['V_WALK_INTERVAL'])
-    
+
+
+    # TODO: modify here
+    # Generate randomly the path of the users
     # Generate the mobility path of users
-    s_mobility = simulator.mobility_utils.generate_mobility(sim_input)
+    s_mobility = simulator.mobility_utils.generate_random_mobility(sim_input)
     s_mobility["NB_USERS"] = []
     for user in range(0, sim_input['NB_USERS']):
         s_mobility['NB_USERS'].append(s_mobility[user])

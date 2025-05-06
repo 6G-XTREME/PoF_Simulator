@@ -110,8 +110,8 @@ class Contex_Config():
         
         self.Simulation_Time = sim_times[-1]
         self.list_figures = []        
-        pass
-    
+
+
     def start_simulation(self, sim_times, timeStep, text_plot, show_plots: bool = True, speed_plot: float = 0.05):
         pass
     
@@ -154,8 +154,8 @@ class Contex_Config():
         ax.set_ylabel('Throughput [Mb/s]')
 
         # 3, filtered one
-        #SMA_WINDOW = input_parameters['SMA_WINDOW']
-        SMA_WINDOW = 5  
+        # SMA_WINDOW = self.SMA_WINDOW
+        SMA_WINDOW = 1
         timeIndex = len(sim_times)
         fig_throughput_smooth, ax = plt.subplots()
         self.list_figures.append((fig_throughput_smooth, "throughput_smooth"))
