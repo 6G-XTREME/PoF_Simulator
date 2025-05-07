@@ -10,7 +10,7 @@ import pandas as pd
 import scipy.io, os
 import matplotlib.pyplot as plt
 from simulator.launch import logger
-
+import json
 class Contex_Config():
     Simulation_Time: int
     
@@ -115,9 +115,9 @@ class Contex_Config():
     def start_simulation(self, sim_times, timeStep, text_plot, show_plots: bool = True, speed_plot: float = 0.05):
         pass
     
-    def plot_output(self, sim_times, is_gui: bool = False, show_plots: bool = True):
+    def plot_output(self, sim_times, is_gui: bool = False, show_plots: bool = True, fig_size: tuple = (12, 8)):
         # 1
-        fig_cell_occupancy, ax = plt.subplots()
+        fig_cell_occupancy, ax = plt.subplots(figsize=fig_size)
         self.list_figures.append((fig_cell_occupancy, "cell_occupancy"))
         ax.axhline(y=self.NFemtoCells, color='r', label='Total Small cells')
         ax.plot(sim_times, self.live_smallcell_occupancy, 'g', label='Small cells being used')
@@ -128,22 +128,23 @@ class Contex_Config():
         ax.set_ylabel('Number of cells')
 
         # 2
-        fig_cell_consumption, ax = plt.subplots()
+        fig_cell_consumption, ax = plt.subplots(figsize=fig_size)
         self.list_figures.append((fig_cell_consumption, "cell_consumption"))
         #ax.axhline(y=self.small_cell_consumption_ON * self.NFemtoCells, color='r', label='Total always ON cell consumption [W]')
-        ax.axhline(y=self.max_energy_consumption_total, color='b', label='Max power of lasers')
-        ax.axhline(y=self.max_energy_consumption_active, color='r', label='Max consumption of PoF budget')
-        ax.plot(sim_times, self.live_smallcell_consumption, 'g', label='Live energy consumption [W], laser + battery')
+        ax.axhline(y=self.max_energy_consumption_total, color='b', label='Max power of lasers [W]')
+        ax.axhline(y=self.max_energy_consumption_active, color='r', label='Max consumption of PoF budget [W]')
+        ax.plot(sim_times, self.live_smallcell_consumption, 'g', label='Live energy consumption [W], laser + battery', linewidth=2)
         #ax.text(1, small_cell_consumption_ON * NFemtoCells - 1, f"Energy consumption (Active Femtocells): {small_cell_consumption_ON * NFemtoCells - 1} W")
         #ax.text(1, small_cell_consumption_ON * NFemtoCells - 3, f"Energy consumption (Idle Femtocells): {small_cell_consumption_ON * NFemtoCells - 3} W")
         #ax.text(1, small_cell_consumption_ON * NFemtoCells - 5, f"Energy consumption (Total Femtocells): {small_cell_consumption_ON * NFemtoCells - 5} W")
         ax.legend()
+        ax.set_ylim(0, max(max(self.live_smallcell_consumption), self.max_energy_consumption_total, self.max_energy_consumption_active) * 1.1)
         ax.set_title('Live energy consumption')
         ax.set_xlabel('Time [s]')
         ax.set_ylabel('Power consumption (Watts)')
 
         # 3
-        fig_throughput, ax = plt.subplots()
+        fig_throughput, ax = plt.subplots(figsize=fig_size)
         self.list_figures.append((fig_throughput, "throughput"))
         ax.plot(sim_times, self.live_throughput/10e6, label='With battery system')
         ax.plot(sim_times, self.live_throughput_NO_BATTERY/10e6, 'r--', label='Without battery system')
@@ -157,7 +158,7 @@ class Contex_Config():
         # SMA_WINDOW = self.SMA_WINDOW
         SMA_WINDOW = 1
         timeIndex = len(sim_times)
-        fig_throughput_smooth, ax = plt.subplots()
+        fig_throughput_smooth, ax = plt.subplots(figsize=fig_size)
         self.list_figures.append((fig_throughput_smooth, "throughput_smooth"))
         X = sim_times[timeIndex-(len(self.live_throughput)-(SMA_WINDOW-1))+1:timeIndex]/60
         Y = np.convolve(self.live_throughput/10e6, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
@@ -183,7 +184,7 @@ class Contex_Config():
         #ax.set_title('Live battery state')
 
         # 5
-        fig_battery_mean, ax = plt.subplots()
+        fig_battery_mean, ax = plt.subplots(figsize=fig_size)
         self.list_figures.append((fig_battery_mean, "battery_mean"))
         ax.plot(sim_times, self.battery_mean_values, label='Battery mean capacity')
         ax.axhline(y=3.3, color='r',label="Max. voltage battery")
@@ -202,7 +203,7 @@ class Contex_Config():
             plt.close('all')
         
 
-    def save_run(self, fig_map, sim_times, run_name, output_folder):
+    def save_run(self, fig_map, sim_times, run_name, output_folder, dpi: int = 200):
         logger.info("Saving output data...")
         
         # Save results to files as csv!
@@ -246,7 +247,7 @@ class Contex_Config():
             plt.close(fig_map)
         
         for fig in self.list_figures:
-            fig[0].savefig(os.path.join(plot_folder, f'{run_name}-{fig[1]}.png'))
+            fig[0].savefig(os.path.join(plot_folder, f'{run_name}-{fig[1]}.png'), dpi=dpi, bbox_inches='tight')
             #plt.close(fig[0])
 
         # Copy user_list.mat [replicability of run]
@@ -263,7 +264,6 @@ class Contex_Config():
         scipy.io.savemat(nice_setup_mat_path, nice_setup_struct)
         logger.info("Succesfully saved output files")
         
-        pass
     
     def update_live_plots(self):
         """

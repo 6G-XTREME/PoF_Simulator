@@ -15,7 +15,13 @@ import time, random, os
 from simulator.launch import logger
 from simulator.context_config import Contex_Config
 from simulator.solar_harvesting import SolarPanel, Weather
-import simulator.map_utils, simulator.mobility_utils, simulator.user_association_utils, simulator.radio_utils, simulator.energy_utils
+import simulator.map_utils, simulator.user_association_utils, simulator.radio_utils, simulator.energy_utils
+
+
+from simulator.user_association_utils import search_closest_macro
+from simulator.map_utils import search_closest_bs_optimized
+
+
 
 class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
     map_scale: int                              # 1 km == 100 points (1:100) 
@@ -103,7 +109,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                 self.poweroff_max_tokens = elighthouse_parameters['poweroff_unused_cell']
             else:
                 self.poweroff_max_tokens = 1
-                
+
             # Solar Harvesting + PoF
             if elighthouse_parameters.get('use_harvesting', False):
                 self.use_harvesting = True
@@ -279,8 +285,12 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             timeIndex (int): 
             timeStep (float): 
         """
-        if timeIndex == 0: self.battery_state[timeIndex] = np.zeros(self.NMacroCells+self.NFemtoCells)      # 0 = nothing; 1 = charging; 2 = discharging; 3 = discharging & charging.
-        if self.started_up_femto is None: self.started_up_femto = []                                        # The case that, all the started femto go to off
+        if timeIndex == 0:
+            self.battery_state[timeIndex] = np.zeros(self.NMacroCells+self.NFemtoCells)      # 0 = nothing; 1 = charging; 2 = discharging; 3 = discharging & charging.
+
+        if self.started_up_femto is None:
+            self.started_up_femto = []                                        # The case that, all the started femto go to off
+
         try:
             self.battery_state[timeIndex+1] = np.zeros(self.NMacroCells+self.NFemtoCells)                   # 0 = nothing; 1 = charging; 2 = discharging; 3 = discharging & charging.
             self.baseStation_users[timeIndex+1] = np.zeros(self.NMacroCells+self.NFemtoCells)               # Number of users in each base station.
@@ -299,84 +309,89 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             # Update position on plot of User
             self.user_pos_plot[userIndex][0].set_data([self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]])
 
-            # Search serving base station
-            user_position = [self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]]
-            closestBSDownlink = simulator.map_utils.search_closest_bs_optimized(user_position, self.Regions, self.BaseStations, self.NMacroCells)
-
             # if (timeIndex == 0 or timeIndex == self.user_report_position_next_time[userIndex]):
             #     # TODO: change
             #
             #     user_position = [self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]]
-            #     closestBSDownlink = simulator.map_utils.search_closest_bs_optimized(user_position, self.Regions, self.BaseStations, self.NMacroCells)
+            #     closest_bs_dl = simulator.map_utils.search_closest_bs_optimized(user_position, self.Regions, self.BaseStations, self.NMacroCells)
             #     if (timeIndex != 0):
             #         self.user_report_position_next_time[userIndex] += random.randint(1, self.user_report_position+1)
             # else:
             #     # Use previous position know
-            #     closestBSDownlink = int(self.user_closest_bs[timeIndex-1][userIndex])
+            #     closest_bs_dl = int(self.user_closest_bs[timeIndex-1][userIndex])
+
+            # Search serving base station
+            user_position = [self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]]
+            closest_bs_dl = search_closest_bs_optimized(user_position, self.Regions, self.BaseStations, self.NMacroCells)
 
             # Update the actual BS
-            self.user_closest_bs[timeIndex][userIndex] = closestBSDownlink
-            
+            self.user_closest_bs[timeIndex][userIndex] = closest_bs_dl
+
             # If closest is a Femtocell and it is sleeping (it has no users), then, check total energy consumption
             # 0 - NMacroCells -> MacroCells. NMacroCells - end -> FemtoCells
             def is_femtocell(bs_index):
                 return bs_index >= self.NMacroCells
             
-            if is_femtocell(closestBSDownlink):
-                if self.baseStation_users[timeIndex][closestBSDownlink] == 0: # If inactive
+            if is_femtocell(closest_bs_dl):
+                if self.baseStation_users[timeIndex][closest_bs_dl] == 0: # If inactive
                     # Can I turn it on with PoF?
                     active_femto = np.sum(self.active_Cells[timeIndex][self.NMacroCells:])
                     battery_femto = np.count_nonzero(self.battery_state[timeIndex][self.NMacroCells:] == 2.0)   # Battery Cells doesnt count for current_watts budget
                     current_watts = (active_femto * self.small_cell_consumption_ON) + ((self.NFemtoCells - (active_femto + battery_femto)) * self.small_cell_consumption_SLEEP)
 
+                    def find_macro():
+                        return search_closest_macro(
+                            [
+                                self.user_list[userIndex]["v_x"][timeIndex],
+                                self.user_list[userIndex]["v_y"][timeIndex]
+                            ],
+                            self.BaseStations[0:self.NMacroCells, 0:2])
+
+
                     if current_watts >= (self.max_energy_consumption_active - self.small_cell_consumption_ON + self.small_cell_consumption_SLEEP): # No, I cannot. Check battery.
                     # if current_watts >= (self.max_energy_consumption_active - self.small_cell_consumption_ON + self.small_cell_consumption_SLEEP): # No, I cannot. Check battery.
 
                         # Check if we can use Femtocell's battery
-                        if self.battery_vector[0, closestBSDownlink] > (timeStep/3600) * self.small_cell_current_draw:
+                        if self.battery_vector[0, closest_bs_dl] > (timeStep/3600) * self.small_cell_current_draw:
                             
                             # Check if is booting Up!
-                            if (self.starting_up_femto[closestBSDownlink] > 0 and self.starting_up_femto[closestBSDownlink] <= self.startup_max_tokens):
+                            if (self.starting_up_femto[closest_bs_dl] > 0 and self.starting_up_femto[closest_bs_dl] <= self.startup_max_tokens):
                                 # On Process to startup, using backup...
-                                self.active_Cells[timeIndex][closestBSDownlink] = 0     # This cell does not count for the overall PoF power budget.
-                                self.battery_state[timeIndex][closestBSDownlink] = 2.0  # Discharge battery.
+                                self.active_Cells[timeIndex][closest_bs_dl] = 0     # This cell does not count for the overall PoF power budget.
+                                self.battery_state[timeIndex][closest_bs_dl] = 2.0  # Discharge battery.
                             # Check if already booted
-                            elif closestBSDownlink in self.started_up_femto:
+                            elif closest_bs_dl in self.started_up_femto:
                                 # Yes! Femto is booted
-                                X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
-                                Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
+                                X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closest_bs_dl, 0]]
+                                Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closest_bs_dl, 1]]
                             
                                 self.user_association_line[userIndex].set_data(X, Y)
                                 self.user_association_line[userIndex].set_color('green')
                                 self.user_association_line[userIndex].set_linestyle('--')
                                 self.user_association_line[userIndex].set_linewidth(3)
-                                self.association_vector[0, userIndex] = closestBSDownlink # Associate.
+                                self.association_vector[0, userIndex] = closest_bs_dl # Associate.
 
                                 # Alternative if we had no batteries would be...
-                                self.association_vector_overflow_alternative[0, userIndex] = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex], 
-                                                                                                                                                    self.user_list[userIndex]["v_y"][timeIndex]], 
-                                                                                                                                                    self.BaseStations[0:self.NMacroCells, 0:2])
+                                self.association_vector_overflow_alternative[0, userIndex] = find_macro()
                             
-                                self.overflown_from[timeIndex][closestBSDownlink] += 1
+                                self.overflown_from[timeIndex][closest_bs_dl] += 1
 
                                 self.is_in_femto[userIndex][timeIndex] = 1              # User is associated with femto
-                                self.active_Cells[timeIndex][closestBSDownlink] = 0     # This cell does not count for the overall PoF power budget.
-                                self.battery_state[timeIndex][closestBSDownlink] = 2.0  # Discharge battery.
+                                self.active_Cells[timeIndex][closest_bs_dl] = 0     # This cell does not count for the overall PoF power budget.
+                                self.battery_state[timeIndex][closest_bs_dl] = 2.0  # Discharge battery.
                                 # However, draw from Femtocell's battery.
-                                self.battery_vector[0, closestBSDownlink] = max(0, self.battery_vector[0, closestBSDownlink] - (timeStep/3600) * self.small_cell_current_draw) 
-                                self.baseStation_users[timeIndex][closestBSDownlink] += 1 # Add user.
+                                self.battery_vector[0, closest_bs_dl] = max(0, self.battery_vector[0, closest_bs_dl] - (timeStep/3600) * self.small_cell_current_draw)
+                                self.baseStation_users[timeIndex][closest_bs_dl] += 1 # Add user.
                                 continue
                             else:
                                 # Not started, should startup
-                                self.starting_up_femto[closestBSDownlink] = self.startup_max_tokens       # Init Bucket for this closest BS
+                                self.starting_up_femto[closest_bs_dl] = self.startup_max_tokens       # Init Bucket for this closest BS
                         
-                                self.active_Cells[timeIndex][closestBSDownlink] = 0     # This cell does not count for the overall PoF power budget.
-                                self.battery_state[timeIndex][closestBSDownlink] = 2.0  # Discharge battery.
+                                self.active_Cells[timeIndex][closest_bs_dl] = 0     # This cell does not count for the overall PoF power budget.
+                                self.battery_state[timeIndex][closest_bs_dl] = 2.0  # Discharge battery.
                             
                             # Associate User to closest Macro
-                            closest_Macro = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex],
-                                                                                                    self.user_list[userIndex]["v_y"][timeIndex]],
-                                                                                                    self.BaseStations[0:self.NMacroCells, 0:2])
+                            closest_Macro = find_macro()
                         
                             X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closest_Macro, 0]]
                             Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closest_Macro, 1]]
@@ -392,9 +407,9 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                             self.baseStation_users[timeIndex][closest_Macro] += 1
                         else:
                             # Associate to closest Macrocell
-                            closest_Macro = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex],
-                                                                                                   self.user_list[userIndex]["v_y"][timeIndex]],
-                                                                                                   self.BaseStations[0:self.NMacroCells, 0:2])
+                            closest_Macro = search_closest_macro(
+                                [self.user_list[userIndex]["v_x"][timeIndex], self.user_list[userIndex]["v_y"][timeIndex]],
+                                self.BaseStations[0:self.NMacroCells, 0:2])
                             
                             X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closest_Macro, 0]]
                             Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closest_Macro, 1]]
@@ -412,38 +427,36 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                         # Yes, turn on with PoF and try to associate
                         
                         # Check if BS is already on or not started
-                        if (self.starting_up_femto[closestBSDownlink] > 0 and self.starting_up_femto[closestBSDownlink] <= self.startup_max_tokens):
+                        if (self.starting_up_femto[closest_bs_dl] > 0 and self.starting_up_femto[closest_bs_dl] <= self.startup_max_tokens):
                             # On Process to startup, using backup...
-                            self.active_Cells[timeIndex][closestBSDownlink] = 1     # This cell counts for the PoF budget.
-                            self.battery_state[timeIndex][closestBSDownlink] = 0.0  # No battery usage.
-                        elif closestBSDownlink in self.started_up_femto:
+                            self.active_Cells[timeIndex][closest_bs_dl] = 1     # This cell counts for the PoF budget.
+                            self.battery_state[timeIndex][closest_bs_dl] = 0.0  # No battery usage.
+                        elif closest_bs_dl in self.started_up_femto:
                             # Femto on! Yes, associate
-                            X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
-                            Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
+                            X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closest_bs_dl, 0]]
+                            Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closest_bs_dl, 1]]
 
                             self.user_association_line[userIndex].set_data(X, Y)
-                            self.user_association_line[userIndex].set_color(self.colorsBS[closestBSDownlink])
+                            self.user_association_line[userIndex].set_color(self.colorsBS[closest_bs_dl])
                             self.user_association_line[userIndex].set_linestyle('-')
                             self.user_association_line[userIndex].set_linewidth(0.5)
 
-                            self.association_vector[0, userIndex] = closestBSDownlink       # Associate.
+                            self.association_vector[0, userIndex] = closest_bs_dl       # Associate.
                             self.association_vector_overflow_alternative[0, userIndex] = 0  # I can use PoF. Having batteries makes no difference in this case. Alternative is not needed.
                             self.is_in_femto[userIndex][timeIndex] = 1                      # User is associated with femto
-                            self.active_Cells[timeIndex][closestBSDownlink] = 1             # This cell counts for the PoF budget.
-                            self.battery_state[timeIndex][closestBSDownlink] = 0.0          # No battery usage.
-                            self.baseStation_users[timeIndex][closestBSDownlink] += 1       # Add user.
+                            self.active_Cells[timeIndex][closest_bs_dl] = 1             # This cell counts for the PoF budget.
+                            self.battery_state[timeIndex][closest_bs_dl] = 0.0          # No battery usage.
+                            self.baseStation_users[timeIndex][closest_bs_dl] += 1       # Add user.
                             continue 
                         else:
                             # Not started, should startup
-                            self.starting_up_femto[closestBSDownlink] = self.startup_max_tokens       # Init Bucket for this closest BS
+                            self.starting_up_femto[closest_bs_dl] = self.startup_max_tokens       # Init Bucket for this closest BS
                         
-                            self.active_Cells[timeIndex][closestBSDownlink] = 1 # This cell counts for the PoF budget.
-                            self.battery_state[timeIndex][closestBSDownlink] = 0.0 # No battery usage.
+                            self.active_Cells[timeIndex][closest_bs_dl] = 1 # This cell counts for the PoF budget.
+                            self.battery_state[timeIndex][closest_bs_dl] = 0.0 # No battery usage.
                             
                         # Associate User to closest Macro
-                        closest_Macro = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex],
-                                                                                               self.user_list[userIndex]["v_y"][timeIndex]],
-                                                                                               self.BaseStations[0:self.NMacroCells, 0:2])
+                        closest_Macro = find_macro()
                         
                         X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closest_Macro, 0]]
                         Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closest_Macro, 1]]
@@ -460,25 +473,23 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
 
                 else: # Already ON, associate to the femtocell, just add one user.
                     # Check if femto cell is booting up... (token bucket its zero if already booted)
-                    if self.starting_up_femto[closestBSDownlink] == 0:
-                        self.association_vector[0, userIndex] = closestBSDownlink   # Associate.
+                    if self.starting_up_femto[closest_bs_dl] == 0:
+                        self.association_vector[0, userIndex] = closest_bs_dl   # Associate.
                         self.is_in_femto[userIndex][timeIndex] = 1                  # User in Femto area and associated with that cell
 
-                        if self.battery_state[timeIndex][closestBSDownlink] == 2.0: # Is Discharging
+                        if self.battery_state[timeIndex][closest_bs_dl] == 2.0: # Is Discharging
                             # If we had no batteries, this user would have been gone to the closest macrocell. 
                             # Search "overflow" alternative and add 1 to the "kicked" users of this femtocell in the hypothetical case we had no batteries installed. 
-                            self.association_vector_overflow_alternative[0, userIndex] = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex], 
-                                                                                                                                                self.user_list[userIndex]["v_y"][timeIndex]], 
-                                                                                                                                                self.BaseStations[0:self.NMacroCells, 0:2])
-                            self.overflown_from[timeIndex][closestBSDownlink] += 1
+                            self.association_vector_overflow_alternative[0, userIndex] = find_macro()
+                            self.overflown_from[timeIndex][closest_bs_dl] += 1
                         else:
                             self.association_vector_overflow_alternative[0, userIndex] = 0
-                        self.baseStation_users[timeIndex][closestBSDownlink] += 1 # Add user.
+                        self.baseStation_users[timeIndex][closest_bs_dl] += 1 # Add user.
 
-                        X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
-                        Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
+                        X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closest_bs_dl, 0]]
+                        Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closest_bs_dl, 1]]
 
-                        if self.battery_state[timeIndex][closestBSDownlink] == 2.0: # Is Discharging
+                        if self.battery_state[timeIndex][closest_bs_dl] == 2.0: # Is Discharging
                             # If using battery (only check == 2 because 3 only happens later at chaging decison)
                             self.user_association_line[userIndex].set_data(X, Y)
                             self.user_association_line[userIndex].set_color('green')
@@ -487,15 +498,13 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
 
                         else: # Is Charging
                             self.user_association_line[userIndex].set_data(X, Y)
-                            self.user_association_line[userIndex].set_color(self.colorsBS[closestBSDownlink])
+                            self.user_association_line[userIndex].set_color(self.colorsBS[closest_bs_dl])
                             self.user_association_line[userIndex].set_linestyle('-')
                             self.user_association_line[userIndex].set_linewidth(0.5)
                     else:
                         # Token bucket isnt zero, so still booting up
                         # Associate user with closest MacroCell
-                        closest_Macro = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex],
-                                                                                               self.user_list[userIndex]["v_y"][timeIndex]],
-                                                                                               self.BaseStations[0:self.NMacroCells, 0:2])
+                        closest_Macro = find_macro()
                         
                         X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closest_Macro, 0]]
                         Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closest_Macro, 1]]
@@ -511,18 +520,18 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                         self.baseStation_users[timeIndex][closest_Macro] += 1
 
             else: # Associate to a Macrocell
-                X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closestBSDownlink, 0]]
-                Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closestBSDownlink, 1]]
+                X = [self.user_list[userIndex]["v_x"][timeIndex], self.BaseStations[closest_bs_dl, 0]]
+                Y = [self.user_list[userIndex]["v_y"][timeIndex], self.BaseStations[closest_bs_dl, 1]]
 
                 self.user_association_line[userIndex].set_data(X, Y)
-                self.user_association_line[userIndex].set_color(self.colorsBS[closestBSDownlink])
+                self.user_association_line[userIndex].set_color(self.colorsBS[closest_bs_dl])
                 self.user_association_line[userIndex].set_linestyle('-')
                 self.user_association_line[userIndex].set_linewidth(0.5)
 
-                self.association_vector[0, userIndex] = closestBSDownlink # Associate.
+                self.association_vector[0, userIndex] = closest_bs_dl # Associate.
                 self.association_vector_overflow_alternative[0, userIndex] = 0                
-                self.active_Cells[timeIndex][closestBSDownlink] = 0         # User not in area of femtocell
-                self.baseStation_users[timeIndex][closestBSDownlink] += 1   # Add user.
+                self.active_Cells[timeIndex][closest_bs_dl] = 0         # User not in area of femtocell
+                self.baseStation_users[timeIndex][closest_bs_dl] += 1   # Add user.
          
         # End user allocation in timeIndex instance 
         
@@ -849,6 +858,21 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
 
 
 
+    def plofile_traffic(self, timeIndex):
+        print()
+
+        # Model a Valley-Spoke Curve for the traffic around the time of the day
+        # It should generate a multiplication factor, between 0.2 and 1.0, that models the curve around the time of the day
+        # Between 20% and 100% of the traffic
+
+
+
+
+
+
+
+
+
 
 
     # ------------------------------------------------------------------------------------------------------------ #
@@ -857,7 +881,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
     #                                                                                                              #
     #                                                                                                              #
     # ------------------------------------------------------------------------------------------------------------ #
-    def plot_output(self, sim_times, timeStep, is_gui: bool = False, show_plots: bool = True):
+    def plot_output(self, sim_times, timeStep, is_gui: bool = False, show_plots: bool = True, fig_size: tuple = (12, 8), dpi: int = 100):
         """ Override Show Plot Output
 
         Args:
@@ -876,8 +900,8 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         # Compute %'s
         # self.is_in_femto -> 1 == associated with femto, -> 2 == associated with macro, -> 0 == no on femto area
         sum_served_femto = 0    # % that a user is in femto area, and its associated
-        sum_in_area = 0         # % that a user is in femto area (associated or not)          
-        sum_time_served = 0     # % that user is in femto and its has been associated with a femto                
+        sum_in_area = 0         # % that a user is in femto area (associated or not)
+        sum_time_served = 0     # % that user is in femto and its has been associated with a femto
         for user in range(0, len(self.NUsers)):
             t_served_femto = np.count_nonzero(self.is_in_femto[user] == 1)
             sum_served_femto += (t_served_femto) / (len(sim_times))
@@ -904,7 +928,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         for user in range(0, len(self.NUsers)):
             user_traffic = np.asarray([self.X_user[t][user][metric] for t in range(len(sim_times))])
             ax.plot(sim_times, user_traffic/10e6, label=f'User {user}')
-        ax.legend(fontsize='x-small', ncols=3)
+        # ax.legend(fontsize='x-small', ncols=3)
         ax.set_title(f'Traffic for each user')
         ax.set_xlabel('Time [s]')
         ax.set_ylabel('Throughput [Mb/s]')
@@ -929,7 +953,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         
         # Battery capacity
         fig_batt_capacity, ax = plt.subplots()
-        self.list_figures.append((fig_batt_capacity, "batt-capacity")) 
+        self.list_figures.append((fig_batt_capacity, "batt-capacity"))
         ax.axhline(y=3300, color='r',label="Max. capacity")
         for bar in range(0, len(self.battery_vector[0])):
             if bar >= self.NMacroCells:
@@ -995,168 +1019,89 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
 
 
 
-        # Plot associations of users to cells. Two plots:
-        # 1. Femto cells regions
-        # 2. Macro cells regions
-
+        # Plot associations of users to cells - Femto and Macro regions
         last_user_to_bs_assoc = self.association_vector[0, :]
+        users_pos = np.array([[self.user_list[user]["v_x"][-1], self.user_list[user]["v_y"][-1]] 
+                             for user in range(len(self.NUsers))])
 
-        # regions_fem = self.Regions[self.NMacroCells:]
-        # regions_mac = self.Regions[:self.NMacroCells]
-
-        users_pos = np.array([
-            [self.user_list[user]["v_x"][-1], self.user_list[user]["v_y"][-1]]
-            for user in range(len(self.NUsers))
-        ])
-
-        users_in_fem = np.zeros(len(last_user_to_bs_assoc), dtype=int)
-        users_in_mac = np.zeros(len(last_user_to_bs_assoc), dtype=int)
-
+        # Separate users and lines by cell type
+        p2p_lines_fem, p2p_lines_mac = [], []
+        users_fem, users_mac = [], []
+        
         for user, bs in enumerate(last_user_to_bs_assoc):
+            user_pos = (self.user_list[user]["v_x"][-1], self.user_list[user]["v_y"][-1])
+            bs_pos = self.BaseStations[int(bs)][:2]
+            line = ([user_pos[0], bs_pos[0]], [user_pos[1], bs_pos[1]])
+            
             if bs >= self.NMacroCells:
-                users_in_fem[user] = 1
+                p2p_lines_fem.append(line)
+                users_fem.append(user_pos)
             else:
-                users_in_mac[user] = 1
+                p2p_lines_mac.append(line)
+                users_mac.append(user_pos)
 
+        # Get active/inactive femto cells
+        femto_indices = np.arange(self.NMacroCells, self.NMacroCells + self.NFemtoCells)
+        active_femtos = femto_indices[self.active_Cells[self.NMacroCells:] == 1]
+        inactive_femtos = femto_indices[self.active_Cells[self.NMacroCells:] == 0]
 
-        p2p_lines_fem = []
-        p2p_lines_mac = []
-        users_fem = []
-        users_mac = []
+        # Helper functions
+        def region_config(index):
+            return {
+                "alpha": 0.3, "edgecolor": 'black', "linewidth": 0.5, "linestyle": '-',
+                "color": 'blue' if index in active_femtos else 'gray' if index in inactive_femtos else 'orange'
+            }
 
-
-
-        for user, bs in enumerate(last_user_to_bs_assoc):
-            user_x = self.user_list[user]["v_x"][-1]
-            user_y = self.user_list[user]["v_y"][-1]
-            bs_x = self.BaseStations[int(bs)][0]
-            bs_y = self.BaseStations[int(bs)][1]
-
-            x_coords = [user_x, bs_x]
-            y_coords = [user_y, bs_y]
-
-            if bs >= self.NMacroCells:
-                p2p_lines_fem.append((x_coords, y_coords))
-                users_fem.append((user_x, user_y))
-            else:
-                p2p_lines_mac.append((x_coords, y_coords))
-                users_mac.append((user_x, user_y))
-
-
-
-
-
-        # Paint the regions (bs areas)
-        region_config = {
-            "alpha": 0.3,
-            "edgecolor": 'black',
-            "linewidth": 0.5,
-            "linestyle": '-',
-        }
         def paint_regions(_regions, _ax):
-            for i in range(len(_regions) - 1, -1, -1):
-                _region = _regions[i]
-                if isinstance(_region, Polygon):
-                    x, y = _region.exterior.coords.xy
-                    _ax.fill(x, y, **region_config)
-                elif isinstance(_region, MultiPolygon):
-                    for reg in _region.geoms:
-                        x, y = reg.exterior.coords.xy
-                        _ax.fill(x, y, **region_config)
-                elif isinstance(_region, GeometryCollection):
-                    for geom in _region.geoms:
-                        if isinstance(geom, Polygon):
-                            x, y = geom.exterior.coords.xy
-                            _ax.fill(x, y, **region_config)
-                else:
-                    x, y = _region.exterior.coords.xy
-                    _ax.fill(x, y, **region_config)
+            for region in reversed(_regions):
+                if isinstance(region, (Polygon, MultiPolygon, GeometryCollection)):
+                    if isinstance(region, Polygon):
+                        polygons = [region]
+                    elif isinstance(region, MultiPolygon):
+                        polygons = region.geoms
+                    else:  # GeometryCollection
+                        polygons = [g for g in region.geoms if isinstance(g, Polygon)]
+                    
+                    for index, poly in enumerate(polygons):
+                        x, y = poly.exterior.coords.xy
+                        _ax.fill(x, y, **region_config(index))
 
-        node_config = {
-            "marker": "o",
-            "s": 30,
-            "color": 'blue',
-            "alpha": 1,
-        }
-        def paint_node(x, y, _ax):
-            _ax.scatter(x, y, color='black', s=10, marker='o')
+        def setup_plot(title, is_femto=True):
+            fig, ax = plt.subplots()
+            self.list_figures.append((fig, f'output-last-user-association-only-{"femto" if is_femto else "macro"}'))
+            ax.set_title(f'Last User Association - {"Femto" if is_femto else "Macro"} Cells')
+            ax.scatter([], [], label=f"User in {'Femto' if is_femto else 'Macro'}Cell", color='red', s=20, marker='+', linewidths=2)
+            ax.scatter([], [], label=f"User in {'Macro' if is_femto else 'Femto'}Cell", color='blue', s=20, marker='+', linewidths=2)
+            ax.scatter([], [], label=f"{'Femto' if is_femto else 'Macro'}Cell", color='black', s=10, marker='o')
+            ax.legend()
+            ax.axis('off')
+            fig.tight_layout()
+            return fig, ax
 
-        def paint_association(line, _ax):
-            _ax.plot(line[0], line[1], color='green', linewidth=0.8)
+        # Create and populate plots
+        fig_fem, ax_fem = setup_plot('Femto', True)
+        fig_mac, ax_mac = setup_plot('Macro', False)
 
-        def paint_user(x, y, _ax):
-            _ax.scatter(x, y, color='red', s=20, marker='+', linewidths=2)
+        def draw_cell_associations(start_idx, end_idx, ax, lines, active_users, inactive_users):
+            for i in range(start_idx, end_idx):
+                paint_regions([self.Regions[i]], ax)
+                ax.scatter(*self.BaseStations[i][:2], color='black', s=10, marker='o')
+            
+            for line in lines:
+                ax.plot(line[0], line[1], color='green', linewidth=0.8)
+            
+            for user in active_users:
+                ax.scatter(*user, color='red', s=20, marker='+', linewidths=2)
+            for user in inactive_users:
+                ax.scatter(*user, color='blue', s=5, marker='+', linewidths=0.5)
 
-        def paint_user_no_active(x, y, _ax):
-            _ax.scatter(x, y, color='blue', s=5, marker='+', linewidths=0.5)
-
-
-
-
-        fig_user_assoc_only_femto, ax_fem = plt.subplots()
-        self.list_figures.append((fig_user_assoc_only_femto, 'output-last-user-association-only-femto'))
-        ax_fem.set_title('Last User Association - Femto Cells')
-        ax_fem.scatter([], [], label="User in FemtoCell", color='red', s=20, marker='+', linewidths=2)
-        ax_fem.scatter([], [], label="User in MacroCell", color='blue', s=20, marker='+', linewidths=2)
-        ax_fem.scatter([], [], label="FemtoCell", color='black', s=10, marker='o')
-        ax_fem.legend()
-        ax_fem.axis('off')
-        fig_user_assoc_only_femto.tight_layout()
-        # ax_fem.set_xlabel('X [km]')
-        # ax_fem.set_ylabel('Y [km]')
-
-
-        fig_user_assoc_only_macro, ax_mac = plt.subplots()
-        self.list_figures.append((fig_user_assoc_only_macro, 'output-last-user-association-only-macro'))
-        ax_mac.set_title('Last User Association - Macro Cells')
-        ax_mac.scatter([], [], label="User in MacroCell", color='red', s=20, marker='+', linewidths=2)
-        ax_mac.scatter([], [], label="User in FemtoCell", color='blue', s=20, marker='+', linewidths=2)
-        ax_mac.scatter([], [], label="MacroCell", color='black', s=10, marker='o')
-        ax_mac.legend()
-        ax_mac.axis('off')
-        fig_user_assoc_only_macro.tight_layout()
-        # ax_mac.set_xlabel('X [km]')
-        # ax_mac.set_ylabel('Y [km]')
-
-        # Loop over Femto BSs
-        for i in range(self.NMacroCells, len(self.BaseStations)):
-            region = self.Regions[i]
-            paint_regions([region], ax_fem)  # wrap single _region in list
-            bs_x, bs_y = self.BaseStations[i][:2]
-            paint_node(bs_x, bs_y, ax_fem)
-
-            for user, bs in enumerate(last_user_to_bs_assoc):
-                if bs == i:
-                    paint_user(*users_pos[user], ax_fem)
-
-        for line in p2p_lines_fem:
-            paint_association(line, ax_fem)
-
-        for user in users_fem:
-            paint_user(*user, ax_fem)
-
-        for user in users_mac:
-            paint_user_no_active(*user, ax_fem)
-
-        # Loop over Macro BSs
-        for i in range(self.NMacroCells):
-            region = self.Regions[i]
-            paint_regions([region], ax_mac)
-            bs_x, bs_y = self.BaseStations[i][:2]
-            paint_node(bs_x, bs_y, ax_mac)
-
-            for user, bs in enumerate(last_user_to_bs_assoc):
-                if bs == i:
-                    paint_user(*users_pos[user], ax_mac)
-
-        for line in p2p_lines_mac:
-            paint_association(line, ax_mac)
-
-        for user in users_mac:
-            paint_user(*user, ax_mac)
-
-        for user in users_fem:
-            paint_user_no_active(*user, ax_mac)
+        # Draw femto cells
+        draw_cell_associations(self.NMacroCells, len(self.BaseStations), ax_fem, 
+                             p2p_lines_fem, users_fem, users_mac)
+        
+        # Draw macro cells  
+        draw_cell_associations(0, self.NMacroCells, ax_mac,
+                             p2p_lines_mac, users_mac, users_fem)
 
 
 
@@ -1164,7 +1109,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
 
 
         # Get the context_class method
-        super().plot_output(sim_times=sim_times, show_plots=show_plots, is_gui=is_gui)
+        super().plot_output(sim_times=sim_times, show_plots=show_plots, is_gui=is_gui, fig_size=fig_size)
 
 
 
@@ -1183,9 +1128,9 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
     #                                                                                                              #
     #                                                                                                              #
     # ------------------------------------------------------------------------------------------------------------ #
-    def save_run(self, fig_map, sim_times, run_name, output_folder):
+    def save_run(self, fig_map, sim_times, run_name, output_folder, dpi: int = 200):
         # Legacy algorithm save
-        super().save_run(fig_map, sim_times, run_name, output_folder)
+        super().save_run(fig_map, sim_times, run_name, output_folder, dpi)
         
         # Retrieve the app paths
         root_folder = os.path.abspath(__file__ + os.sep + os.pardir + os.sep + os.pardir)

@@ -4,17 +4,14 @@ from simulator.launch_tecno_new import execute_simulator
 # Default input_parameters. Copy and modify ad-hoc  [Legacy version]
 INPUT_PARAMETERS = {
         'Users': 1000,
-        'timeStep': 3600,                       # In seconds, 1 hour
-        # 'Simulation_Time': 72000,             # In seconds, Debug 2 steps
-        'Simulation_Time': 720000,             # In seconds, Debug 2 steps
-        # 'Simulation_Time': 2592000,             # In seconds, 1 month of 30 days
+        'timeStep': 60*5,                       # In seconds, 5 minutes
+        'Simulation_Time': 3600*24,             # In seconds, 24 hours
         # 'NMacroCells': 20,
         # 'NFemtoCells': 134,
-        'Maplimit': 40,                       # Size of Map grid, [dont touch]
-        'numberOfLasers': 20,                   # Deprecated
-        'numberOfPofPools': 20,                 # Number of HPLDS
-        'numberOfWattsPerPool': 5,              # Watts. Capacity of each HPLD
-        'N_femto_per_pool': 3,                  # Number of femtocells powered by each HPLD
+        'Maplimit': 40,                         # Size of Map grid, [dont touch]
+        'numberOfPofPools': 20,                         # Number of HPLDS
+        'numberOfLasersPerPool': 5,                     # Number of lasers per HPLD
+        'wattsPerLaser': 1,                     # Watts. Capacity of each HPLD
 
         'battery_capacity': 3.3,                # Ah
         'small_cell_consumption_on': 0.7,       # In Watts
@@ -23,7 +20,7 @@ INPUT_PARAMETERS = {
         'small_cell_voltage_max': 0.033,        # In mVolts
         'mean_user_speed': 5.5,                 # In m/s
         'noise': 2.5e-14,
-        'SMA_WINDOW': 1,
+        'SMA_WINDOW': 5, 
         'TransmittingPower' : {
             'PMacroCells': 40,
             'PFemtoCells': 0.1,
@@ -58,6 +55,7 @@ CUSTOM_CONFIG = {
     'city': "Cartagena",         # Select city
     'MapScale': 1,               # 1 km == 1 points (1:1)
     'fiberAttdBperKm': 0.2,      # Fiber attenuation in dB/Km
+    'plot_dpi': 200,
 }
 
 logging.basicConfig(format='%(asctime)s %(levelname)s:%(module)s:%(funcName)s: %(message)s', 

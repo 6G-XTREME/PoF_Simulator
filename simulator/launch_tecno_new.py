@@ -12,7 +12,7 @@ from simulator.bcolors import bcolors
 import simulator.map_utils, simulator.mobility_utils, simulator.user_association_utils, simulator.radio_utils
 import model.RegionsCalcs
 from datetime import datetime, timezone
-
+import os, json
 
 # Default input_parameters. Copy and modify ad-hoc  [Legacy version]
 INPUT_PARAMETERS = {
@@ -23,10 +23,9 @@ INPUT_PARAMETERS = {
         # 'NMacroCells': 20,
         # 'NFemtoCells': 134,
         'Maplimit': 40,                         # Size of Map grid, [dont touch]
-        'numberOfLasers': 20,                   # Deprecated
-        'numberOfPofPools': 20,                 # Number of HPLDS
-        'numberOfWattsPerPool': 5,              # Watts. Capacity of each HPLD
-        'N_femto_per_pool': 5,                  # Number of femtocells powered by each HPLD
+        'numberOfPofPools': 20,                         # Number of PoF Pools
+        'numberOfLasersPerPool': 5,                     # Number of lasers per PoF Pool 
+        'wattsPerLaser': 1,                     # Watts. Power of each laser
 
         'battery_capacity': 3.3,                # Ah
         'small_cell_consumption_on': 0.7,       # In Watts
@@ -63,6 +62,15 @@ logger = logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 logging.getLogger("PIL.PngImagePlugin").setLevel(logging.WARNING)
 
+
+
+
+# ------------------------------------------------------------------------------------------------------------ #
+# -- EXECUTE SIMULATOR --------------------------------------------------------------------------------------- #
+#                                                                                                              #
+#                                                                                                              #
+#                                                                                                              #
+# ------------------------------------------------------------------------------------------------------------ #
 def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name: str = "", input_parameters: dict = INPUT_PARAMETERS, config_parameters: dict = CONFIG_PARAMETERS, custom_parameters: dict = {}):
     if run_name == "":
         run_name = str(uuid.uuid4())[:8]
@@ -77,7 +85,12 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         import matplotlib
         # matplotlib.use('TkAgg')  # Set the Matplotlib backend
     
-    # Import input_parameters from dict
+    # ------------------------------------------------------------------------------------------------------------ #
+    # -- IMPORT PARAMETERS --------------------------------------------------------------------------------------- #
+    #                                                                                                              #
+    #                                                                                                              #
+    #                                                                                                              #
+    # ------------------------------------------------------------------------------------------------------------ #
     try:
         battery_capacity = input_parameters.get('battery_capacity', 3.3)
         small_cell_consumption_ON = input_parameters.get('small_cell_consumption_on', 0.7)
@@ -86,12 +99,11 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         Simulation_Time = input_parameters.get('Simulation_Time', 7200)
         Users = input_parameters.get('Users', 1000)
         timeStep = input_parameters.get('timeStep', 3600)
-        numberOfLasers = input_parameters.get('numberOfLasers', 5)
         numberOfPofPools = input_parameters.get('numberOfPofPools', 20)
-        numberOfWattsPerPool = input_parameters.get('numberOfWattsPerPool', 5)
-        N_femto_per_pool = input_parameters.get('N_femto_per_pool', 5)
+        numberOfLasersPerPool = input_parameters.get('numberOfLasersPerPool', 5)
+        wattsPerLaser = input_parameters.get('wattsPerLaser', 1)
         noise = input_parameters.get('noise', 2.5e-14)
-        SMA_WINDOW = input_parameters.get('SMA_WINDOW', 1)
+        SMA_WINDOW = input_parameters.get('SMA_WINDOW', 5)
         small_cell_voltage_range = np.array([input_parameters.get('small_cell_voltage_min', 0.028), 
                                              input_parameters.get('small_cell_voltage_max', 0.033)])
         
@@ -103,8 +115,8 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         
         small_cell_current_draw = small_cell_consumption_ON/np.mean(small_cell_voltage_range)
         
-        max_energy_consumption_total = numberOfPofPools * numberOfWattsPerPool                               # 1 Watt each laser, total energy inside PoF Budget (no batteries related)
-        max_energy_consumption_active = numberOfPofPools * N_femto_per_pool * small_cell_consumption_ON      # One laser per femtocell
+        max_energy_consumption_total = numberOfPofPools * numberOfLasersPerPool * wattsPerLaser                                # 1 Watt each laser, total energy inside PoF Budget (no batteries related)
+        max_energy_consumption_active = numberOfPofPools * numberOfLasersPerPool * small_cell_consumption_ON      # One laser per femtocell
         
         min_user_speed = 1
         max_user_speed = 2 * input_parameters['mean_user_speed'] - min_user_speed    # Get the max value, [xmin, xmax] that satisfy the mean 
@@ -132,6 +144,16 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         logger.error(e)
         return
     
+
+    
+    
+    
+    # ------------------------------------------------------------------------------------------------------------ #
+    # -- CONFIGURE TOPOLOGY -------------------------------------------------------------------------------------- #
+    #                                                                                                              #
+    #                                                                                                              #
+    #                                                                                                              #
+    # ------------------------------------------------------------------------------------------------------------ #
     if config_parameters.get('use_user_list', False):
         logger.info("Using defined 'user_list', overriding Simulation Time to 50s...")
         Simulation_Time = 50
@@ -154,12 +176,13 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
 
             # Correct the gaps between celds and border
             min_x, min_y = np.min(BaseStations[:,0]), np.min(BaseStations[:,1])
+            margin = 0.5
 
-            BaseStations[:,0] = BaseStations[:,0] - min_x + 1
-            BaseStations[:,1] = BaseStations[:,1] - min_y + 1
+            BaseStations[:,0] = BaseStations[:,0] - min_x + margin
+            BaseStations[:,1] = BaseStations[:,1] - min_y + margin
 
             max_x, max_y = np.max(BaseStations[:,0]), np.max(BaseStations[:,1])
-            Maplimit = max(max_x, max_y) + 1
+            Maplimit = max(max_x, max_y) + margin
 
         except Exception as e:
             logger.error(bcolors.FAIL + 'Error importing the nice_setup.mat' + bcolors.ENDC)
@@ -192,6 +215,17 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
             logger.error(e)
             return
 
+
+
+
+
+
+    # ------------------------------------------------------------------------------------------------------------ #
+    # -- PREPARE PLOTS ------------------------------------------------------------------------------------------- #
+    #                                                                                                              #
+    #                                                                                                              #
+    #                                                                                                              #
+    # ------------------------------------------------------------------------------------------------------------ #
     try:
         colorsBS = np.zeros((Npoints, 3))
         if canvas_widget is None: 
@@ -242,6 +276,18 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         logger.error(e)
         return
 
+
+
+
+
+
+
+    # ------------------------------------------------------------------------------------------------------------ #
+    # -- CONFIGURE REGIONS --------------------------------------------------------------------------------------- #
+    #                                                                                                              #
+    #                                                                                                              #
+    #                                                                                                              #
+    # ------------------------------------------------------------------------------------------------------------ #
     try:
         # TODO: Modify here
         
@@ -290,6 +336,16 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         logger.error(e)
         sys.exit(0)  
 
+
+
+
+
+    # ------------------------------------------------------------------------------------------------------------ #
+    # -- CONFIGURE SIMULATION ------------------------------------------------------------------------------------ #
+    #                                                                                                              #
+    #                                                                                                              #
+    #                                                                                                              #
+    # ------------------------------------------------------------------------------------------------------------ #
     sim_input = {
         'V_POSITION_X_INTERVAL': [0, Maplimit],                         # (m)
         'V_POSITION_Y_INTERVAL': [0, Maplimit],                         # (m)
@@ -371,7 +427,18 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         else:
             canvas_widget.draw()
 
-    # Start the simulation!
+
+
+
+
+
+
+    # ------------------------------------------------------------------------------------------------------------ #
+    # -- START SIMULATION ---------------------------------------------------------------------------------------- #
+    #                                                                                                              #
+    #                                                                                                              #
+    #                                                                                                              #
+    # ------------------------------------------------------------------------------------------------------------ #
     logger.info("Using E-Lighthouse algorithm...")
     from simulator.algorithm_tecno_new import PoF_simulation_ELighthouse_TecnoAnalysis
     
@@ -389,16 +456,30 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
                             speed_plot=config_parameters.get('speed_live_plots', 0.001),
                             canvas_widget=canvas_widget,
                             progressbar_widget=progressbar_widget)
-    
+
     eli.plot_output(sim_times=sim_times,
                         show_plots=config_parameters.get('show_plots', False),
                         timeStep=timeStep,
-                        is_gui=(canvas_widget is not None))
+                        is_gui=(canvas_widget is not None),
+                        dpi=config_parameters.get('plot_dpi', 200),
+    )
 
     if config_parameters.get('save_output', True):
         eli.save_run(fig_map=fig_map, 
                         sim_times=sim_times, 
                         run_name=run_name, 
-                        output_folder=config_parameters.get('output_folder', None))
+                        output_folder=config_parameters.get('output_folder', None),
+                        dpi=config_parameters.get('plot_dpi', 200))
+
+    # Save the used parameters
+    if config_parameters.get('output_folder', None) is not None:
+        with open(os.path.join(config_parameters.get('output_folder', ""), 'params.json'), 'w') as f:
+            params_to_save = {
+                "INPUT_PARAMETERS": input_parameters,
+                "CONFIG_PARAMETERS": config_parameters,
+                "CUSTOM_PARAMETERS": custom_parameters
+            }
+            json.dump(params_to_save, f, indent=4)
+    
         
     logger.info(f"Execution {run_name} finished!")
