@@ -11,8 +11,11 @@ INPUT_PARAMETERS = {
         # 'NMacroCells': 20,
         # 'NFemtoCells': 134,
         'Maplimit': 40,                       # Size of Map grid, [dont touch]
-        'numberOfLasers': 20,                   # Manually changed? Def 5. Should I input the topology instead? 
-        
+        'numberOfLasers': 20,                   # Deprecated
+        'numberOfPofPools': 20,                 # Number of HPLDS
+        'numberOfWattsPerPool': 5,              # Watts. Capacity of each HPLD
+        'N_femto_per_pool': 3,                  # Number of femtocells powered by each HPLD
+
         'battery_capacity': 3.3,                # Ah
         'small_cell_consumption_on': 0.7,       # In Watts
         'small_cell_consumption_sleep': 0.05,   # In Watts
@@ -33,7 +36,8 @@ INPUT_PARAMETERS = {
 
 CONFIG_PARAMETERS = {
         'use_nice_setup': True,
-        'use_nice_setup_file': "mocks/pruebas_algoritmo/use_case_1.mat",
+        'use_nice_setup_file': "mocks/pruebas_algoritmo/UC1-S3-AllHL4withHPLD-AllHL5withFemto.mat",
+        # 'use_nice_setup_file': "mocks/pruebas_algoritmo/use_case_1.mat",
         'show_plots': False,
 
         'use_user_list': False,
@@ -45,8 +49,8 @@ CONFIG_PARAMETERS = {
 
 CUSTOM_CONFIG = {
     'user_report_position': 1,  # For each four timeSteps, the users updates position
-    'startup_max_tokens': 0,   # TimeSlots to startup a FemtoCell
-    'poweroff_unused_cell': 0, # TimeSlots to poweroff an unused Cell
+    'startup_max_tokens': 1,   # TimeSlots to startup a FemtoCell
+    'poweroff_unused_cell': 1, # TimeSlots to poweroff an unused Cell
     'extraPoFCharger': False,     # Enable an extra Charger with 1W on the centroid
     'typeExtraPoFCharger': "Centroid",
     'use_harvesting': False,      # Enable the Solar Harvesting Mode -> New graph + solar charging...

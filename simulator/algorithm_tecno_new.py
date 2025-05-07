@@ -72,6 +72,14 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
     output_throughput_no_batt: np.array
     output_throughput_only_macro: np.array
     
+    
+    
+    # ------------------------------------------------------------------------------------------------------------ #
+    # -- INITIALIZATION ------------------------------------------------------------------------------------------ #
+    #                                                                                                              #
+    #                                                                                                              #
+    #                                                                                                              #
+    # ------------------------------------------------------------------------------------------------------------ #
     def __init__(self, sim_times, basestation_data: dict, user_data: dict, battery_data: dict, transmit_power_data: dict, elighthouse_parameters: dict) -> None:
         # Set seed for random
         #random.seed(150)
@@ -169,6 +177,15 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         
         super().__init__(sim_times=sim_times, basestation_data=basestation_data, user_data=user_data, battery_data=battery_data, transmit_power_data=transmit_power_data)
     
+
+    
+    
+    # ------------------------------------------------------------------------------------------------------------ #
+    # -- SIMULATION ---------------------------------------------------------------------------------------------- #
+    #                                                                                                              #
+    #                                                                                                              #
+    #                                                                                                              #
+    # ------------------------------------------------------------------------------------------------------------ #
     def start_simulation(self, sim_times, timeStep, text_plot, progressbar_widget, canvas_widget, show_plots: bool = True, speed_plot: float = 0.05):
         # Settting up some vars
         self.battery_state = [[] for _ in range(len(sim_times))]
@@ -247,6 +264,14 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         return
 
  
+ 
+ 
+    # ------------------------------------------------------------------------------------------------------------ #
+    # -- ALGORITHM ----------------------------------------------------------------------------------------------- #
+    #                                                                                                              #
+    #                                                                                                              #
+    #                                                                                                              #
+    # ------------------------------------------------------------------------------------------------------------ #
     def algorithm_step(self, timeIndex, timeStep):
         """ Algorithm Logic to execute in each timeStep of the simulation
 
@@ -535,6 +560,17 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         
         return
     
+    
+    
+    
+    
+    
+    # ------------------------------------------------------------------------------------------------------------ #
+    # -- STATISTICS ---------------------------------------------------------------------------------------------- #
+    #                                                                                                              #
+    #                                                                                                              #
+    #                                                                                                              #
+    # ------------------------------------------------------------------------------------------------------------ #
     def compute_statistics_for_plots(self, timeIndex):
         """ Compute Statistics in order to Plot the Algorithm Output
 
@@ -566,6 +602,15 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         return
 
 
+
+
+
+    # ------------------------------------------------------------------------------------------------------------ #
+    # -- UPDATE BATTERY STATE ------------------------------------------------------------------------------------ #
+    #                                                                                                              #
+    #                                                                                                              #
+    #                                                                                                              #
+    # ------------------------------------------------------------------------------------------------------------ #
     def update_battery_state(self, timeIndex, timeStep):
         """ Legacy function to update battery state
 
@@ -654,7 +699,19 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                     if not batt in self.dead_batteries:
                         self.timeIndex_last_battery_dead = timeIndex
                         self.dead_batteries.append(batt)
-            
+    
+    
+    
+    
+    
+    
+    
+    # ------------------------------------------------------------------------------------------------------------ #
+    # -- TRAFFIC CALCULATION ------------------------------------------------------------------------------------- #
+    #                                                                                                              #
+    #                                                                                                              #
+    #                                                                                                              #
+    # ------------------------------------------------------------------------------------------------------------ #
     def calculate_traffic(self, userIndex, timeIndex):
         """ Throughput WITH batteries given an User and timeIndex
         
@@ -685,6 +742,17 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         return X
 
 
+
+
+
+
+
+    # ------------------------------------------------------------------------------------------------------------ #
+    # -- TRAFFIC CALCULATION WITHOUT BATTERIES --------------------------------------------------------------- #
+    #                                                                                                              #
+    #                                                                                                              #
+    #                                                                                                              #
+    # ------------------------------------------------------------------------------------------------------------ #
     def calculate_traffic_no_battery(self, userIndex, timeIndex):
         """ Throughput WITHOUT batteries given an User and timeIndex
         
@@ -737,6 +805,17 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         return X
 
 
+
+
+
+
+
+    # ------------------------------------------------------------------------------------------------------------ #
+    # -- TRAFFIC CALCULATION ONLY MACRO -------------------------------------------------------------------------- #
+    #                                                                                                              #
+    #                                                                                                              #
+    #                                                                                                              #
+    # ------------------------------------------------------------------------------------------------------------ #
     def calculate_traffic_only_macro(self, userIndex, timeIndex):
         """ Throughput with ONLY Macrocells given an User and timeIndex
         
@@ -763,7 +842,21 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         X = (BW / self.temporal_association_vector[cl]) * np.log2(1 + naturalDL)
         self.X_macro_only_bps[timeIndex][cl] += X
         return X
-    
+
+
+
+
+
+
+
+
+
+    # ------------------------------------------------------------------------------------------------------------ #
+    # -- PLOT OUTPUT --------------------------------------------------------------------------------------------- #
+    #                                                                                                              #
+    #                                                                                                              #
+    #                                                                                                              #
+    # ------------------------------------------------------------------------------------------------------------ #
     def plot_output(self, sim_times, timeStep, is_gui: bool = False, show_plots: bool = True):
         """ Override Show Plot Output
 
@@ -1008,6 +1101,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         ax_fem.scatter([], [], label="FemtoCell", color='black', s=10, marker='o')
         ax_fem.legend()
         ax_fem.axis('off')
+        fig_user_assoc_only_femto.tight_layout()
         # ax_fem.set_xlabel('X [km]')
         # ax_fem.set_ylabel('Y [km]')
 
@@ -1020,6 +1114,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         ax_mac.scatter([], [], label="MacroCell", color='black', s=10, marker='o')
         ax_mac.legend()
         ax_mac.axis('off')
+        fig_user_assoc_only_macro.tight_layout()
         # ax_mac.set_xlabel('X [km]')
         # ax_mac.set_ylabel('Y [km]')
 
@@ -1078,6 +1173,16 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
 
 
 
+
+
+
+
+    # ------------------------------------------------------------------------------------------------------------ #
+    # -- SAVE RUN ------------------------------------------------------------------------------------------------ #
+    #                                                                                                              #
+    #                                                                                                              #
+    #                                                                                                              #
+    # ------------------------------------------------------------------------------------------------------------ #
     def save_run(self, fig_map, sim_times, run_name, output_folder):
         # Legacy algorithm save
         super().save_run(fig_map, sim_times, run_name, output_folder)
