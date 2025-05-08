@@ -17,6 +17,9 @@ import os, json
 # Default input_parameters. Copy and modify ad-hoc  [Legacy version]
 INPUT_PARAMETERS = {
         'Users': 1000,
+        'UserMobilityType': "STATIC",           # STATIC (random initial positions, same positions all the time steps)
+                                                # RANDOM (random initial positions, random positions each time step)
+                                                # MOBILE (random walk)
         'timeStep': 3600,                       # In seconds, 1 hour
         'Simulation_Time': 7200,             # In seconds, Debug 2 steps
         # 'Simulation_Time': 2592000,             # In seconds, 1 month of 30 days
@@ -98,6 +101,7 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         Maplimit = input_parameters.get('Maplimit', 40)
         Simulation_Time = input_parameters.get('Simulation_Time', 7200)
         Users = input_parameters.get('Users', 1000)
+        UserMobilityType = input_parameters.get('UserMobilityType', "STATIC")
         timeStep = input_parameters.get('timeStep', 3600)
         numberOfPofPools = input_parameters.get('numberOfPofPools', 20)
         numberOfLasersPerPool = input_parameters.get('numberOfLasersPerPool', 5)
@@ -358,7 +362,13 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
     # TODO: modify here
     # Generate randomly the path of the users
     # Generate the mobility path of users
-    s_mobility = simulator.mobility_utils.generate_random_mobility(sim_input)
+    if UserMobilityType == "STATIC":
+        s_mobility = simulator.mobility_utils.generate_constant_random_mobility(sim_input)
+    elif UserMobilityType == "RANDOM":
+        s_mobility = simulator.mobility_utils.generate_random_mobility(sim_input)
+    elif UserMobilityType == "MOBILE":
+        s_mobility = simulator.mobility_utils.generate_mobility(sim_input)
+    
     s_mobility["NB_USERS"] = []
     for user in range(0, sim_input['NB_USERS']):
         s_mobility['NB_USERS'].append(s_mobility[user])
