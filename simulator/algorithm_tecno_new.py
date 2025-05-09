@@ -41,6 +41,9 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
     dead_batteries: list                    # Save the batteries that already died
     timeIndex_last_battery_dead: int
     
+    # Pre-computed valley-spoke factors for each user and time step
+    valley_spoke_factors: np.array
+    
     # Percentage Vars
     per_served_femto: float
     per_in_area: float
@@ -194,7 +197,10 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             self.selected_random_macro = -1
         
         super().__init__(sim_times=sim_times, basestation_data=basestation_data, user_data=user_data, battery_data=battery_data, transmit_power_data=transmit_power_data)
-    
+        
+        # Initialize valley_spoke_factors as None - will be populated in start_simulation
+        self.valley_spoke_factors = None
+
 
     
     
@@ -244,6 +250,12 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         self.output_throughput = np.zeros((2, len(sim_times)))          # 0: macro, 1: femto
         self.output_throughput_no_batt = np.zeros((3, len(sim_times)))    # 0: macro 1: femto 2: overflow
         self.output_throughput_only_macro = np.zeros(len(sim_times))    # 0: macro
+        
+        # Pre-compute valley-spoke factors for each user and time step
+        self.valley_spoke_factors = np.zeros((len(sim_times), len(self.NUsers)))
+        for timeIndex in range(len(sim_times)):
+            for userIndex in range(len(self.NUsers)):
+                self.valley_spoke_factors[timeIndex, userIndex] = estimate_traffic_from_seconds(timeIndex * timeStep, ruido_max=0.03)
         
         logger.info("Starting simulation...")
         start = time.time()
@@ -768,7 +780,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         """
         associated_station = int(self.association_vector[0][userIndex])
         naturalDL = self.compute_sinr_naturalDL(userIndex, timeIndex, associated_station)
-        valley_spoke_factor = estimate_traffic_from_seconds(timeIndex * timeStep)
+        valley_spoke_factor = self.valley_spoke_factors[timeIndex, userIndex]
     
         if associated_station < self.NMacroCells:
             BW = self.MacroCellDownlinkBW
@@ -803,11 +815,11 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         Returns Traffic of User"""
         
         associated_station_overflow = int(self.association_vector_overflow_alternative[0][userIndex])
+        valley_spoke_factor = self.valley_spoke_factors[timeIndex, userIndex]
         
         if associated_station_overflow == 0:
             associated_station = int(self.association_vector[0][userIndex])
             naturalDL = self.compute_sinr_naturalDL(userIndex, timeIndex, associated_station)
-            valley_spoke_factor = estimate_traffic_from_seconds(timeIndex * timeStep)
     
             if associated_station < self.NMacroCells:
                 BW = self.MacroCellDownlinkBW
@@ -827,7 +839,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             BW = self.MacroCellDownlinkBW
             user_count = self.baseStation_users[timeIndex][associated_station_overflow] + \
                         np.sum(self.association_vector_overflow_alternative[0] == associated_station_overflow)
-            X = self.calculate_throughput(BW, user_count, naturalDL)
+            X = self.calculate_throughput(BW, user_count, naturalDL, valley_spoke_factor)
             self.X_macro_overflow_bps[timeIndex][associated_station_overflow] += X
     
         return X
@@ -856,7 +868,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         self.temporal_association_vector[cl] += 1
     
         naturalDL = self.compute_sinr_naturalDL(userIndex, timeIndex, cl)
-        valley_spoke_factor = estimate_traffic_from_seconds(timeIndex * timeStep)
+        valley_spoke_factor = self.valley_spoke_factors[timeIndex, userIndex]
         BW = self.MacroCellDownlinkBW
         user_count = self.temporal_association_vector[cl]
     
