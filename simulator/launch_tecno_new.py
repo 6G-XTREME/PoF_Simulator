@@ -491,7 +491,9 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
                                     user_data=user_dict,
                                     battery_data=battery_dict,
                                     transmit_power_data=transmit_power_dict,
-                                    elighthouse_parameters=custom_parameters)
+                                    elighthouse_parameters=custom_parameters,
+                                    run_name=run_name,
+                                    output_folder=config_parameters.get('output_folder', None))
     
     eli.start_simulation(sim_times=sim_times, 
                             timeStep=timeStep,
@@ -505,8 +507,7 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
                         show_plots=config_parameters.get('show_plots', False),
                         timeStep=timeStep,
                         is_gui=(canvas_widget is not None),
-                        dpi=config_parameters.get('plot_dpi', 200),
-    )
+                        dpi=config_parameters.get('plot_dpi', 200))
 
     if config_parameters.get('save_output', True):
         eli.save_run(fig_map=fig_map, 

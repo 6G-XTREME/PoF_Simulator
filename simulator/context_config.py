@@ -239,31 +239,40 @@ class Contex_Config():
                 plt.close('all')
         else:
             plt.close('all')
+    
+    
+    
+    def create_folders(self, run_name: str, output_folder: str = "output") -> tuple[str, str, str, str]:
+        root_folder = os.path.abspath(__file__ + os.sep + os.pardir + os.sep + os.pardir)
+
+        if output_folder != None:
+            output_folder = os.path.join(root_folder, output_folder, run_name)
+        else:
+            output_folder = os.path.join(root_folder, 'output', run_name)
+        os.makedirs(output_folder, exist_ok=True)
+        print(f"Output folder: {output_folder}")
+        
+        self.data_folder = os.path.join(output_folder, 'data')
+        os.makedirs(self.data_folder, exist_ok=True)
+        print(f"Data folder: {self.data_folder}")
+        self.plot_folder = os.path.join(output_folder, 'plot')
+        os.makedirs(self.plot_folder, exist_ok=True)
+        print(f"Plot folder: {self.plot_folder}")
+        self.debug_folder = os.path.join(output_folder, 'debugs')
+        os.makedirs(self.debug_folder, exist_ok=True)
+        print(f"Debug folder: {self.debug_folder}")
+        
+        self.debug_battery_folder = os.path.join(self.debug_folder, 'battery_capacity')
+        os.makedirs(self.debug_battery_folder, exist_ok=True)
+        print(f"Debug battery folder: {self.debug_battery_folder}")
+        
+        return output_folder, self.data_folder, self.plot_folder, self.debug_folder, self.debug_battery_folder
         
 
     def save_run(self, fig_map, sim_times, run_name, output_folder, dpi: int = 200):
         logger.info("Saving output data...")
-        
-        # Save results to files as csv!
-        root_folder = os.path.abspath(__file__ + os.sep + os.pardir + os.sep + os.pardir)
-        
-        if output_folder != None:
-            output_folder = os.path.join(root_folder, 'output', output_folder)
-        else:
-            output_folder = os.path.join(root_folder, 'output')
-        
-        os.makedirs(output_folder, exist_ok=True)
-        logger.info(f"Output folder: {output_folder}")
 
-        run_folder = os.path.join(output_folder, run_name)
-        os.makedirs(run_folder, exist_ok=True)
-        logger.info(f"Run folder: {run_folder}")
-
-        # Create CSV and Plot folders
-        data_folder = os.path.join(run_folder, 'data')
-        plot_folder = os.path.join(run_folder, 'plot')
-        os.makedirs(data_folder, exist_ok=True)
-        os.makedirs(plot_folder, exist_ok=True)
+        # Save CSV foreach plot
 
         # Save CSV foreach plot
         df_output = pd.DataFrame({'time[s]': sim_times,
@@ -276,24 +285,24 @@ class Contex_Config():
                                   'battery_mean[Ah]': self.battery_mean_values})
         df_output = df_output.assign(NMacroCells=self.NMacroCells)
         df_output = df_output.assign(NFemtoCells=self.NFemtoCells)
-        df_output.to_csv(os.path.join(data_folder, f'{run_name}-output.csv'), index=False)
-        df_output.to_json(os.path.join(data_folder, f'{run_name}-output.json'), orient="index", indent=4)
+        df_output.to_csv(os.path.join(self.data_folder, f'{run_name}-output.csv'), index=False)
+        df_output.to_json(os.path.join(self.data_folder, f'{run_name}-output.json'), orient="index", indent=4)
     
         # Save figures to output folder
         if fig_map is not None:
-            fig_map.savefig(os.path.join(plot_folder, f'{run_name}-map.png'))
+            fig_map.savefig(os.path.join(self.plot_folder, f'{run_name}-map.png'))
             plt.close(fig_map)
         
         for fig in self.list_figures:
-            fig[0].savefig(os.path.join(plot_folder, f'{run_name}-{fig[1]}.png'), dpi=dpi, bbox_inches='tight')
+            fig[0].savefig(os.path.join(self.plot_folder, f'{run_name}-{fig[1]}.png'), dpi=dpi, bbox_inches='tight')
             #plt.close(fig[0])
 
         # Copy user_list.mat [replicability of run]
-        user_list_output_mat_path = os.path.join(run_folder, f'{run_name}-user_list.mat')
+        user_list_output_mat_path = os.path.join(self.data_folder, f'{run_name}-user_list.mat')
         scipy.io.savemat(user_list_output_mat_path, {'user_list': self.user_list, 'Simulation_Time': self.Simulation_Time})
         
         # Copy nice_setup.mat [replicability of run]
-        nice_setup_mat_path = os.path.join(run_folder, f'{run_name}-nice_setup.mat')
+        nice_setup_mat_path = os.path.join(self.data_folder, f'{run_name}-nice_setup.mat')
         nice_setup_struct = {
             'BaseStations': self.BaseStations,
             'NFemtoCells': self.NFemtoCells,

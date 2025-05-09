@@ -95,7 +95,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
     #                                                                                                              #
     #                                                                                                              #
     # ------------------------------------------------------------------------------------------------------------ #
-    def __init__(self, sim_times, basestation_data: dict, user_data: dict, battery_data: dict, transmit_power_data: dict, elighthouse_parameters: dict) -> None:
+    def __init__(self, sim_times, basestation_data: dict, user_data: dict, battery_data: dict, transmit_power_data: dict, elighthouse_parameters: dict, run_name: str, output_folder: str) -> None:
         # Set seed for random
         #random.seed(150)
         
@@ -200,6 +200,9 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         
         # Initialize valley_spoke_factors as None - will be populated in start_simulation
         self.valley_spoke_factors = None
+        self.run_name = run_name
+        
+        super().create_folders(run_name, output_folder)
 
 
     
@@ -286,7 +289,8 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                         plt.draw()
                         plt.pause(speed_plot)
                 if canvas_widget is not None: 
-                    canvas_widget.draw() 
+                    canvas_widget.draw()
+        
                 
         # Finished
         logger.info("Simulation complete!")
@@ -302,6 +306,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
     #                                                                                                              #
     #                                                                                                              #
     # ------------------------------------------------------------------------------------------------------------ #
+
     def algorithm_step(self, timeIndex, timeStep):
         """ Algorithm Logic to execute in each timeStep of the simulation
 
@@ -592,7 +597,71 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             self.X_user[timeIndex][userIndex][1] = self.calculate_traffic_no_battery(userIndex=userIndex, timeIndex=timeIndex, timeStep=timeStep)
             self.X_user[timeIndex][userIndex][2] = self.calculate_traffic_only_macro(userIndex=userIndex, timeIndex=timeIndex, timeStep=timeStep)
         
+        # Save debug plot of current battery state
+        self.save_battery_capacity_debug_plot(timeIndex)
+        
         return
+    
+    
+    
+    
+    
+    
+    
+    # ------------------------------------------------------------------------------------------------------------ #
+    # -- DEBUG PLOTS --------------------------------------------------------------------------------------------- #
+    #                                                                                                              #
+    #                                                                                                              #
+    #                                                                                                              #
+    # ------------------------------------------------------------------------------------------------------------ #
+    def save_battery_capacity_debug_plot(self, timeIndex):
+        """Creates and saves a debug plot showing the current battery capacity state
+        
+        Args:
+            timeIndex (int): Current simulation time step
+        """
+        # Create debug plot for battery capacity
+        fig, ax = plt.subplots(figsize=(12, 6))
+        ax.axhline(y=3.3, color='r', label="Max. capacity")
+        
+        # Get battery states for coloring
+        battery_states = self.battery_state[timeIndex]
+        
+        # Plot each femtocell's battery
+        for bar in range(self.NMacroCells, len(self.battery_vector[0])):
+            # Determine color based on battery state
+            if battery_states[bar] == 0:  # Nothing
+                color = 'gray'
+            elif battery_states[bar] == 1:  # Charging
+                color = 'green'
+            elif battery_states[bar] == 2:  # Discharging
+                color = 'red'
+            else:  # Discharging & Charging
+                color = 'orange'
+                
+            ax.bar(int(bar), self.battery_vector[0][bar]*1000, color=color)
+        
+        # Add legend for battery states
+        ax.bar(0, 0, color='gray', label='Inactive')
+        ax.bar(0, 0, color='green', label='Charging')
+        ax.bar(0, 0, color='red', label='Discharging')
+        ax.bar(0, 0, color='orange', label='Charging & Discharging')
+        ax.axhline(y=3.3, color='r', label="Max. capacity")
+        
+        ax.legend()
+        ax.set_title(f"Battery Capacity at Time Step {timeIndex}")
+        ax.set_xlabel("Femto cell number")
+        ax.set_ylabel("Capacity [mAh]")
+        
+        # Save the plot
+        plt.savefig(os.path.join(self.debug_battery_folder, f'battery_capacity_step_{timeIndex:04d}.png'), dpi=100, bbox_inches='tight')
+        plt.close(fig)
+    
+    
+    
+    
+    
+    
     
     
     
@@ -1185,19 +1254,9 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
     def save_run(self, fig_map, sim_times, run_name, output_folder, dpi: int = 200):
         # Legacy algorithm save
         super().save_run(fig_map, sim_times, run_name, output_folder, dpi)
-        
-        # Retrieve the app paths
-        root_folder = os.path.abspath(__file__ + os.sep + os.pardir + os.sep + os.pardir)
-        
-        if output_folder != None:
-            output_folder = os.path.join(root_folder, 'output', output_folder)
-        else:
-            output_folder = os.path.join(root_folder, 'output')
 
-        run_folder = os.path.join(output_folder, run_name)
-        data_folder = os.path.join(run_folder, 'data')
-        csv = os.path.join(data_folder, f'{run_name}-output.csv')
-        json = os.path.join(data_folder, f'{run_name}-output.json')
+        csv = os.path.join(self.data_folder, f'{run_name}-output.csv')
+        json = os.path.join(self.data_folder, f'{run_name}-output.json')
 
         # Read CSV and add the new parameters to save!
         df_update = pd.read_csv(csv)
