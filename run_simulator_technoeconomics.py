@@ -45,6 +45,15 @@ CONFIG_PARAMETERS = {
         'speed_live_plots': 0.001,
         'save_output': True,
         'output_folder': None,
+        
+        # Figure configuration
+        'figure_config': {
+            'fig_size': (12, 8),  # Default figure size (width, height) in inches
+            'dpi': 200,           # Default DPI for saved figures
+            'line_width': 1.5,    # Default line width for plots
+            'font_size': 12,      # Default font size
+            'tick_size': 10,      # Default tick label size
+        }
     }
 
 CUSTOM_CONFIG = {
@@ -56,9 +65,16 @@ CUSTOM_CONFIG = {
     'use_harvesting': False,      # Enable the Solar Harvesting Mode -> New graph + solar charging...
     'weather': "RAINY",          # Select over SUNNY, CLOUDY or RAINY
     'city': "Cartagena",         # Select city
-    'MapScale': 1,               # 1 km == 1 points (1:1)
+    'MapScale': 1,               # How many km are 1 point in the source topology
     'fiberAttdBperKm': 0.2,      # Fiber attenuation in dB/Km
     'plot_dpi': 200,
+    'config_times': {
+        'femto_boot_time_seconds': 30,          # Time to boot a femto cell
+        'femto_shutdown_time_seconds': 30,      # Time to shutdown a femto cell
+        'time_to_shutdown_unused_femto': 60,    # Time to shutdown an unused femto cell
+        
+    },
+    'seed': 1234567890,
 }
 
 logging.basicConfig(format='%(asctime)s %(levelname)s:%(module)s:%(funcName)s: %(message)s', 

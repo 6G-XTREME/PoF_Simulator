@@ -92,7 +92,15 @@ def Out_setRestrictedWalk_random_waypoint(previousX, previousY, previousDuration
 
 
 
-def generate_random_mobility(input_dict: dict):
+def generate_random_mobility(input_dict: dict, seed: int):
+    # Initialize random number generator with seed
+    from random import Random
+    rng = Random(seed)
+
+    def uniform(min_val, max_val):
+        """Helper function to generate uniform random numbers using seeded RNG"""
+        return min_val + rng.random() * (max_val - min_val)
+
     data = {
         'V_TIME': [None] * input_dict['NB_USERS'],
         'V_POSITION_X': [None] * input_dict['NB_USERS'],
@@ -140,7 +148,7 @@ def generate_random_mobility(input_dict: dict):
             add_element_to_s_mobility('V_SPEED_X', 0)
             add_element_to_s_mobility('V_SPEED_Y', 0)
 
-        # Ajustar el tiempo final si es necesario
+        # Adjust final time if needed
         if s_mobility['V_TIME'][userIndex_tmp][-1] < input_dict['SIMULATION_TIME']:
             s_mobility['V_TIME'][userIndex_tmp].append(input_dict['SIMULATION_TIME'])
             s_mobility['V_POSITION_X'][userIndex_tmp].append(uniform(min_x, max_x))
@@ -169,7 +177,15 @@ def generate_random_mobility(input_dict: dict):
 
 
 
-def generate_constant_random_mobility(input_dict: dict):
+def generate_constant_random_mobility(input_dict: dict, seed: int):
+    # Initialize random number generator with seed
+    from random import Random
+    rng = Random(seed)
+
+    def uniform(min_val, max_val):
+        """Helper function to generate uniform random numbers using seeded RNG"""
+        return min_val + rng.random() * (max_val - min_val)
+
     data = {
         'V_TIME': [None] * input_dict['NB_USERS'],
         'V_POSITION_X': [None] * input_dict['NB_USERS'], 
@@ -262,7 +278,17 @@ def generate_constant_random_mobility(input_dict: dict):
 
 
 
-def generate_mobility (dict):
+def generate_mobility (dict, seed: int):
+
+    # Initialize random number generator with seed
+    rng = np.random.RandomState(seed)
+
+    def uniform(min_val, max_val):
+        """Helper function to generate uniform random numbers using seeded RNG"""
+        return min_val + rng.random() * (max_val - min_val)
+    
+    
+    
     data = {
         'V_TIME':           [None] * dict['NB_USERS'], # (m)
         'V_POSITION_X':     [None] * dict['NB_USERS'], # (m)

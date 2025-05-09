@@ -11,6 +11,8 @@ import scipy.io, os
 import matplotlib.pyplot as plt
 from simulator.launch import logger
 import json
+from run_simulator_technoeconomics import CONFIG_PARAMETERS
+
 class Contex_Config():
     Simulation_Time: int
     
@@ -115,80 +117,116 @@ class Contex_Config():
     def start_simulation(self, sim_times, timeStep, text_plot, show_plots: bool = True, speed_plot: float = 0.05):
         pass
     
-    def plot_output(self, sim_times, is_gui: bool = False, show_plots: bool = True, fig_size: tuple = (12, 8)):
+    def plot_output(self, sim_times, is_gui: bool = False, show_plots: bool = True, fig_size: tuple = None, dpi: int = None):
+        """Plot simulation outputs with configurable figure parameters.
+
+        Args:
+            sim_times: Array of simulation times
+            is_gui: Whether running in GUI mode
+            show_plots: Whether to display plots
+            fig_size: Optional override for figure size (width, height) in inches
+            dpi: Optional override for figure DPI
+        """
+        # Get figure configuration from CONFIG_PARAMETERS
+        fig_config = CONFIG_PARAMETERS.get('figure_config', {})
+        fig_size = fig_size or fig_config.get('fig_size', (12, 8))
+        dpi = dpi or fig_config.get('dpi', 100)
+        line_width = fig_config.get('line_width', 1.5)
+        font_size = fig_config.get('font_size', 12)
+        tick_size = fig_config.get('tick_size', 10)
+
+        # Set global matplotlib parameters
+        plt.rcParams.update({
+            'font.size': font_size,
+            'axes.labelsize': font_size,
+            'axes.titlesize': font_size,
+            'xtick.labelsize': tick_size,
+            'ytick.labelsize': tick_size,
+            'lines.linewidth': line_width
+        })
+
+        def format_time_axis(ax, times):
+            """Helper function to format time axis based on total duration"""
+            total_seconds = times[-1]
+            if total_seconds > 2 * 86400:  # More than a day
+                ax.set_xlabel('Time [days]')
+                # Convert to days and set ticks every 6 hours
+                times_days = times / 86400
+                ax.set_xticks(np.arange(0, times_days[-1] + 0.25, 0.25))  # 0.25 days = 6 hours
+                ax.set_xticklabels([f'{x:.1f}' for x in np.arange(0, times_days[-1] + 0.25, 0.25)])
+                return times_days
+            elif total_seconds > 2 * 3600:  # More than an hour
+                ax.set_xlabel('Time [hours]')
+                # Convert to hours and set ticks every hour
+                times_hours = times / 3600
+                ax.set_xticks(np.arange(0, times_hours[-1] + 1, 1))
+                ax.set_xticklabels([f'{int(x)}' for x in np.arange(0, times_hours[-1] + 1, 1)])
+                return times_hours
+            else:  # Less than an hour
+                ax.set_xlabel('Time [seconds]')
+                # Set ticks every 10 minutes (600 seconds)
+                tick_interval = 600
+                ax.set_xticks(np.arange(0, total_seconds + tick_interval, tick_interval))
+                ax.set_xticklabels([f'{int(x/60)}' for x in np.arange(0, total_seconds + tick_interval, tick_interval)])
+                return times
+
         # 1
-        fig_cell_occupancy, ax = plt.subplots(figsize=fig_size)
+        fig_cell_occupancy, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_cell_occupancy, "cell_occupancy"))
         ax.axhline(y=self.NFemtoCells, color='r', label='Total Small cells')
-        ax.step(sim_times, self.live_smallcell_occupancy, 'g', label='Small cells being used')
-        ax.step(sim_times, self.live_smallcell_overflow, 'b', label='Small cells overflowed')
+        ax.step(format_time_axis(ax, sim_times), self.live_smallcell_occupancy, 'g', label='Small cells being used')
+        ax.step(format_time_axis(ax, sim_times), self.live_smallcell_overflow, 'b', label='Small cells overflowed')
         ax.legend()
         ax.set_title('Number of small cells under use')
-        ax.set_xlabel('Time [s]')
         ax.set_ylabel('Number of cells')
 
         # 2
-        fig_cell_consumption, ax = plt.subplots(figsize=fig_size)
+        fig_cell_consumption, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_cell_consumption, "cell_consumption"))
-        #ax.axhline(y=self.small_cell_consumption_ON * self.NFemtoCells, color='r', label='Total always ON cell consumption [W]')
         ax.axhline(y=self.max_energy_consumption_total, color='b', label='Max power of lasers [W]')
         ax.axhline(y=self.max_energy_consumption_active, color='r', label='Max consumption of PoF budget [W]')
-        ax.step(sim_times, self.live_smallcell_consumption, 'g', label='Live energy consumption [W], laser + battery', linewidth=2)
-        #ax.text(1, small_cell_consumption_ON * NFemtoCells - 1, f"Energy consumption (Active Femtocells): {small_cell_consumption_ON * NFemtoCells - 1} W")
-        #ax.text(1, small_cell_consumption_ON * NFemtoCells - 3, f"Energy consumption (Idle Femtocells): {small_cell_consumption_ON * NFemtoCells - 3} W")
-        #ax.text(1, small_cell_consumption_ON * NFemtoCells - 5, f"Energy consumption (Total Femtocells): {small_cell_consumption_ON * NFemtoCells - 5} W")
+        ax.step(format_time_axis(ax, sim_times), self.live_smallcell_consumption, 'g', label='Live energy consumption [W], laser + battery', linewidth=line_width)
         ax.legend()
         ax.set_ylim(0, max(max(self.live_smallcell_consumption), self.max_energy_consumption_total, self.max_energy_consumption_active) * 1.1)
         ax.set_title('Live energy consumption')
-        ax.set_xlabel('Time [s]')
         ax.set_ylabel('Power consumption (Watts)')
 
         # 3
-        fig_throughput, ax = plt.subplots(figsize=fig_size)
+        fig_throughput, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_throughput, "throughput"))
-        ax.plot(sim_times, self.live_throughput/10e6, label='With battery system')
-        ax.plot(sim_times, self.live_throughput_NO_BATTERY/10e6, 'r--', label='Without battery system')
-        ax.plot(sim_times, self.live_throughput_only_Macros/10e6, 'g:.', label='Only Macrocells')
+        ax.plot(format_time_axis(ax, sim_times), self.live_throughput/10e6, label='With battery system')
+        ax.plot(format_time_axis(ax, sim_times), self.live_throughput_NO_BATTERY/10e6, 'r--', label='Without battery system')
+        ax.plot(format_time_axis(ax, sim_times), self.live_throughput_only_Macros/10e6, 'g:.', label='Only Macrocells')
         ax.legend()
         ax.set_title('Live system throughput [un-smooth]')
-        ax.set_xlabel('Time [s]')
         ax.set_ylabel('Throughput [Mb/s]')
 
         # 3, filtered one
-        # SMA_WINDOW = self.SMA_WINDOW
         SMA_WINDOW = 1
         timeIndex = len(sim_times)
-        fig_throughput_smooth, ax = plt.subplots(figsize=fig_size)
+        fig_throughput_smooth, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_throughput_smooth, "throughput_smooth"))
-        X = sim_times[timeIndex-(len(self.live_throughput)-(SMA_WINDOW-1))+1:timeIndex]/60
+        X = format_time_axis(ax, sim_times[timeIndex-(len(self.live_throughput)-(SMA_WINDOW-1))+1:timeIndex])
         Y = np.convolve(self.live_throughput/10e6, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
         ax.plot(X, Y[:-1], label='Using PoF & batteries')
 
-        X = sim_times[timeIndex-(len(self.live_throughput_NO_BATTERY)-(SMA_WINDOW-1))+1:timeIndex]/60
+        X = format_time_axis(ax, sim_times[timeIndex-(len(self.live_throughput_NO_BATTERY)-(SMA_WINDOW-1))+1:timeIndex])
         Y = np.convolve(self.live_throughput_NO_BATTERY/10e6, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
         ax.plot(X, Y[:-1], 'r--', label='Using PoF')
 
-        X = sim_times[timeIndex-(len(self.live_throughput_only_Macros)-(SMA_WINDOW-1))+1:timeIndex]/60
+        X = format_time_axis(ax, sim_times[timeIndex-(len(self.live_throughput_only_Macros)-(SMA_WINDOW-1))+1:timeIndex])
         Y = np.convolve(self.live_throughput_only_Macros/10e6, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
         ax.plot(X, Y[:-1], 'g--o', label='Only macrocells')
 
         ax.legend()
         ax.set_title('Live system throughput')
-        ax.set_xlabel('Time (min)')
         ax.set_ylabel('Throughput [mbps]')
 
-        # 4
-        #fig, ax = plt.subplots()
-        #for b in range(NFemtoCells):
-        #    ax.bar(NMacroCells + b + 1, battery_vector[0, NMacroCells + b], color='b')
-        #ax.set_title('Live battery state')
-
         # 5
-        fig_battery_mean, ax = plt.subplots(figsize=fig_size)
+        fig_battery_mean, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_battery_mean, "battery_mean"))
-        ax.plot(sim_times, self.battery_mean_values, label='Battery mean capacity')
+        ax.plot(format_time_axis(ax, sim_times), self.battery_mean_values, label='Battery mean capacity')
         ax.axhline(y=3.3, color='r',label="Max. voltage battery")
-        ax.set_xlabel('Time [s]')
         ax.set_ylabel('Battery capacity [Ah]')
         ax.set_title('Mean Battery Capacity of the System')
         ax.legend()

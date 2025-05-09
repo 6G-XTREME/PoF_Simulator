@@ -16,7 +16,7 @@ from simulator.launch import logger
 from simulator.context_config import Contex_Config
 from simulator.solar_harvesting import SolarPanel, Weather
 import simulator.map_utils, simulator.user_association_utils, simulator.radio_utils, simulator.energy_utils
-
+from run_simulator_technoeconomics import CONFIG_PARAMETERS
 
 from simulator.user_association_utils import search_closest_macro
 from simulator.map_utils import search_closest_bs_optimized
@@ -79,6 +79,11 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
     output_throughput_no_batt: np.array
     output_throughput_only_macro: np.array
     
+    # Config times
+    femto_boot_time_seconds: int
+    femto_shutdown_time_seconds: int
+    time_to_shutdown_unused_femto: int
+    
     
     
     # ------------------------------------------------------------------------------------------------------------ #
@@ -134,10 +139,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                 self.use_harvesting = False
                 
             # Map Scale
-            if elighthouse_parameters.get('MapScale') > 0 and elighthouse_parameters.get('MapScale') <= 100:
-                self.map_scale = elighthouse_parameters.get('MapScale', 100)
-            else:
-                self.map_scale = 100
+            self.map_scale = elighthouse_parameters.get('MapScale', 100)
                
             # Fiber dB attenuation per Km 
             if elighthouse_parameters.get('fiberAttdBperKm') > 0.0 and elighthouse_parameters.get('fiberAttdBperKm') <= 0.4:
@@ -167,6 +169,15 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                 logger.info(f"Using centroids: X={self.centroid_x}, Y={self.centroid_y}")
             else:
                 self.use_centroid = False
+                
+            # Config times
+            if elighthouse_parameters.get('config_times', None) is not None:
+                self.femto_boot_time_seconds = elighthouse_parameters['config_times']['femto_boot_time_seconds']
+                self.femto_shutdown_time_seconds = elighthouse_parameters['config_times']['femto_shutdown_time_seconds']
+                self.time_to_shutdown_unused_femto = elighthouse_parameters['config_times']['time_to_shutdown_unused_femto']
+                
+                
+                
                 
         except Exception as ex:
             # On error, load default custom parameters
@@ -537,6 +548,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         # End user allocation in timeIndex instance 
         
         # Given the list of started femto, check if have user already, if not, shutdown
+        # enough_granularity = timeStep > 60 # TODO change
         if timeIndex % self.poweroff_max_tokens == 0:   # Each two cycles, poweroff cells
             for femto in range(0, len(self.started_up_femto)):
                 try:
@@ -564,9 +576,9 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         
         # Traffic calculated to user
         for userIndex in range(0, len(self.NUsers)):
-            self.X_user[timeIndex][userIndex][0] = self.calculate_traffic(userIndex=userIndex, timeIndex=timeIndex, timeStep=timeStep*timeIndex)
-            self.X_user[timeIndex][userIndex][1] = self.calculate_traffic_no_battery(userIndex=userIndex, timeIndex=timeIndex, timeStep=timeStep*timeIndex)
-            self.X_user[timeIndex][userIndex][2] = self.calculate_traffic_only_macro(userIndex=userIndex, timeIndex=timeIndex, timeStep=timeStep*timeIndex)
+            self.X_user[timeIndex][userIndex][0] = self.calculate_traffic(userIndex=userIndex, timeIndex=timeIndex, timeStep=timeStep)
+            self.X_user[timeIndex][userIndex][1] = self.calculate_traffic_no_battery(userIndex=userIndex, timeIndex=timeIndex, timeStep=timeStep)
+            self.X_user[timeIndex][userIndex][2] = self.calculate_traffic_only_macro(userIndex=userIndex, timeIndex=timeIndex, timeStep=timeStep)
         
         return
     
@@ -721,7 +733,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
     #                                                                                                              #
     #                                                                                                              #
     #                                                                                                              #
-    # ------------------------------------------------------------------------------------------------------------ #
+    # ------------------------------------------------------------------------------------------------------------ #   
     def compute_sinr_naturalDL(self, userIndex, timeIndex, station):
         """Calculates the SINR and converts it to linear form"""
         SINRDLink = simulator.radio_utils.compute_sinr_dl(
@@ -756,7 +768,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         """
         associated_station = int(self.association_vector[0][userIndex])
         naturalDL = self.compute_sinr_naturalDL(userIndex, timeIndex, associated_station)
-        valley_spoke_factor = estimate_traffic_from_seconds(timeIndex, timeStep)
+        valley_spoke_factor = estimate_traffic_from_seconds(timeIndex * timeStep)
     
         if associated_station < self.NMacroCells:
             BW = self.MacroCellDownlinkBW
@@ -770,41 +782,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             self.X_femto_bps[timeIndex][associated_station] += X
     
         return X
-
     
-    
-    # def calculate_traffic(self, userIndex, timeIndex, timeStep):
-        # """ Throughput WITH batteries given an User and timeIndex
-        # 
-        # Depends of:     association_vector
-                        # baseStation_users
-                        # 
-        # Returns Traffic of User
-        # """
-        # associated_station = int(self.association_vector[0][userIndex])
-        # SINRDLink = simulator.radio_utils.compute_sinr_dl([self.user_list[userIndex]["v_x"][timeIndex], 
-                                                            #    self.user_list[userIndex]["v_y"][timeIndex]], 
-                                                            #    self.BaseStations, 
-                                                            #    associated_station, 
-                                                            #    self.alpha_loss, 
-                                                            #    self.PMacroCells, 
-                                                            #    self.PFemtoCells, 
-                                                            #    self.NMacroCells, 
-                                                            #    self.noise)
-        # naturalDL = 10**(SINRDLink/10)
-        # valley_spoke_factor = estimate_traffic_from_seconds(timeIndex, timeStep)
-        # if associated_station < self.NMacroCells:
-            # BW = self.MacroCellDownlinkBW
-            # X = (BW/self.baseStation_users[timeIndex][associated_station]) * valley_spoke_factor * np.log2(1 + naturalDL)
-            # self.X_macro_bps[timeIndex][associated_station] += X
-        # else:
-            # BW = self.FemtoCellDownlinkBW
-            # X = (BW/self.baseStation_users[timeIndex][associated_station]) * valley_spoke_factor * np.log2(1 + naturalDL)
-            # self.X_femto_bps[timeIndex][associated_station] += X
-        # return X
-
-
-
 
 
 
@@ -829,7 +807,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         if associated_station_overflow == 0:
             associated_station = int(self.association_vector[0][userIndex])
             naturalDL = self.compute_sinr_naturalDL(userIndex, timeIndex, associated_station)
-            valley_spoke_factor = estimate_traffic_from_seconds(timeIndex, timeStep)
+            valley_spoke_factor = estimate_traffic_from_seconds(timeIndex * timeStep)
     
             if associated_station < self.NMacroCells:
                 BW = self.MacroCellDownlinkBW
@@ -853,63 +831,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             self.X_macro_overflow_bps[timeIndex][associated_station_overflow] += X
     
         return X
-
-    # def calculate_traffic_no_battery(self, userIndex, timeIndex, timeStep):
-    #     """ Throughput WITHOUT batteries given an User and timeIndex
-        
-    #     Depends of:     association_vector_overflow_alternative
-    #                     associated_station_overflow
-    #                     association_vector
-    #                     baseStation_users
-                        
-    #     Returns Traffic of User
-    #     """ 
-    #     associated_station_overflow = int(self.association_vector_overflow_alternative[0][userIndex])
-    #     if associated_station_overflow == 0:
-    #         associated_station = int(self.association_vector[0][userIndex])
-    #         SINRDLink = simulator.radio_utils.compute_sinr_dl([self.user_list[userIndex]["v_x"][timeIndex],
-    #                                                            self.user_list[userIndex]["v_y"][timeIndex]],
-    #                                                            self.BaseStations,
-    #                                                            associated_station,
-    #                                                            self.alpha_loss,
-    #                                                            self.PMacroCells,
-    #                                                            self.PFemtoCells,
-    #                                                            self.NMacroCells,
-    #                                                            self.noise)
-    #         naturalDL = 10**(SINRDLink/10)
-    #         valley_spoke_factor = estimate_traffic_from_seconds(timeIndex, timeStep)
-    #         if associated_station < self.NMacroCells:
-    #             BW = self.MacroCellDownlinkBW
-    #             X = (BW / (self.baseStation_users[timeIndex][associated_station] + \
-    #                     np.sum(self.association_vector_overflow_alternative == associated_station_overflow))) * valley_spoke_factor * np.log2(1 + naturalDL)
-    #             self.X_macro_no_batt_bps[timeIndex][associated_station] += X
-    #         else:
-    #             BW = self.FemtoCellDownlinkBW
-    #             # Must '+' to avoid divide by zero, in MATLAB is '-'
-    #             X = (BW/(self.baseStation_users[timeIndex][associated_station] + \
-    #                     self.overflown_from[timeIndex][associated_station])) * valley_spoke_factor * np.log2(1+naturalDL)
-    #             self.X_femto_no_batt_bps[timeIndex][associated_station] += X
-    #     else:
-    #         SINRDLink = simulator.radio_utils.compute_sinr_dl([self.user_list[userIndex]["v_x"][timeIndex],
-    #                                                            self.user_list[userIndex]["v_y"][timeIndex]],
-    #                                                            self.BaseStations,
-    #                                                            associated_station_overflow,
-    #                                                            self.alpha_loss,
-    #                                                            self.PMacroCells,
-    #                                                            self.PFemtoCells,
-    #                                                            self.NMacroCells,
-    #                                                            self.noise)
-    #         naturalDL = 10**(SINRDLink/10)
-    #         BW = self.MacroCellDownlinkBW
-    #         X = (BW/(self.baseStation_users[timeIndex][int(associated_station_overflow)] + \
-    #                 np.sum(self.association_vector_overflow_alternative[0] == associated_station_overflow))) * np.log2(1+naturalDL)
-    #         self.X_macro_overflow_bps[timeIndex][associated_station_overflow] += X
-    #     return X
-
-
-
-
-
+    
 
 
     # ------------------------------------------------------------------------------------------------------------ #
@@ -934,7 +856,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         self.temporal_association_vector[cl] += 1
     
         naturalDL = self.compute_sinr_naturalDL(userIndex, timeIndex, cl)
-        valley_spoke_factor = estimate_traffic_from_seconds(timeIndex, timeStep)
+        valley_spoke_factor = estimate_traffic_from_seconds(timeIndex * timeStep)
         BW = self.MacroCellDownlinkBW
         user_count = self.temporal_association_vector[cl]
     
@@ -942,34 +864,10 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         self.X_macro_only_bps[timeIndex][cl] += X
     
         return X
+    
+    
 
-    # def calculate_traffic_only_macro(self, userIndex, timeIndex, timeStep):
-        # """ Throughput with ONLY Macrocells given an User and timeIndex
-        # 
-        # Depends of:     nothing external
-                        # temporal_association_vector
-                        # 
-        # Returns Traffic of User
-        # """
-        # cl = simulator.user_association_utils.search_closest_macro([self.user_list[userIndex]["v_x"][timeIndex],
-                                                                        # self.user_list[userIndex]["v_y"][timeIndex]],
-                                                                        # self.BaseStations[0:self.NMacroCells, 0:2])
-        # self.temporal_association_vector[cl] += 1
-        # SINRDLink = simulator.radio_utils.compute_sinr_dl([self.user_list[userIndex]["v_x"][timeIndex],
-                                                        #    self.user_list[userIndex]["v_y"][timeIndex]],
-                                                        #    self.BaseStations,
-                                                        #    cl,
-                                                        #    self.alpha_loss,
-                                                        #    self.PMacroCells,
-                                                        #    self.PFemtoCells,
-                                                        #    self.NMacroCells,
-                                                        #    self.noise)
-        # naturalDL = 10**(SINRDLink/10)
-        # BW = self.MacroCellDownlinkBW
-        # valley_spoke_factor = estimate_traffic_from_seconds(timeIndex, timeStep)
-        # X = (BW / self.temporal_association_vector[cl]) * valley_spoke_factor * np.log2(1 + naturalDL)
-        # self.X_macro_only_bps[timeIndex][cl] += X
-        # return X
+
 
 
 
@@ -987,13 +885,60 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
     #                                                                                                              #
     #                                                                                                              #
     # ------------------------------------------------------------------------------------------------------------ #
-    def plot_output(self, sim_times, timeStep, is_gui: bool = False, show_plots: bool = True, fig_size: tuple = (12, 8), dpi: int = 100):
+    def plot_output(self, sim_times, timeStep, is_gui: bool = False, show_plots: bool = True, fig_size: tuple = None, dpi: int = None):
         """ Override Show Plot Output
 
         Args:
-            sim_times (_type_): _description_
-            show_plots (bool, optional): _description_. Defaults to True.
+            sim_times: Array of simulation times
+            timeStep: Time step of the simulation
+            is_gui: Whether running in GUI mode
+            show_plots: Whether to display plots
+            fig_size: Optional override for figure size (width, height) in inches
+            dpi: Optional override for figure DPI
         """
+        # Get figure configuration from CONFIG_PARAMETERS
+        fig_config = CONFIG_PARAMETERS.get('figure_config', {})
+        fig_size = fig_size or fig_config.get('fig_size', (12, 8))
+        dpi = dpi or fig_config.get('dpi', 100)
+        line_width = fig_config.get('line_width', 1.5)
+        font_size = fig_config.get('font_size', 12)
+        tick_size = fig_config.get('tick_size', 10)
+
+        # Set global matplotlib parameters
+        plt.rcParams.update({
+            'font.size': font_size,
+            'axes.labelsize': font_size,
+            'axes.titlesize': font_size,
+            'xtick.labelsize': tick_size,
+            'ytick.labelsize': tick_size,
+            'lines.linewidth': line_width
+        })
+
+        def format_time_axis(ax, times):
+            """Helper function to format time axis based on total duration"""
+            total_seconds = times[-1]
+            if total_seconds > 2 * 86400:  # More than a day
+                ax.set_xlabel('Time [days]')
+                # Convert to days and set ticks every 6 hours
+                times_days = times / 86400
+                ax.set_xticks(np.arange(0, times_days[-1] + 0.25, 0.25))  # 0.25 days = 6 hours
+                ax.set_xticklabels([f'{x:.1f}' for x in np.arange(0, times_days[-1] + 0.25, 0.25)])
+                return times_days
+            elif total_seconds > 2 * 3600:  # More than an hour
+                ax.set_xlabel('Time [hours]')
+                # Convert to hours and set ticks every hour
+                times_hours = times / 3600
+                ax.set_xticks(np.arange(0, times_hours[-1] + 1, 1))
+                ax.set_xticklabels([f'{int(x)}' for x in np.arange(0, times_hours[-1] + 1, 1)])
+                return times_hours
+            else:  # Less than an hour
+                ax.set_xlabel('Time [seconds]')
+                # Set ticks every 10 minutes (600 seconds)
+                tick_interval = 600
+                ax.set_xticks(np.arange(0, total_seconds + tick_interval, tick_interval))
+                ax.set_xticklabels([f'{int(x/60)}' for x in np.arange(0, total_seconds + tick_interval, tick_interval)])
+                return times
+
         # Battery dead?
         if self.timeIndex_first_battery_dead != 0:
             self.first_batt_dead_s = (self.timeIndex_first_battery_dead*timeStep)
@@ -1027,38 +972,31 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         logger.info(f"% of inside time, when user is in area and associated with femto : {self.per_time_served} %")
         
         # User Traffic
-        fig_user_traffic, ax = plt.subplots()
+        fig_user_traffic, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_user_traffic, "user-traffic"))    # In Order to save the figure on output folder
         
         metric = 0  # Default traffic
         for user in range(0, len(self.NUsers)):
             user_traffic = np.asarray([self.X_user[t][user][metric] for t in range(len(sim_times))])
-            ax.plot(sim_times, user_traffic/10e6, label=f'User {user}')
-        # ax.legend(fontsize='x-small', ncols=3)
+            ax.plot(format_time_axis(ax, sim_times), user_traffic/10e6, label=f'User {user}')
         ax.set_title(f'Traffic for each user')
-        ax.set_xlabel('Time [s]')
         ax.set_ylabel('Throughput [Mb/s]')
         
         # Batteries in use for each timeStep
         battery_charging = []
         for timeIndex in self.battery_state:
-            # 0 = nothing; 1 = charging; 2 = discharging; 3 = discharging & charging.
-            #count_3 = np.count_nonzero(timeIndex == 3.0)
-            #count_1 = np.count_nonzero(timeIndex == 1.0)
             count_2 = np.count_nonzero(timeIndex == 2.0)
-            #battery_charging.append(count_3 + count_1)
             battery_charging.append(count_2)
             
-        fig_battery_charging, ax = plt.subplots()
+        fig_battery_charging, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_battery_charging, "discharging-cells"))    # In Order to save the figure on output folder
-        ax.step(sim_times, battery_charging, label="Discharging Cells")
+        ax.step(format_time_axis(ax, sim_times), battery_charging, label="Discharging Cells")
         ax.legend()
         ax.set_title("Discharging Battery Cells")
-        ax.set_xlabel('Time [s]')
         ax.set_ylabel('Number of cells')
         
         # Battery capacity
-        fig_batt_capacity, ax = plt.subplots()
+        fig_batt_capacity, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_batt_capacity, "batt-capacity"))
         ax.axhline(y=3300, color='r',label="Max. capacity")
         for bar in range(0, len(self.battery_vector[0])):
@@ -1071,54 +1009,48 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         
         # New Figures
         if self.use_harvesting:
-            fig_battery_mean_harvesting, ax = plt.subplots()
+            fig_battery_mean_harvesting, ax = plt.subplots(figsize=fig_size, dpi=dpi)
             self.list_figures.append((fig_battery_mean_harvesting, "battery_mean_harvesting"))
-            ax.plot(sim_times, self.battery_mean_values, '-', label='Hybrid PoF & Solar', color="tab:red")
-            ax.plot(sim_times, self.battery_mean_values - self.battery_mean_harvesting, '--', label='Only PoF', color="tab:blue")
+            ax.plot(format_time_axis(ax, sim_times), self.battery_mean_values, '-', label='Hybrid PoF & Solar', color="tab:red")
+            ax.plot(format_time_axis(ax, sim_times), self.battery_mean_values - self.battery_mean_harvesting, '--', label='Only PoF', color="tab:blue")
             ax.axhline(y=3.3, color='tab:green',label="Max. battery capacity")
-            ax.set_xlabel('Time [s]')
             ax.set_ylabel('Battery capacity [Ah]')
-            #ax.set_title('Mean Battery Capacity of the System')
             ax.legend()
             
-            fig_battery_acc_harvesting, ax = plt.subplots()
+            fig_battery_acc_harvesting, ax = plt.subplots(figsize=fig_size, dpi=dpi)
             self.list_figures.append((fig_battery_acc_harvesting, "battery_accumulative_harvesting"))
-            ax.plot(sim_times, self.battery_mean_harvesting, label='Accumulative battery harvesting')
-            ax.set_xlabel('Time [s]')
+            ax.plot(format_time_axis(ax, sim_times), self.battery_mean_harvesting, label='Accumulative battery harvesting')
             ax.set_ylabel('Battery capacity [Ah]')
             ax.set_title('Accumulative battery harvesting')
             ax.legend()
            
         ## Throughput
-        fig_throughput, ax = plt.subplots()
+        fig_throughput, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_throughput, 'output-throughput'))
-        ax.plot(sim_times, self.output_throughput[0]/10e6, label="Macro Cells")
-        ax.plot(sim_times, self.output_throughput[1]/10e6, label="Femto Cells")
-        ax.plot(sim_times, self.live_throughput/10e6, label="Total")
+        ax.plot(format_time_axis(ax, sim_times), self.output_throughput[0]/10e6, label="Macro Cells")
+        ax.plot(format_time_axis(ax, sim_times), self.output_throughput[1]/10e6, label="Femto Cells")
+        ax.plot(format_time_axis(ax, sim_times), self.live_throughput/10e6, label="Total")
         ax.legend()
         ax.set_title("Throughput Downlink. System with batteries")
-        ax.set_xlabel("Time [s]")
         ax.set_ylabel('Throughput [Mb/s]')
         
         ## Throughput no battery
-        fig_throughput_no_batt, ax = plt.subplots()
+        fig_throughput_no_batt, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_throughput_no_batt, 'output-throughput-no-batt'))
-        ax.plot(sim_times, self.output_throughput_no_batt[0]/10e6, label="Macro Cells")
-        ax.plot(sim_times, self.output_throughput_no_batt[1]/10e6, label="Femto Cells")
-        ax.plot(sim_times, self.output_throughput_no_batt[2]/10e6, label="Femto Cells overflow")
-        ax.plot(sim_times, self.live_throughput_NO_BATTERY/10e6, label="Total")
+        ax.plot(format_time_axis(ax, sim_times), self.output_throughput_no_batt[0]/10e6, label="Macro Cells")
+        ax.plot(format_time_axis(ax, sim_times), self.output_throughput_no_batt[1]/10e6, label="Femto Cells")
+        ax.plot(format_time_axis(ax, sim_times), self.output_throughput_no_batt[2]/10e6, label="Femto Cells overflow")
+        ax.plot(format_time_axis(ax, sim_times), self.live_throughput_NO_BATTERY/10e6, label="Total")
         ax.legend()
         ax.set_title("Throughput Downlink. System without batteries")
-        ax.set_xlabel("Time [s]")
         ax.set_ylabel('Throughput [Mb/s]')
         
         ## Only Macro
-        fig_throughput_only_macro, ax = plt.subplots()
+        fig_throughput_only_macro, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_throughput_only_macro, 'output-throughput-only-macro'))
-        ax.plot(sim_times, self.output_throughput_only_macro/10e6, label="Macro Cells")
+        ax.plot(format_time_axis(ax, sim_times), self.output_throughput_only_macro/10e6, label="Macro Cells")
         ax.legend()
         ax.set_title("Throughput Downlink. System with only Macro Cells")
-        ax.set_xlabel("Time [s]")
         ax.set_ylabel('Throughput [Mb/s]')
         
 

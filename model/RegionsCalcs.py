@@ -24,6 +24,7 @@ def create_regions(
         polygon_bounds: list[tuple[float, float]] = [(0,0), (0,1000), (1000,1000),(1000, 0), (0,0)],
         euclidean_to_km_scale: float = 1,
         max_radius_km_list: list[float] = None,
+        max_radius_m_list: list[float] = None,
     ):
     """
     Create regions for the coverage of the base stations.
@@ -35,6 +36,7 @@ def create_regions(
         euclidean_to_km_scale: float - Scale factor to convert map units to kilometers.
         use_power_based_radius: bool - Whether to use power-based radius calculation.
         max_radius_km_list: list[float] - List of maximum radii in kilometers for each base station.
+        max_radius_m_list: list[float] - List of maximum radii in meters for each base station.
     """
     # Create the whole region with a small buffer to ensure validity
     _WholeRegion = Polygon(polygon_bounds)
@@ -49,7 +51,6 @@ def create_regions(
     # Check if max_radius_km_list is provided
     if max_radius_km_list is None:
         max_radius_km_list = [default_coverage_radius_km] * Npoints
-    
     
     # New (and better) approach -> do apollonius map and then, for each bs, restrict the region to the max coverage
     

@@ -8,6 +8,7 @@ __status__ = "Validated"
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.io, uuid, logging, sys
+
 from simulator.bcolors import bcolors
 import simulator.map_utils, simulator.mobility_utils, simulator.user_association_utils, simulator.radio_utils
 import model.RegionsCalcs
@@ -16,50 +17,70 @@ import os, json
 
 # Default input_parameters. Copy and modify ad-hoc  [Legacy version]
 INPUT_PARAMETERS = {
-        'Users': 1000,
-        'UserMobilityType': "STATIC",           # STATIC (random initial positions, same positions all the time steps)
-                                                # RANDOM (random initial positions, random positions each time step)
-                                                # MOBILE (random walk)
-        'timeStep': 3600,                       # In seconds, 1 hour
-        'Simulation_Time': 7200,             # In seconds, Debug 2 steps
-        # 'Simulation_Time': 2592000,             # In seconds, 1 month of 30 days
-        # 'NMacroCells': 20,
-        # 'NFemtoCells': 134,
-        'Maplimit': 40,                         # Size of Map grid, [dont touch]
-        'numberOfPofPools': 20,                         # Number of PoF Pools
-        'numberOfLasersPerPool': 5,                     # Number of lasers per PoF Pool 
-        'wattsPerLaser': 1,                     # Watts. Power of each laser
+    'Users': 1000,
+    'UserMobilityType': "STATIC",           # STATIC (random initial positions, same positions all the time steps)
+                                            # RANDOM (random initial positions, random positions each time step)
+                                            # MOBILE (random walk)
+    'timeStep': 3600,                       # In seconds, 1 hour
+    'Simulation_Time': 7200,             # In seconds, Debug 2 steps
+    # 'Simulation_Time': 2592000,             # In seconds, 1 month of 30 days
+    # 'NMacroCells': 20,
+    # 'NFemtoCells': 134,
+    'Maplimit': 40,                         # Size of Map grid, [dont touch]
+    'numberOfPofPools': 20,                         # Number of PoF Pools
+    'numberOfLasersPerPool': 5,                     # Number of lasers per PoF Pool 
+    'wattsPerLaser': 1,                     # Watts. Power of each laser
 
-        'battery_capacity': 3.3,                # Ah
-        'small_cell_consumption_on': 0.7,       # In Watts
-        'small_cell_consumption_sleep': 0.05,   # In Watts
-        'small_cell_voltage_min': 0.028,        # In mVolts
-        'small_cell_voltage_max': 0.033,        # In mVolts
-        'mean_user_speed': 5.5,                 # In m/s
-        'noise': 2.5e-14,
-        'SMA_WINDOW': 5, 
-        'TransmittingPower' : {
-            'PMacroCells': 40,
-            'PFemtoCells': 0.1,
-            'PDevice': 0.1,
-            'MacroCellDownlinkBW': 20e6,
-            'FemtoCellDownlinkBW': 1e9,
-            'alpha_loss': 4.0            
-        }
+    'battery_capacity': 3.3,                # Ah
+    'small_cell_consumption_on': 0.7,       # In Watts
+    'small_cell_consumption_sleep': 0.05,   # In Watts
+    'small_cell_voltage_min': 0.028,        # In mVolts
+    'small_cell_voltage_max': 0.033,        # In mVolts
+    'mean_user_speed': 5.5,                 # In m/s
+    'noise': 2.5e-14,
+    'SMA_WINDOW': 5, 
+    'TransmittingPower' : {
+        'PMacroCells': 40,
+        'PFemtoCells': 0.1,
+        'PDevice': 0.1,
+        'MacroCellDownlinkBW': 20e6,
+        'FemtoCellDownlinkBW': 1e9,
+        'alpha_loss': 4.0            
     }
+}
 
 CONFIG_PARAMETERS = {
-        'use_nice_setup': True,
-        'use_nice_setup_file': "mocks/pruebas_algoritmo/use_case_1.mat",
-        'show_plots': False,
+    'use_nice_setup': True,
+    'use_nice_setup_file': "mocks/pruebas_algoritmo/use_case_1.mat",
+    'show_plots': False,
 
-        'use_user_list': False,
-        'show_live_plots': False,
-        'speed_live_plots': 0.001,
-        'save_output': True,
-        'output_folder': None,
-    }
+    'use_user_list': False,
+    'show_live_plots': False,
+    'speed_live_plots': 0.001,
+    'save_output': True,
+    'output_folder': None,
+}
 
+
+CUSTOM_CONFIG = {
+    'user_report_position': 1,  # For each four timeSteps, the users updates position
+    'startup_max_tokens': 1,   # TimeSlots to startup a FemtoCell
+    'poweroff_unused_cell': 1, # TimeSlots to poweroff an unused Cell
+    'extraPoFCharger': False,     # Enable an extra Charger with 1W on the centroid
+    'typeExtraPoFCharger': "Centroid",
+    'use_harvesting': False,      # Enable the Solar Harvesting Mode -> New graph + solar charging...
+    'weather': "RAINY",          # Select over SUNNY, CLOUDY or RAINY
+    'city': "Cartagena",         # Select city
+    'MapScale': 1,               # 1 km == 1 points (1:1)
+    'fiberAttdBperKm': 0.2,      # Fiber attenuation in dB/Km
+    'plot_dpi': 200,
+    'config_times': {
+        'femto_boot_time_seconds': 30,          # Time to boot a femto cell
+        'femto_shutdown_time_seconds': 30,      # Time to shutdown a femto cell
+        'time_to_shutdown_unused_femto': 60,    # Time to shutdown an unused femto cell
+    },
+    'seed': 1234567890,
+}
 
 logger = logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
@@ -94,6 +115,8 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
     #                                                                                                              #
     #                                                                                                              #
     # ------------------------------------------------------------------------------------------------------------ #
+    seed = custom_parameters.get('seed', CUSTOM_CONFIG.get('seed', 1234567890))
+    
     try:
         battery_capacity = input_parameters.get('battery_capacity', 3.3)
         small_cell_consumption_ON = input_parameters.get('small_cell_consumption_on', 0.7)
@@ -172,7 +195,13 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
             BaseStations = nice_setup_mat['BaseStations']
             Stations = BaseStations.shape
             Npoints = Stations[0]
-            logger.debug(f"Stations: {Stations}, NPoints: {Npoints}")
+            MapScale = custom_parameters.get('MapScale', 1)
+            logger.debug(f"Stations: {Stations}, NPoints: {Npoints}, MapScale: {MapScale}")
+            
+            # Scale the BaseStations. The MapScale returns the number of km that are 1 point in the map
+            # We need to scale the BaseStations into meters
+            BaseStations[:,0] = BaseStations[:,0] * MapScale
+            BaseStations[:,1] = BaseStations[:,1] * MapScale
 
             NMacroCells = nice_setup_mat['NMacroCells'][0][0]
             NFemtoCells = nice_setup_mat['NFemtoCells'][0][0]
@@ -180,13 +209,15 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
 
             # Correct the gaps between celds and border
             min_x, min_y = np.min(BaseStations[:,0]), np.min(BaseStations[:,1])
-            margin = 0.5
+            margin = MapScale * 0.01 # 1% of the MapScale for the margin
 
             BaseStations[:,0] = BaseStations[:,0] - min_x + margin
             BaseStations[:,1] = BaseStations[:,1] - min_y + margin
 
             max_x, max_y = np.max(BaseStations[:,0]), np.max(BaseStations[:,1])
             Maplimit = max(max_x, max_y) + margin
+
+            logger.debug(f"BaseStations: {BaseStations}, Maplimit: {Maplimit}")
 
         except Exception as e:
             logger.error(bcolors.FAIL + 'Error importing the nice_setup.mat' + bcolors.ENDC)
@@ -296,12 +327,15 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         # TODO: Modify here
         
         macro_bs, femto_bs = BaseStations[:NMacroCells], BaseStations[NMacroCells:]
-        
+        max_radius_km_list = [1] * len(femto_bs)
+        polygon_bounds = [(0, 0), (Maplimit, 0), (Maplimit, Maplimit), (0, Maplimit), (0, 0)]
+
         # Femtocells
         Regions_fem, _ = model.RegionsCalcs.create_regions(
             np.array(femto_bs),
             alpha_loss,
-            max_radius_km_list=[1] * len(femto_bs)
+            max_radius_km_list=max_radius_km_list,
+            polygon_bounds=polygon_bounds,
         )
         
         # Macrocells
@@ -363,11 +397,11 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
     # Generate randomly the path of the users
     # Generate the mobility path of users
     if UserMobilityType == "STATIC":
-        s_mobility = simulator.mobility_utils.generate_constant_random_mobility(sim_input)
+        s_mobility = simulator.mobility_utils.generate_constant_random_mobility(sim_input, seed)
     elif UserMobilityType == "RANDOM":
-        s_mobility = simulator.mobility_utils.generate_random_mobility(sim_input)
+        s_mobility = simulator.mobility_utils.generate_random_mobility(sim_input, seed)
     elif UserMobilityType == "MOBILE":
-        s_mobility = simulator.mobility_utils.generate_mobility(sim_input)
+        s_mobility = simulator.mobility_utils.generate_mobility(sim_input, seed)
     
     s_mobility["NB_USERS"] = []
     for user in range(0, sim_input['NB_USERS']):
