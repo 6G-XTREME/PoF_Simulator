@@ -7,7 +7,7 @@ INPUT_PARAMETERS = {
         'UserMobilityType': "RANDOM",           # STATIC (random initial positions, same positions all the time steps)
                                                 # RANDOM (random initial positions, random positions each time step)
                                                 # MOBILE (random walk)
-        'timeStep': 60*5,                       # In seconds, 5 minutes
+        'timeStep': 60*8,                       # In seconds, 5 minutes
         'Simulation_Time': 3600*4,             # In seconds, 24 hours
         # 'NMacroCells': 20,
         # 'NFemtoCells': 134,

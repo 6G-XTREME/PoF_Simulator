@@ -21,6 +21,7 @@ from run_simulator_technoeconomics import CONFIG_PARAMETERS
 from simulator.user_association_utils import search_closest_macro
 from simulator.map_utils import search_closest_bs_optimized
 from model.TrafficModel import estimate_traffic_from_seconds
+from matplotlib.lines import Line2D
 
 
 
@@ -396,6 +397,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                     # if current_watts >= (self.max_energy_consumption_active - self.small_cell_consumption_ON + self.small_cell_consumption_SLEEP): # No, I cannot. Check battery.
 
                         # Check if we can use Femtocell's battery
+                        # TODO: this logic disables the simulation when timeStep is greater than 480 seconds (8 minutes)
                         if self.battery_vector[0, closest_bs_dl] > (timeStep/3600) * self.small_cell_current_draw:
                             
                             # Check if is booting Up!
@@ -688,7 +690,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                 color = 'orange' 
                 label = 'Shutting Down'
             else:
-                color = 'gray'
+                color = 'black'
                 label = 'Inactive'
 
             status_colors.append(color)
@@ -1148,7 +1150,8 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             
         fig_battery_charging, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_battery_charging, "discharging-cells"))    # In Order to save the figure on output folder
-        ax.step(format_time_axis(ax, sim_times), battery_charging, label="Discharging Cells")
+        ax.step(format_time_axis(ax, sim_times), battery_charging, label="Discharging Cells", color="blue")
+        ax.set_ylim(0, max(battery_charging) + 3)
         ax.legend()
         ax.set_title("Discharging Battery Cells")
         ax.set_ylabel('Number of cells')
@@ -1212,9 +1215,6 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         ax.set_ylabel('Throughput [Mb/s]')
         
 
-
-
-
         # Plot associations of users to cells - Femto and Macro regions
         last_user_to_bs_assoc = self.association_vector[0, :]
         users_pos = np.array([[self.user_list[user]["v_x"][-1], self.user_list[user]["v_y"][-1]] 
@@ -1223,32 +1223,76 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         # Separate users and lines by cell type
         p2p_lines_fem, p2p_lines_mac = [], []
         users_fem, users_mac = [], []
-        
+
+        # For accurate femtocell state, build a dict: femto_idx -> run_mode (0=off, 1=laser, 2=battery)
+        final_timeIndex = -1  # último paso de tiempo
+        femto_run_modes = {}
+        for i in range(self.NMacroCells, len(self.BaseStations)):
+            # Default: 0=off
+            run_mode = 0
+            # Prefer explicit run mode if available
+            if hasattr(self, "femto_run_mode"):
+                run_mode = self.femto_run_mode[final_timeIndex][i - self.NMacroCells]
+            else:
+                # Fallback: infer from active_Cells and battery_vector
+                is_active = self.active_Cells[final_timeIndex][i] == 1
+                if is_active:
+                    # Try to distinguish laser/battery: if battery is not full, assume battery, else laser
+                    batt_level = self.battery_vector[0][i]
+                    if hasattr(self, "battery_capacity") and batt_level < self.battery_capacity - 1e-3:
+                        run_mode = 2  # battery
+                    else:
+                        run_mode = 1  # laser
+                else:
+                    run_mode = 0  # off
+            femto_run_modes[i] = run_mode
+
+        # Now, when separating users, check if the femtocell is actually active
         for user, bs in enumerate(last_user_to_bs_assoc):
             user_pos = (self.user_list[user]["v_x"][-1], self.user_list[user]["v_y"][-1])
             bs_pos = self.BaseStations[int(bs)][:2]
             line = ([user_pos[0], bs_pos[0]], [user_pos[1], bs_pos[1]])
-            
+
             if bs >= self.NMacroCells:
-                p2p_lines_fem.append(line)
-                users_fem.append(user_pos)
+                # Only associate to femto if it is active (run_mode 1 or 2)
+                run_mode = femto_run_modes.get(int(bs), 0)
+                if run_mode > 0:
+                    p2p_lines_fem.append(line)
+                    users_fem.append(user_pos)
+                else:
+                    # If not active, treat as macro for plotting (should not happen, but for safety)
+                    p2p_lines_mac.append(line)
+                    users_mac.append(user_pos)
             else:
                 p2p_lines_mac.append(line)
                 users_mac.append(user_pos)
 
-        
-
-        # Helper functions
-        def region_config(index, is_active):
+        # Helper functions for region coloring
+        def region_config_macro(index):
             return {
                 "alpha": 0.3, 
                 "edgecolor": 'black', 
                 "linewidth": 0.5, 
                 "linestyle": '-',
-                "color": 'gray' if not is_active else 'orange'
+                "color": 'orange'
             }
 
-        def paint_regions(_regions, _ax, cell_index, is_active):
+        def region_config_femto(index, run_mode):
+            # run_mode: 0=off, 1=laser, 2=battery
+            color = 'gray'
+            if run_mode == 1:
+                color = 'orange'
+            elif run_mode == 2:
+                color = 'green'
+            return {
+                "alpha": 0.3, 
+                "edgecolor": 'black', 
+                "linewidth": 0.5, 
+                "linestyle": '-',
+                "color": color
+            }
+
+        def paint_regions_macro(_regions, _ax, cell_index):
             for region in reversed(_regions):
                 if isinstance(region, (Polygon, MultiPolygon, GeometryCollection)):
                     if isinstance(region, Polygon):
@@ -1260,54 +1304,91 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                     
                     for poly in polygons:
                         x, y = poly.exterior.coords.xy
-                        _ax.fill(x, y, **region_config(cell_index, is_active))
+                        _ax.fill(x, y, **region_config_macro(cell_index))
 
-        def setup_plot(title, is_femto=True):
-            fig, ax = plt.subplots()
+        def paint_regions_femto(_regions, _ax, cell_index, run_mode):
+            for region in reversed(_regions):
+                if isinstance(region, (Polygon, MultiPolygon, GeometryCollection)):
+                    if isinstance(region, Polygon):
+                        polygons = [region]
+                    elif isinstance(region, MultiPolygon):
+                        polygons = region.geoms
+                    else:  # GeometryCollection
+                        polygons = [g for g in region.geoms if isinstance(g, Polygon)]
+                    
+                    for poly in polygons:
+                        x, y = poly.exterior.coords.xy
+                        _ax.fill(x, y, **region_config_femto(cell_index, run_mode))
+
+        def setup_plot(is_femto=True):
+            fig, ax = plt.subplots(figsize=fig_size, dpi=dpi)
             self.list_figures.append((fig, f'output-last-user-association-only-{"femto" if is_femto else "macro"}'))
-            ax.set_title(f'Last User Association - {"Femto" if is_femto else "Macro"} Cells')
-            ax.scatter([], [], label=f"User in {'Femto' if is_femto else 'Macro'}Cell", color='red', s=20, marker='+', linewidths=2)
-            ax.scatter([], [], label=f"User in {'Macro' if is_femto else 'Femto'}Cell", color='blue', s=20, marker='+', linewidths=2)
-            ax.scatter([], [], label=f"{'Femto' if is_femto else 'Macro'}Cell", color='black', s=10, marker='o')
-            ax.legend()
+            if is_femto:
+                ax.set_title('Last User Association - Femto Cells')
+                # Custom legend for femto
+                legend_elements = [
+                    Line2D([0], [0], color='orange', lw=6, label='FemtoCell (Laser)'),
+                    Line2D([0], [0], color='green', lw=6, label='FemtoCell (Battery)'),
+                    Line2D([0], [0], color='gray', lw=6, label='FemtoCell (Off)'),
+                    Line2D([0], [0], marker='o', color='w', markerfacecolor='black', markersize=6, label='FemtoCell Position'),
+                    Line2D([0], [0], marker='+', color='red', markersize=10, linestyle='None', label='User in FemtoCell'),
+                    Line2D([0], [0], marker='+', color='blue', markersize=10, linestyle='None', label='User in MacroCell'),
+                    Line2D([0], [0], color='green', lw=1, label='User Association')
+                ]
+                ax.legend(handles=legend_elements, loc='best')
+            else:
+                ax.set_title('Last User Association - Macro Cells')
+                legend_elements = [
+                    Line2D([0], [0], color='orange', lw=6, label='MacroCell Region'),
+                    Line2D([0], [0], marker='o', color='w', markerfacecolor='black', markersize=6, label='MacroCell Position'),
+                    Line2D([0], [0], marker='+', color='red', markersize=10, linestyle='None', label='User in MacroCell'),
+                    Line2D([0], [0], marker='+', color='blue', markersize=10, linestyle='None', label='User in FemtoCell'),
+                    Line2D([0], [0], color='green', lw=1, label='User Association')
+                ]
+                ax.legend(handles=legend_elements, loc='best')
             ax.axis('off')
             fig.tight_layout()
             return fig, ax
 
         # Create and populate plots
-        fig_fem, ax_fem = setup_plot('Femto', True)
-        fig_mac, ax_mac = setup_plot('Macro', False)
+        fig_fem, ax_fem = setup_plot(is_femto=True)
+        fig_mac, ax_mac = setup_plot(is_femto=False)
 
-        final_timeIndex = -1  # último paso de tiempo
-        def draw_cell_associations(start_idx, end_idx, ax, lines, active_users, inactive_users):
+        # Draw femto cells with new color logic, using accurate run_mode for each cell
+        def draw_cell_associations_femto(start_idx, end_idx, ax, lines, active_users, inactive_users, run_modes_dict):
             for i in range(start_idx, end_idx):
-                is_active = self.active_Cells[final_timeIndex][i] == 1
-                paint_regions([self.Regions[i]], ax, i, is_active)
+                run_mode = run_modes_dict.get(i, 0)
+                paint_regions_femto([self.Regions[i]], ax, i, run_mode)
                 ax.scatter(*self.BaseStations[i][:2], color='black', s=10, marker='o')
                 ax.annotate(str(i), (self.BaseStations[i][0], self.BaseStations[i][1]), 
                         xytext=(5, 5), textcoords='offset points', fontsize=8)
-            
             for line in lines:
                 ax.plot(line[0], line[1], color='green', linewidth=0.8)
-        
             for user in active_users:
                 ax.scatter(*user, color='red', s=20, marker='+', linewidths=2)
             for user in inactive_users:
                 ax.scatter(*user, color='blue', s=5, marker='+', linewidths=0.5)
 
+        def draw_cell_associations_macro(start_idx, end_idx, ax, lines, active_users, inactive_users):
+            for i in range(start_idx, end_idx):
+                paint_regions_macro([self.Regions[i]], ax, i)
+                ax.scatter(*self.BaseStations[i][:2], color='black', s=10, marker='o')
+                ax.annotate(str(i), (self.BaseStations[i][0], self.BaseStations[i][1]), 
+                        xytext=(5, 5), textcoords='offset points', fontsize=8)
+            for line in lines:
+                ax.plot(line[0], line[1], color='green', linewidth=0.8)
+            for user in active_users:
+                ax.scatter(*user, color='red', s=20, marker='+', linewidths=2)
+            for user in inactive_users:
+                ax.scatter(*user, color='blue', s=5, marker='+', linewidths=0.5)
 
-        # Draw femto cells
-        draw_cell_associations(self.NMacroCells, len(self.BaseStations), ax_fem, 
-                             p2p_lines_fem, users_fem, users_mac)
+        # Draw femto cells with correct region coloring and user associations
+        draw_cell_associations_femto(self.NMacroCells, len(self.BaseStations), ax_fem, 
+                                     p2p_lines_fem, users_fem, users_mac, femto_run_modes)
         
-        # Draw macro cells  
-        draw_cell_associations(0, self.NMacroCells, ax_mac,
-                             p2p_lines_mac, users_mac, users_fem)
-
-
-
-
-
+        # Draw macro cells (all orange)
+        draw_cell_associations_macro(0, self.NMacroCells, ax_mac,
+                                     p2p_lines_mac, users_mac, users_fem)
 
         # Get the context_class method
         super().plot_output(sim_times=sim_times, show_plots=show_plots, is_gui=is_gui, fig_size=fig_size)
