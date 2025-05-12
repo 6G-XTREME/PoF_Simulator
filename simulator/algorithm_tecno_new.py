@@ -86,7 +86,10 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
     femto_boot_time_seconds: int
     femto_shutdown_time_seconds: int
     time_to_shutdown_unused_femto: int
-    
+
+    rng_seed: int
+    max_batteries_charging: int
+    charging_battery_threshold: float
     
     
     # ------------------------------------------------------------------------------------------------------------ #
@@ -201,6 +204,18 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         # Initialize valley_spoke_factors as None - will be populated in start_simulation
         self.valley_spoke_factors = None
         self.run_name = run_name
+        self.rng_seed = CONFIG_PARAMETERS.get('rng_seed', 1234567890)
+        self.rng = random.Random(self.rng_seed)
+        self.charging_battery_threshold = CONFIG_PARAMETERS.get('charging_battery_threshold', 0.95)
+        
+        # Obtain the number of batteries that can be charging simultaneously
+        simultaneous_charging_batteries = CONFIG_PARAMETERS.get('simultaneous_charging_batteries', "40%")
+        if simultaneous_charging_batteries == "ALL":
+            self.max_batteries_charging = self.NFemtoCells
+        elif simultaneous_charging_batteries.endswith("%"):
+            self.max_batteries_charging = int(self.NFemtoCells * float(simultaneous_charging_batteries.replace("%", "")) / 100)
+        else:
+            self.max_batteries_charging = int(simultaneous_charging_batteries)
         
         super().create_folders(run_name, output_folder)
 
@@ -620,9 +635,11 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         Args:
             timeIndex (int): Current simulation time step
         """
-        # Create debug plot for battery capacity
-        fig, ax = plt.subplots(figsize=(12, 6))
-        ax.axhline(y=3.3, color='r', label="Max. capacity")
+        # Create debug plot with two subplots
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), height_ratios=[2, 1])
+        
+        # Top subplot - Battery capacity
+        ax1.axhline(y=3.3, color='r', label="Max. capacity")
         
         # Get battery states for coloring
         battery_states = self.battery_state[timeIndex]
@@ -639,22 +656,63 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             else:  # Discharging & Charging
                 color = 'orange'
                 
-            ax.bar(int(bar), self.battery_vector[0][bar]*1000, color=color)
+            ax1.bar(int(bar), self.battery_vector[0][bar]*1000, color=color)
         
         # Add legend for battery states
-        ax.bar(0, 0, color='gray', label='Inactive')
-        ax.bar(0, 0, color='green', label='Charging')
-        ax.bar(0, 0, color='red', label='Discharging')
-        ax.bar(0, 0, color='orange', label='Charging & Discharging')
-        ax.axhline(y=3.3, color='r', label="Max. capacity")
+        ax1.bar(0, 0, color='gray', label='Inactive')
+        ax1.bar(0, 0, color='green', label='Charging')
+        ax1.bar(0, 0, color='red', label='Discharging')
+        ax1.bar(0, 0, color='orange', label='Charging & Discharging')
+        ax1.axhline(y=3.3, color='r', label="Max. capacity")
         
-        ax.legend()
-        ax.set_title(f"Battery Capacity at Time Step {timeIndex}")
-        ax.set_xlabel("Femto cell number")
-        ax.set_ylabel("Capacity [mAh]")
+        ax1.legend()
+        ax1.set_title(f"Battery Capacity at Time Step {timeIndex}")
+        ax1.set_xlabel("Femto cell number")
+        ax1.set_ylabel("Capacity [mAh]")
+
+        # Bottom subplot - Femtocell status
+        femto_indices = np.arange(len(self.battery_state[timeIndex][self.NMacroCells:]))
+        status_colors = []
+        status_labels = []
         
-        # Save the plot
-        plt.savefig(os.path.join(self.debug_battery_folder, f'battery_capacity_step_{timeIndex:04d}.png'), dpi=100, bbox_inches='tight')
+        for i in range(len(femto_indices)):
+            femto_idx = i + self.NMacroCells
+            # Check various femtocell states
+            if femto_idx in self.started_up_femto:
+                color = 'green'
+                label = 'Active'
+            elif self.starting_up_femto[femto_idx] > 0:
+                color = 'yellow'
+                label = 'Booting'
+            elif self.starting_up_femto[femto_idx] < 0:
+                color = 'orange' 
+                label = 'Shutting Down'
+            else:
+                color = 'gray'
+                label = 'Inactive'
+
+            status_colors.append(color)
+            status_labels.append(label)
+            
+        # Create bar plot
+        ax2.bar(femto_indices, [1]*len(femto_indices), color=status_colors)
+        
+        # Add legend with unique statuses
+        unique_colors = list(set(zip(status_colors, status_labels)))
+        for color, label in unique_colors:
+            ax2.bar(0, 0, color=color, label=label)
+            
+        ax2.set_ylim(-0.1, 1.1)
+        ax2.set_yticks([0, 1])
+        ax2.set_yticklabels(['Off', 'On'])
+        ax2.set_xlabel("Femto cell number")
+        ax2.set_title("Femtocell Status")
+        ax2.legend()
+        ax2.grid(True)
+        
+        # Adjust layout and save
+        plt.tight_layout()
+        plt.savefig(os.path.join(self.debug_battery_folder, f'battery_capacity_step_{timeIndex:04d}.png'), dpi=200, bbox_inches='tight')
         plt.close(fig)
     
     
@@ -721,7 +779,20 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             timeIndex (_type_): Index of simulation times
             timeStep (_type_): actual simulation step
         """
-        
+
+        # First, add the Solar harvesting for each battery of femtocell ...
+        if self.use_harvesting:
+            for batt in range(self.NMacroCells, len(self.battery_vector[0])):
+                if self.battery_vector[0][batt] < self.battery_capacity:
+                    charging_power_amperes_timeStep = self.solar_panel.calculate_Ah_in_timeStep(
+                        solar_irradiance=self.solar_panel.irradiance_city[self.city],
+                        timeStep=timeStep,
+                        weather_condition=Weather[self.weather]
+                    )
+                    self.battery_vector[0][batt] = min(self.battery_vector[0][batt] + charging_power_amperes_timeStep, self.battery_capacity)
+                    self.cumulative_harvested_power[batt] += charging_power_amperes_timeStep
+            self.battery_mean_harvesting[timeIndex] = np.mean(self.cumulative_harvested_power)
+
         # extra_budget = total-active
         # live_energy < max_energy_active:
         #   available = max_energy_active - live_energy + extra_budget [big number]
@@ -742,52 +813,58 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         #print(f"Live active: {self.live_smallcell_consumption[timeIndex]}")
         #print(f"Extra budget: {extra_budget}. Available: {available}")
         
-        # Select which FemtoCell to charge with PoF
-        I = np.argmin(self.battery_vector[0])    # One decision for eachTimeStep -> Because we can concentrate the laser power
-        i_x = self.BaseStations[I][0]
-        i_y = self.BaseStations[I][1]
-        if self.use_centroid:       # Centroid Based Charging Mode
-            d_km = simulator.map_utils.get_distance_in_kilometers([i_x, i_y], [self.centroid_x, self.centroid_y], self.map_scale)
-            #print(f"Centroid Available: {available}")
-            available = simulator.energy_utils.get_power_with_attenuation(available, self.att_db_per_km, d_km)
-            #print(f"Centroid Avaliable with att: {available}")
-            #print("-------------------")
-        else:                       # Nearest MacroStation Charging Mode
-            # Find nearest macrocell...
-            closests_macro = simulator.user_association_utils.search_closest_macro([i_x,i_y],self.BaseStations[0:self.NMacroCells, 0:2])
-            if I != closests_macro: 
-                macro_x = self.BaseStations[closests_macro][0]
-                macro_y = self.BaseStations[closests_macro][1]
-                d_km = simulator.map_utils.get_distance_in_kilometers([i_x, i_y], [macro_x, macro_y], self.map_scale)
-                #print(f"Available: {available}")
-                available = simulator.energy_utils.get_power_with_attenuation(available, self.att_db_per_km, d_km)
-                #print(f"Avaliable with att: {available}")
+        # Select the batteries to be charged with PoF, based on the battery level and the maximum number of batteries that can be charging simultaneously
+        charging_threshold = self.charging_battery_threshold * self.battery_capacity   # Limit of the battery level to be charged
+        battery_levels = self.battery_vector[0][self.NMacroCells:]                      # Battery levels of the femtocells
+        eligible_relative_indices = np.where(battery_levels < charging_threshold)[0]      # Indices of the batteries that are eligible to be charged
+
+        # Select the maximum number of batteries to be charged
+        N_CHARGING = min(self.max_batteries_charging, len(eligible_relative_indices)) # Could be 0 if no battery is eligible
+
+        if N_CHARGING > 0:
+            sorted_by_level = sorted(eligible_relative_indices, key=lambda i: battery_levels[i])  # Sort by battery level ascending
+            selected_indices = [self.NMacroCells + i for i in sorted_by_level[:N_CHARGING]]
+            self.rng.shuffle(selected_indices)  # Randomly shuffle the selected indices
+            available_per_battery = available / N_CHARGING
+        else:
+            selected_indices = []
+            available_per_battery = available
         
-        # Update battery state of the selected battery to charge with PoF
-        if self.battery_vector[0][I] < self.battery_capacity:
-            charging_intensity = available / np.mean(self.small_cell_voltage_range)
-            self.battery_vector[0][I] = min(self.battery_vector[0][I] + ((charging_intensity * timeStep) / 3600), self.battery_capacity)
-            try:
-                if self.battery_state[timeIndex][I] == 0.0: 
-                    self.battery_state[timeIndex+1][I] = 1.0        # If none state, set as charging
-                elif self.battery_state[timeIndex][I] == 2.0: 
-                    self.battery_state[timeIndex+1][I] = 3.0        # If discharging, set as charging & discharging
-                else: self.battery_state[timeIndex+1][I] = self.battery_state[timeIndex]
-            except:
-                # Last step of the simulation...
-                pass
-    
-        # Add the Solar harvesting for each battery of femtocell ...
-        if self.use_harvesting:
-            for batt in range(self.NMacroCells, len(self.battery_vector[0])):
-                if self.battery_vector[0][batt] < self.battery_capacity:
-                    charging_power_amperes_timeStep = self.solar_panel.calculate_Ah_in_timeStep(solar_irradiance=self.solar_panel.irradiance_city[self.city], timeStep=0.5, weather_condition=Weather[self.weather])
-                    self.battery_vector[0][batt] = min(self.battery_vector[0][batt] + charging_power_amperes_timeStep, self.battery_capacity)
-                    self.cumulative_harvested_power[batt] += charging_power_amperes_timeStep
-            self.battery_mean_harvesting[timeIndex] = np.mean(self.cumulative_harvested_power)
-        
+
+        # Complete the charge of the selected batteries, considering attenuation if centroid or macro is used
+        for i in selected_indices:
+            i_x = self.BaseStations[i][0]
+            i_y = self.BaseStations[i][1]
+            effective_available = available_per_battery
+
+            if self.use_centroid:
+                d_km = simulator.map_utils.get_distance_in_kilometers(
+                    [i_x, i_y], [self.centroid_x, self.centroid_y], self.map_scale
+                )
+                effective_available = simulator.energy_utils.get_power_with_attenuation(
+                    available_per_battery, self.att_db_per_km, d_km
+                )
+            else:
+                # Nearest MacroStation Charging Mode
+                closest_macro = simulator.user_association_utils.search_closest_macro(
+                    [i_x, i_y], self.BaseStations[0:self.NMacroCells, 0:2]
+                )
+                macro_x = self.BaseStations[closest_macro][0]
+                macro_y = self.BaseStations[closest_macro][1]
+                d_km = simulator.map_utils.get_distance_in_kilometers(
+                    [i_x, i_y], [macro_x, macro_y], self.map_scale
+                )
+                effective_available = simulator.energy_utils.get_power_with_attenuation(
+                    available_per_battery, self.att_db_per_km, d_km
+                )
+
+            # Convert available energy to battery charge (Ah)
+            charging_intensity = effective_available / np.mean(self.small_cell_voltage_range)
+            charge_added = (charging_intensity * timeStep) / 3600
+            self.battery_vector[0][i] = min(self.battery_vector[0][i] + charge_added, self.battery_capacity)
+
         self.battery_mean_values[timeIndex] = np.mean(self.battery_vector[0])
-        
+
         # Check if battery is dead [Only femtocells]
         for batt in range(self.NMacroCells, len(self.battery_vector[0])):
             battery_capacity = round(self.battery_vector[0][batt], 2)

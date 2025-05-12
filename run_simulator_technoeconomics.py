@@ -8,7 +8,7 @@ INPUT_PARAMETERS = {
                                                 # RANDOM (random initial positions, random positions each time step)
                                                 # MOBILE (random walk)
         'timeStep': 60*5,                       # In seconds, 5 minutes
-        'Simulation_Time': 3600*12,             # In seconds, 24 hours
+        'Simulation_Time': 3600*4,             # In seconds, 24 hours
         # 'NMacroCells': 20,
         # 'NFemtoCells': 134,
         'Maplimit': 40,                         # Size of Map grid, [dont touch]
@@ -31,7 +31,9 @@ INPUT_PARAMETERS = {
             'MacroCellDownlinkBW': 20e6,
             'FemtoCellDownlinkBW': 1e9,
             'alpha_loss': 4.0            
-        }
+        },
+        'simultaneous_charging_batteries': "6", # ALL, x%, NUM
+        'charging_battery_threshold': 0.95,     # (0, 1) %
     }
 
 CONFIG_PARAMETERS = {
@@ -53,7 +55,7 @@ CONFIG_PARAMETERS = {
             'line_width': 1.5,    # Default line width for plots
             'font_size': 12,      # Default font size
             'tick_size': 10,      # Default tick label size
-        }
+        },
     }
 
 CUSTOM_CONFIG = {

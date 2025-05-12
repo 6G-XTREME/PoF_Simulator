@@ -46,7 +46,9 @@ INPUT_PARAMETERS = {
         'MacroCellDownlinkBW': 20e6,
         'FemtoCellDownlinkBW': 1e9,
         'alpha_loss': 4.0            
-    }
+    },
+    'simultaneous_charging_batteries': "40%", # ALL, x%, NUM
+    'charging_battery_threshold': 0.95,      # (0, 1)
 }
 
 CONFIG_PARAMETERS = {
