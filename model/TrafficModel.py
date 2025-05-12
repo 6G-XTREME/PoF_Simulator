@@ -1,39 +1,29 @@
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
 
+def f_gaussiana_base(t, _sigma=4*3600, _mu=12*3600):
+    return 1 - np.exp(-((t - _mu)**2) / (2 * _sigma**2))
 
-
-# Tiempo en intervalos de 15 minutos
-tiempo = np.arange(0, 24, 0.25)  # 96 puntos
-
+def f_gaussiana_pico(t, _sigma=1*3600, _mu=20*3600):
+    return np.exp(-0.5 * ((t - _mu - 6*3600) / _sigma) ** 2)
 
 # Función modificada con crecimiento desde 10am y pico en 8pm
-def valley_peak_traffic_profile(t_segundos):
+def valley_peak_traffic_profile(t_segundos, _alpha=0.2, _offset=0.2):
     """
     Devuelve el perfil de tráfico evaluado para tiempo en segundos.
     """
-    t_horas = t_segundos / 3600.0
-
-    # Componente de subida desde 10am
-    subida = 1 / (1 + np.exp(-(t_horas - 10)))
-
-    # Componente pico gaussiano a las 20:00
-    pico = np.exp(-0.5 * ((t_horas - 20) / 2) ** 2)
-
-    # Combinación y normalización
-    combinado = 0.6 * subida + 0.4 * pico
-    normalizado = combinado / np.max(combinado)
-
-    return 0.1 + 0.9 * normalizado
-
-
+    # Función normal complementaria
+    return _offset + (1 - _offset) * (
+        f_gaussiana_base(t_segundos)
+    )
 
 def estimate_traffic_from_seconds(t_segundos, ruido=True, ruido_max=0.015, seed=None):
     """
     Devuelve el factor de tráfico para un instante temporal dado en segundos.
     Usa interpolación con resolución de 15 minutos (900s) y ruido opcional.
     """
+    # Desplazamos el tiempo 6 horas hacia adelante, para ajustar el valle de la función
+    t_segundos = t_segundos + 6 * 3600
+
     # Normalizar el tiempo al rango de un día
     t_segundos_norm = t_segundos % (24 * 3600)  # segundos en un día
 
@@ -51,5 +41,5 @@ def estimate_traffic_from_seconds(t_segundos, ruido=True, ruido_max=0.015, seed=
         delta = np.random.uniform(-ruido_max, ruido_max)
         valor_estimado += delta
 
-    return np.clip(valor_estimado, 0.1, 1.0)
-
+    # return np.clip(valor_estimado, 0.1, 1.0)
+    return valor_estimado

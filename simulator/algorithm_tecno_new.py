@@ -815,36 +815,36 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         #print(f"Live active: {self.live_smallcell_consumption[timeIndex]}")
         #print(f"Extra budget: {extra_budget}. Available: {available}")
         
-        # Select the batteries to be charged with PoF, based on the battery level and the maximum number of batteries that can be charging simultaneously
+        # Select the batteries to be charged with PoF, based on the battery level and the maximum number of batteries that can be charged simultaneously
         charging_threshold = self.charging_battery_threshold * self.battery_capacity   # Limit of the battery level to be charged
         battery_levels = self.battery_vector[0][self.NMacroCells:]                      # Battery levels of the femtocells
         eligible_relative_indices = np.where(battery_levels < charging_threshold)[0]      # Indices of the batteries that are eligible to be charged
 
-        # Select the maximum number of batteries to be charged
-        N_CHARGING = min(self.max_batteries_charging, len(eligible_relative_indices)) # Could be 0 if no battery is eligible
-
-        if N_CHARGING > 0:
-            sorted_by_level = sorted(eligible_relative_indices, key=lambda i: battery_levels[i])  # Sort by battery level ascending
-            selected_indices = [self.NMacroCells + i for i in sorted_by_level[:N_CHARGING]]
-            self.rng.shuffle(selected_indices)  # Randomly shuffle the selected indices
-            available_per_battery = available / N_CHARGING
-        else:
-            selected_indices = []
-            available_per_battery = available
+        # Create list of (index, level) tuples and shuffle to randomize ties
+        battery_tuples = [(i, battery_levels[i]) for i in eligible_relative_indices]
+        self.rng.shuffle(battery_tuples)  # Randomize before sorting to break ties randomly
         
+        # Sort by level (ascending) and limit to max number that can charge
+        sorted_by_level = [i for i, _ in sorted(battery_tuples, key=lambda x: x[1])]
+        selected_indices = [self.NMacroCells + i for i in sorted_by_level[:self.max_batteries_charging]]
+        self.rng.shuffle(selected_indices)  # Final shuffle of selected indices
 
-        # Complete the charge of the selected batteries, considering attenuation if centroid or macro is used
+        # Process batteries one by one, updating available energy after each charge
+        remaining_available = available
         for i in selected_indices:
+            if remaining_available <= 0:
+                break  # No more energy available in the pool
+                
             i_x = self.BaseStations[i][0]
             i_y = self.BaseStations[i][1]
-            effective_available = available_per_battery
+            effective_available = remaining_available
 
             if self.use_centroid:
                 d_km = simulator.map_utils.get_distance_in_kilometers(
                     [i_x, i_y], [self.centroid_x, self.centroid_y], self.map_scale
                 )
                 effective_available = simulator.energy_utils.get_power_with_attenuation(
-                    available_per_battery, self.att_db_per_km, d_km
+                    remaining_available, self.att_db_per_km, d_km
                 )
             else:
                 # Nearest MacroStation Charging Mode
@@ -857,13 +857,19 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                     [i_x, i_y], [macro_x, macro_y], self.map_scale
                 )
                 effective_available = simulator.energy_utils.get_power_with_attenuation(
-                    available_per_battery, self.att_db_per_km, d_km
+                    remaining_available, self.att_db_per_km, d_km
                 )
 
             # Convert available energy to battery charge (Ah)
             charging_intensity = effective_available / np.mean(self.small_cell_voltage_range)
             charge_added = (charging_intensity * timeStep) / 3600
+            
+            # Calculate how much energy was actually used
+            energy_used = (charge_added * np.mean(self.small_cell_voltage_range) * 3600) / timeStep
+            
+            # Update battery and remaining available energy
             self.battery_vector[0][i] = min(self.battery_vector[0][i] + charge_added, self.battery_capacity)
+            remaining_available -= energy_used
 
         self.battery_mean_values[timeIndex] = np.mean(self.battery_vector[0])
 
