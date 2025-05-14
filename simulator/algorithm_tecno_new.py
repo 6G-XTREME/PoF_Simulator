@@ -917,9 +917,11 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
 
     def calculate_throughput(self, BW, user_count, naturalDL, traffic_factor=1.0):
         """General throughput calculation (bps)"""
-        if user_count <= 0:
-            user_count = 1e-6  # avoid division by zero
-        return (BW / user_count) * np.log2(1 + naturalDL) * traffic_factor
+        if user_count < 1:
+            user_count = 1
+        max_bw = (BW / user_count)
+        estm_bw = max_bw * np.log2(1 + naturalDL) * traffic_factor
+        return min(estm_bw, max_bw)
 
 
     
@@ -1234,23 +1236,14 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         final_timeIndex = -1  # último paso de tiempo
         femto_run_modes = {}
         for i in range(self.NMacroCells, len(self.BaseStations)):
-            # Default: 0=off
-            run_mode = 0
-            # Prefer explicit run mode if available
-            if hasattr(self, "femto_run_mode"):
-                run_mode = self.femto_run_mode[final_timeIndex][i - self.NMacroCells]
+            is_active = self.active_Cells[final_timeIndex][i] == 1 # 0 = off, 1 = active
+            battery_discharging = self.battery_state[final_timeIndex][i] == 2.0 or self.battery_state[final_timeIndex][i] == 3.0 # 2 = discharging, 3 = charging and discharging, 0-1 = other
+            if is_active:
+                run_mode = 1  # laser
+            elif battery_discharging:
+                run_mode = 2  # battery
             else:
-                # Fallback: infer from active_Cells and battery_vector
-                is_active = self.active_Cells[final_timeIndex][i] == 1
-                if is_active:
-                    # Try to distinguish laser/battery: if battery is not full, assume battery, else laser
-                    batt_level = self.battery_vector[0][i]
-                    if hasattr(self, "battery_capacity") and batt_level < self.battery_capacity - 1e-3:
-                        run_mode = 2  # battery
-                    else:
-                        run_mode = 1  # laser
-                else:
-                    run_mode = 0  # off
+                run_mode = 0  # off
             femto_run_modes[i] = run_mode
 
         # Now, when separating users, check if the femtocell is actually active

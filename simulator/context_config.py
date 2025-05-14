@@ -228,6 +228,7 @@ class Contex_Config():
         ax.plot(format_time_axis(ax, sim_times), self.battery_mean_values, label='Battery mean capacity')
         ax.axhline(y=3.3, color='r',label="Max. voltage battery")
         ax.set_ylabel('Battery capacity [Ah]')
+        ax.set_ylim(0, self.battery_capacity * 1.1)
         ax.set_title('Mean Battery Capacity of the System')
         ax.legend()
         
