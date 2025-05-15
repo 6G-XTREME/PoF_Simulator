@@ -954,21 +954,27 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         def format_time_axis(ax, times):
             """Helper function to format time axis based on total duration"""
             total_seconds = times[-1]
-            if total_seconds > 2 * 86400:  # More than a day
+            if total_seconds > 1.5 * 3600*24*7:  # More than 1.5 weeks
+                ax.set_xlabel('Time [weeks]')
+                times_weeks = times / (3600*24*7)
+                ax.set_xticks(np.arange(0, times_weeks[-1] + 0.25, 0.25))  # 0.25 days = 6 hours
+                ax.set_xticklabels([f'{x:.1f}' for x in np.arange(0, times_weeks[-1] + 0.25, 0.25)])
+                return times_weeks
+            elif total_seconds > 2 * 3600*24:  # More than 2 days
                 ax.set_xlabel('Time [days]')
                 # Convert to days and set ticks every 6 hours
                 times_days = times / 86400
                 ax.set_xticks(np.arange(0, times_days[-1] + 0.25, 0.25))  # 0.25 days = 6 hours
                 ax.set_xticklabels([f'{x:.1f}' for x in np.arange(0, times_days[-1] + 0.25, 0.25)])
                 return times_days
-            elif total_seconds > 2 * 3600:  # More than an hour
+            elif total_seconds > 2 * 3600:  # More than 2 hours
                 ax.set_xlabel('Time [hours]')
                 # Convert to hours and set ticks every hour
                 times_hours = times / 3600
                 ax.set_xticks(np.arange(0, times_hours[-1] + 1, 1))
                 ax.set_xticklabels([f'{int(x)}' for x in np.arange(0, times_hours[-1] + 1, 1)])
                 return times_hours
-            else:  # Less than an hour
+            else:  # Less than 2 hours
                 ax.set_xlabel('Time [seconds]')
                 # Set ticks every 10 minutes (600 seconds)
                 tick_interval = 600

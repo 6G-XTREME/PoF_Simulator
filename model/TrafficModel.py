@@ -6,6 +6,20 @@ def f_gaussiana_base(t, _sigma=4*3600, _mu=12*3600):
 def f_gaussiana_pico(t, _sigma=1*3600, _mu=20*3600):
     return np.exp(-0.5 * ((t - _mu - 6*3600) / _sigma) ** 2)
 
+def f_gaussiana_finde_pulso(t, center=6.5*24*3600, transition_width=3600, width=2*24*3600, _limit=0.4):
+    """
+    Pulso centrado correctamente: el centro es el punto medio del pulso.
+    """
+    def sigmoid(x, midpoint, slope):
+        return 1 / (1 + np.exp(-(x - midpoint) / slope))
+    
+    # El pulso va de (center - width/2) a (center + width/2)
+    start = center - width / 2
+    end = center + width / 2
+    rise = sigmoid(t, start, transition_width)
+    fall = sigmoid(t, end, transition_width)
+    return 1 - _limit * (rise - fall)
+
 # Función modificada con crecimiento desde 10am y pico en 8pm
 def valley_peak_traffic_profile(t_segundos, _alpha=0.2, _offset=0.2):
     """
@@ -40,6 +54,9 @@ def estimate_traffic_from_seconds(t_segundos, ruido=True, ruido_max=0.015, seed=
             np.random.seed(seed)
         delta = np.random.uniform(-ruido_max, ruido_max)
         valor_estimado += delta
+
+    # Aplicar el pulso de fin de semana
+    valor_estimado *= f_gaussiana_finde_pulso(t_segundos)
 
     # return np.clip(valor_estimado, 0.1, 1.0)
     return valor_estimado
