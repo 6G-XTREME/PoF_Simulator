@@ -364,8 +364,8 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
     def algorithm_step(self, timeIndex, timeStep):
         """ Algorithm Logic to execute in each timeStep of the simulation
         Args:
-            timeIndex (int): 
-            timeStep (float): 
+            timeIndex (int): Current simulation time step
+            timeStep (float): Time step duration in seconds
         """
         if timeIndex == 0:
             self.battery_state[timeIndex] = np.zeros(self.NMacroCells+self.NFemtoCells)
@@ -382,6 +382,11 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         self.baseStation_users[timeIndex] = np.zeros(self.NMacroCells+self.NFemtoCells)
         self.active_Cells[timeIndex] = np.zeros(self.NMacroCells+self.NFemtoCells)
         self.overflown_from[timeIndex] = np.zeros(self.NMacroCells+self.NFemtoCells)
+
+        # Calculate boot/shutdown steps based on time granularity
+        boot_steps = max(1, int(self.femto_boot_time_seconds / timeStep))
+        shutdown_steps = max(1, int(self.femto_shutdown_time_seconds / timeStep))
+        unused_shutdown_steps = max(1, int(self.time_to_shutdown_unused_femto / timeStep))
 
         for userIndex in range(0, len(self.NUsers)):
             self.user_pos_plot[userIndex][0].set_data([
@@ -400,20 +405,19 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                     active_femto = np.sum(self.active_Cells[timeIndex][self.NMacroCells:])
                     battery_femto = np.count_nonzero(self.battery_state[timeIndex][self.NMacroCells:] == 2.0)
 
-
                     current_watts = (active_femto * self.small_cell_consumption_ON) + ((self.NFemtoCells - (active_femto + battery_femto)) * self.small_cell_consumption_SLEEP)
                     current_battery = self.battery_vector[0, closest_bs_dl]
                     estimated_consumption = (timeStep/3600) * self.small_cell_current_draw
                     freedom_degree = 0.4
                     enough_battery = current_battery > estimated_consumption * (1 - freedom_degree)
-
+                    enough_battery = True
 
                     if current_watts >= (self.max_energy_consumption_active - self.small_cell_consumption_ON + self.small_cell_consumption_SLEEP):
                         if enough_battery:
-                            if (self.starting_up_femto[closest_bs_dl] > 0 and self.starting_up_femto[closest_bs_dl] <= self.startup_max_tokens):
-                                self.active_Cells[timeIndex][closest_bs_dl] = 0
-                                self.battery_state[timeIndex][closest_bs_dl] = 2.0
-                            elif closest_bs_dl in self.started_up_femto:
+                            # If timeStep is greater than boot time, activate immediately
+                            if timeStep >= self.femto_boot_time_seconds:
+                                if closest_bs_dl not in self.started_up_femto:
+                                    self.started_up_femto.append(closest_bs_dl)
                                 macro = self._find_closest_macro(userIndex, timeIndex)
                                 self._associate_to_femto(userIndex, timeIndex, closest_bs_dl, 'green', '--', 3, discharging=True, overflow_macro=macro)
                                 self.active_Cells[timeIndex][closest_bs_dl] = 0
@@ -421,27 +425,49 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                                 self.battery_vector[0, closest_bs_dl] = max(0, self.battery_vector[0, closest_bs_dl] - estimated_consumption)
                                 continue
                             else:
-                                self.starting_up_femto[closest_bs_dl] = self.startup_max_tokens
-                                self.active_Cells[timeIndex][closest_bs_dl] = 0
-                                self.battery_state[timeIndex][closest_bs_dl] = 2.0
+                                # Handle boot sequence based on time granularity
+                                if (self.starting_up_femto[closest_bs_dl] > 0 and self.starting_up_femto[closest_bs_dl] <= boot_steps):
+                                    self.active_Cells[timeIndex][closest_bs_dl] = 0
+                                    self.battery_state[timeIndex][closest_bs_dl] = 2.0
+                                elif closest_bs_dl in self.started_up_femto:
+                                    macro = self._find_closest_macro(userIndex, timeIndex)
+                                    self._associate_to_femto(userIndex, timeIndex, closest_bs_dl, 'green', '--', 3, discharging=True, overflow_macro=macro)
+                                    self.active_Cells[timeIndex][closest_bs_dl] = 0
+                                    self.battery_state[timeIndex][closest_bs_dl] = 2.0
+                                    self.battery_vector[0, closest_bs_dl] = max(0, self.battery_vector[0, closest_bs_dl] - estimated_consumption)
+                                    continue
+                                else:
+                                    self.starting_up_femto[closest_bs_dl] = boot_steps
+                                    self.active_Cells[timeIndex][closest_bs_dl] = 0
+                                    self.battery_state[timeIndex][closest_bs_dl] = 2.0
                             macro = self._find_closest_macro(userIndex, timeIndex)
                             self._associate_to_macro(userIndex, timeIndex, macro, color='orange', linestyle='--', linewidth=0.5)
                         else:
                             macro = self._find_closest_macro(userIndex, timeIndex)
                             self._associate_to_macro(userIndex, timeIndex, macro, color='red', linestyle='--', linewidth=2)
                     else:
-                        if (self.starting_up_femto[closest_bs_dl] > 0 and self.starting_up_femto[closest_bs_dl] <= self.startup_max_tokens):
-                            self.active_Cells[timeIndex][closest_bs_dl] = 1
-                            self.battery_state[timeIndex][closest_bs_dl] = 0.0
-                        elif closest_bs_dl in self.started_up_femto:
+                        # If timeStep is greater than boot time, activate immediately
+                        if timeStep >= self.femto_boot_time_seconds:
+                            if closest_bs_dl not in self.started_up_femto:
+                                self.started_up_femto.append(closest_bs_dl)
                             self._associate_to_femto(userIndex, timeIndex, closest_bs_dl, self.colorsBS[closest_bs_dl], '-', 0.5)
                             self.active_Cells[timeIndex][closest_bs_dl] = 1
                             self.battery_state[timeIndex][closest_bs_dl] = 0.0
                             continue
                         else:
-                            self.starting_up_femto[closest_bs_dl] = self.startup_max_tokens
-                            self.active_Cells[timeIndex][closest_bs_dl] = 1
-                            self.battery_state[timeIndex][closest_bs_dl] = 0.0
+                            # Handle boot sequence based on time granularity
+                            if (self.starting_up_femto[closest_bs_dl] > 0 and self.starting_up_femto[closest_bs_dl] <= boot_steps):
+                                self.active_Cells[timeIndex][closest_bs_dl] = 1
+                                self.battery_state[timeIndex][closest_bs_dl] = 0.0
+                            elif closest_bs_dl in self.started_up_femto:
+                                self._associate_to_femto(userIndex, timeIndex, closest_bs_dl, self.colorsBS[closest_bs_dl], '-', 0.5)
+                                self.active_Cells[timeIndex][closest_bs_dl] = 1
+                                self.battery_state[timeIndex][closest_bs_dl] = 0.0
+                                continue
+                            else:
+                                self.starting_up_femto[closest_bs_dl] = boot_steps
+                                self.active_Cells[timeIndex][closest_bs_dl] = 1
+                                self.battery_state[timeIndex][closest_bs_dl] = 0.0
                         macro = self._find_closest_macro(userIndex, timeIndex)
                         self._associate_to_macro(userIndex, timeIndex, macro, color='orange', linestyle='--', linewidth=0.5)
                 else:
@@ -465,13 +491,21 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                 self.baseStation_users[timeIndex][closest_bs_dl] += 1
 
         # End user allocation in timeIndex instance
-        if timeIndex % self.poweroff_max_tokens == 0:
+        # Check for unused femtocells based on time granularity
+        if timeIndex % unused_shutdown_steps == 0:
             for femto in range(0, len(self.started_up_femto)):
                 try:
                     if self.baseStation_users[timeIndex][self.started_up_femto[femto]] == 0:
-                        self.started_up_femto.remove(self.started_up_femto[femto])
+                        # If timeStep is greater than shutdown time, deactivate immediately
+                        if timeStep >= self.femto_shutdown_time_seconds:
+                            self.started_up_femto.remove(self.started_up_femto[femto])
+                        else:
+                            # Start shutdown sequence
+                            self.starting_up_femto[self.started_up_femto[femto]] = -shutdown_steps
                 except:
                     pass
+
+        # Update femtocell states
         for femto in range(0, len(self.starting_up_femto)):
             if self.starting_up_femto[femto] > 0:
                 if self.starting_up_femto[femto] == 1:
@@ -481,11 +515,20 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                         self.started_up_femto = []
                         self.started_up_femto.append(femto)
                 self.starting_up_femto[femto] = self.starting_up_femto[femto] - 1
+            elif self.starting_up_femto[femto] < 0:
+                if self.starting_up_femto[femto] == -1:
+                    try:
+                        self.started_up_femto.remove(femto)
+                    except:
+                        pass
+                self.starting_up_femto[femto] = self.starting_up_femto[femto] + 1
+
+        # Calculate traffic for all users
         for userIndex in range(0, len(self.NUsers)):
             self.X_user[timeIndex][userIndex][0] = self.calculate_traffic(userIndex=userIndex, timeIndex=timeIndex, timeStep=timeStep)
             self.X_user[timeIndex][userIndex][1] = self.calculate_traffic_no_battery(userIndex=userIndex, timeIndex=timeIndex, timeStep=timeStep)
             self.X_user[timeIndex][userIndex][2] = self.calculate_traffic_only_macro(userIndex=userIndex, timeIndex=timeIndex, timeStep=timeStep)
-        # self.save_battery_capacity_debug_plot(timeIndex)
+
         return
 
 
