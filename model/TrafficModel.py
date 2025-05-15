@@ -36,10 +36,10 @@ def estimate_traffic_from_seconds(t_segundos, ruido=True, ruido_max=0.015, seed=
     Usa interpolación con resolución de 15 minutos (900s) y ruido opcional.
     """
     # Desplazamos el tiempo 6 horas hacia adelante, para ajustar el valle de la función
-    t_segundos = t_segundos + 6 * 3600
+    t_segundos_des = t_segundos + 6 * 3600
 
     # Normalizar el tiempo al rango de un día
-    t_segundos_norm = t_segundos % (24 * 3600)  # segundos en un día
+    t_segundos_norm = t_segundos_des % (24 * 3600)  # segundos en un día
 
     # Crear vector base de referencia (cada 15 minutos = 900s)
     tiempos_base = np.arange(0, 24 * 3600, 900)
@@ -56,7 +56,8 @@ def estimate_traffic_from_seconds(t_segundos, ruido=True, ruido_max=0.015, seed=
         valor_estimado += delta
 
     # Aplicar el pulso de fin de semana
-    valor_estimado *= f_gaussiana_finde_pulso(t_segundos)
+    t_segundos_semana = t_segundos_des % (7 * 24 * 3600)
+    valor_estimado *= f_gaussiana_finde_pulso(t_segundos_semana)
 
     # return np.clip(valor_estimado, 0.1, 1.0)
     return valor_estimado

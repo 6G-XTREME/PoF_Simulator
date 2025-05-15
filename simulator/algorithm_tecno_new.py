@@ -99,6 +99,11 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
     served_users: np.array
     blocked_users: np.array
     
+    throughput_time_series_gbps: list
+    power_time_series_kWh: list
+    
+    SMA_WINDOW: int
+    
     
     # ------------------------------------------------------------------------------------------------------------ #
     # -- INITIALIZATION ------------------------------------------------------------------------------------------ #
@@ -224,6 +229,9 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             self.max_batteries_charging = int(self.NFemtoCells * float(simultaneous_charging_batteries.replace("%", "")) / 100)
         else:
             self.max_batteries_charging = int(simultaneous_charging_batteries)
+        
+        # SMA Window
+        self.SMA_WINDOW = CONFIG_PARAMETERS.get('SMA_WINDOW', 10)
         
         super().create_folders(run_name, output_folder)
 
@@ -1119,6 +1127,20 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         ax.legend()
         ax.set_title("Throughput Downlink. System with only Macro Cells")
         ax.set_ylabel('Throughput [Mb/s]')
+
+        
+        # Throughput for tecnoeconomics
+        SMA_WINDOW = self.SMA_WINDOW
+        timeIndex = len(sim_times)
+        fig_throughput_smooth, ax = plt.subplots(figsize=fig_size, dpi=dpi)
+        self.list_figures.append((fig_throughput_smooth, "throughput_smooth_tecno"))
+        X = self.format_time_axis(ax, sim_times[timeIndex-(len(self.live_throughput)-(SMA_WINDOW-1))+1:timeIndex])
+        Y = np.convolve(self.live_throughput/10e9, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
+        ax.plot(X, Y[:-1], label='Using PoF & batteries')
+
+        ax.legend()
+        ax.set_title('Live system throughput')
+        ax.set_ylabel('Throughput [Gbps]')
         
 
         # Plot associations of users to cells - Femto and Macro regions
