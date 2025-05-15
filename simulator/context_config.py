@@ -119,6 +119,57 @@ class Contex_Config():
     def start_simulation(self, sim_times, timeStep, text_plot, show_plots: bool = True, speed_plot: float = 0.05):
         pass
     
+    @staticmethod
+    def format_time_axis(ax, times):
+        """Helper function to format time axis based on total duration"""
+        total_seconds = times[-1]
+        # Always show only integer days, integer hours, or integer minutes/seconds, and reduce number of ticks if needed
+        import math
+
+        def reduce_ticks(ticks, max_ticks=24):
+            """Reduce the number of ticks to max_ticks or fewer, evenly spaced."""
+            if len(ticks) <= max_ticks:
+                return ticks
+            idxs = np.linspace(0, len(ticks) - 1, max_ticks, dtype=int)
+            return ticks[idxs]
+
+        if total_seconds > 1.5 * 3600 * 24 * 7:  # More than 1.5 weeks
+            ax.set_xlabel('Time [weeks]')
+            times_weeks = times / (3600 * 24 * 7)
+            max_tick = math.ceil(times_weeks[-1])
+            ticks = np.arange(0, max_tick + 1, 1)
+            ticks = reduce_ticks(ticks)
+            ax.set_xticks(ticks)
+            ax.set_xticklabels([f'{int(x)}' for x in ticks])
+            return times_weeks
+        elif total_seconds > 2 * 3600 * 24:  # More than 2 days
+            ax.set_xlabel('Time [days]')
+            times_days = times / 86400
+            max_tick = math.ceil(times_days[-1])
+            ticks = np.arange(0, max_tick + 1, 1)
+            ticks = reduce_ticks(ticks)
+            ax.set_xticks(ticks)
+            ax.set_xticklabels([f'{int(x)}' for x in ticks])
+            return times_days
+        elif total_seconds > 2 * 3600:  # More than 2 hours
+            ax.set_xlabel('Time [hours]')
+            times_hours = times / 3600
+            max_tick = math.ceil(times_hours[-1])
+            ticks = np.arange(0, max_tick + 1, 1)
+            ticks = reduce_ticks(ticks)
+            ax.set_xticks(ticks)
+            ax.set_xticklabels([f'{int(x)}' for x in ticks])
+            return times_hours
+        else:  # Less than 2 hours
+            ax.set_xlabel('Time [minutes]')
+            times_minutes = times / 60
+            max_tick = math.ceil(times_minutes[-1])
+            ticks = np.arange(0, max_tick + 1, 5)  # every 5 minutes
+            ticks = reduce_ticks(ticks)
+            ax.set_xticks(ticks)
+            ax.set_xticklabels([f'{int(x)}' for x in ticks])
+            return times_minutes
+    
     def plot_output(self, sim_times, is_gui: bool = False, show_plots: bool = True, fig_size: tuple = None, dpi: int = None):
         """Plot simulation outputs with configurable figure parameters.
 
@@ -147,43 +198,12 @@ class Contex_Config():
             'lines.linewidth': line_width
         })
 
-        def format_time_axis(ax, times):
-            """Helper function to format time axis based on total duration"""
-            total_seconds = times[-1]
-            if total_seconds > 1.5 * 3600*24*7:  # More than 1.5 weeks
-                ax.set_xlabel('Time [weeks]')
-                times_weeks = times / (3600*24*7)
-                ax.set_xticks(np.arange(0, times_weeks[-1] + 0.25, 0.25))  # 0.25 days = 6 hours
-                ax.set_xticklabels([f'{x:.1f}' for x in np.arange(0, times_weeks[-1] + 0.25, 0.25)])
-                return times_weeks
-            elif total_seconds > 2 * 3600*24:  # More than 2 days
-                ax.set_xlabel('Time [days]')
-                # Convert to days and set ticks every 6 hours
-                times_days = times / 86400
-                ax.set_xticks(np.arange(0, times_days[-1] + 0.25, 0.25))  # 0.25 days = 6 hours
-                ax.set_xticklabels([f'{x:.1f}' for x in np.arange(0, times_days[-1] + 0.25, 0.25)])
-                return times_days
-            elif total_seconds > 2 * 3600:  # More than 2 hours
-                ax.set_xlabel('Time [hours]')
-                # Convert to hours and set ticks every hour
-                times_hours = times / 3600
-                ax.set_xticks(np.arange(0, times_hours[-1] + 1, 1))
-                ax.set_xticklabels([f'{int(x)}' for x in np.arange(0, times_hours[-1] + 1, 1)])
-                return times_hours
-            else:  # Less than 2 hours
-                ax.set_xlabel('Time [seconds]')
-                # Set ticks every 10 minutes (600 seconds)
-                tick_interval = 600
-                ax.set_xticks(np.arange(0, total_seconds + tick_interval, tick_interval))
-                ax.set_xticklabels([f'{int(x/60)}' for x in np.arange(0, total_seconds + tick_interval, tick_interval)])
-                return times
-
         # 1
         fig_cell_occupancy, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_cell_occupancy, "cell_occupancy"))
         ax.axhline(y=self.NFemtoCells, color='r', label='Total Small cells')
-        ax.step(format_time_axis(ax, sim_times), self.live_smallcell_occupancy, 'g', label='Small cells being used')
-        ax.step(format_time_axis(ax, sim_times), self.live_smallcell_overflow, 'b', label='Small cells overflowed')
+        ax.step(self.format_time_axis(ax, sim_times), self.live_smallcell_occupancy, 'g', label='Small cells being used')
+        ax.step(self.format_time_axis(ax, sim_times), self.live_smallcell_overflow, 'b', label='Small cells overflowed')
         ax.legend()
         ax.set_title('Number of small cells under use')
         ax.set_ylabel('Number of cells')
@@ -193,7 +213,7 @@ class Contex_Config():
         self.list_figures.append((fig_cell_consumption, "cell_consumption"))
         ax.axhline(y=self.max_energy_consumption_total, color='b', label='Max power of lasers [W]')
         ax.axhline(y=self.max_energy_consumption_active, color='r', label='Max consumption of PoF budget [W]')
-        ax.step(format_time_axis(ax, sim_times), self.live_smallcell_consumption, 'g', label='Live energy consumption [W], laser + battery', linewidth=line_width)
+        ax.step(self.format_time_axis(ax, sim_times), self.live_smallcell_consumption, 'g', label='Live energy consumption [W], laser + battery', linewidth=line_width)
         ax.legend()
         ax.set_ylim(0, max(max(self.live_smallcell_consumption), self.max_energy_consumption_total, self.max_energy_consumption_active) * 1.1)
         ax.set_title('Live energy consumption')
@@ -202,9 +222,9 @@ class Contex_Config():
         # 3
         fig_throughput, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_throughput, "throughput"))
-        ax.plot(format_time_axis(ax, sim_times), self.live_throughput/10e6, label='With battery system')
-        ax.plot(format_time_axis(ax, sim_times), self.live_throughput_NO_BATTERY/10e6, 'r--', label='Without battery system')
-        ax.plot(format_time_axis(ax, sim_times), self.live_throughput_only_Macros/10e6, 'g:.', label='Only Macrocells')
+        ax.plot(self.format_time_axis(ax, sim_times), self.live_throughput/10e6, label='With battery system')
+        ax.plot(self.format_time_axis(ax, sim_times), self.live_throughput_NO_BATTERY/10e6, 'r--', label='Without battery system')
+        ax.plot(self.format_time_axis(ax, sim_times), self.live_throughput_only_Macros/10e6, 'g:.', label='Only Macrocells')
         ax.legend()
         ax.set_title('Live system throughput [un-smooth]')
         ax.set_ylabel('Throughput [Mb/s]')
@@ -214,15 +234,15 @@ class Contex_Config():
         timeIndex = len(sim_times)
         fig_throughput_smooth, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_throughput_smooth, "throughput_smooth"))
-        X = format_time_axis(ax, sim_times[timeIndex-(len(self.live_throughput)-(SMA_WINDOW-1))+1:timeIndex])
+        X = self.format_time_axis(ax, sim_times[timeIndex-(len(self.live_throughput)-(SMA_WINDOW-1))+1:timeIndex])
         Y = np.convolve(self.live_throughput/10e6, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
         ax.plot(X, Y[:-1], label='Using PoF & batteries')
 
-        X = format_time_axis(ax, sim_times[timeIndex-(len(self.live_throughput_NO_BATTERY)-(SMA_WINDOW-1))+1:timeIndex])
+        X = self.format_time_axis(ax, sim_times[timeIndex-(len(self.live_throughput_NO_BATTERY)-(SMA_WINDOW-1))+1:timeIndex])
         Y = np.convolve(self.live_throughput_NO_BATTERY/10e6, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
         ax.plot(X, Y[:-1], 'r--', label='Using PoF')
 
-        X = format_time_axis(ax, sim_times[timeIndex-(len(self.live_throughput_only_Macros)-(SMA_WINDOW-1))+1:timeIndex])
+        X = self.format_time_axis(ax, sim_times[timeIndex-(len(self.live_throughput_only_Macros)-(SMA_WINDOW-1))+1:timeIndex])
         Y = np.convolve(self.live_throughput_only_Macros/10e6, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
         ax.plot(X, Y[:-1], 'g--o', label='Only macrocells')
 
@@ -233,7 +253,7 @@ class Contex_Config():
         # 5
         fig_battery_mean, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_battery_mean, "battery_mean"))
-        ax.plot(format_time_axis(ax, sim_times), self.battery_mean_values, label='Battery mean capacity')
+        ax.plot(self.format_time_axis(ax, sim_times), self.battery_mean_values, label='Battery mean capacity')
         ax.axhline(y=3.3, color='r',label="Max. voltage battery")
         ax.set_ylabel('Battery capacity [Ah]')
         ax.set_ylim(0, self.battery_capacity * 1.1)

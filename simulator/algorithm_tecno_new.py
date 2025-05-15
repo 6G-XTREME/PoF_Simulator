@@ -951,37 +951,6 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             'lines.linewidth': line_width
         })
 
-        def format_time_axis(ax, times):
-            """Helper function to format time axis based on total duration"""
-            total_seconds = times[-1]
-            if total_seconds > 1.5 * 3600*24*7:  # More than 1.5 weeks
-                ax.set_xlabel('Time [weeks]')
-                times_weeks = times / (3600*24*7)
-                ax.set_xticks(np.arange(0, times_weeks[-1] + 0.25, 0.25))  # 0.25 days = 6 hours
-                ax.set_xticklabels([f'{x:.1f}' for x in np.arange(0, times_weeks[-1] + 0.25, 0.25)])
-                return times_weeks
-            elif total_seconds > 2 * 3600*24:  # More than 2 days
-                ax.set_xlabel('Time [days]')
-                # Convert to days and set ticks every 6 hours
-                times_days = times / 86400
-                ax.set_xticks(np.arange(0, times_days[-1] + 0.25, 0.25))  # 0.25 days = 6 hours
-                ax.set_xticklabels([f'{x:.1f}' for x in np.arange(0, times_days[-1] + 0.25, 0.25)])
-                return times_days
-            elif total_seconds > 2 * 3600:  # More than 2 hours
-                ax.set_xlabel('Time [hours]')
-                # Convert to hours and set ticks every hour
-                times_hours = times / 3600
-                ax.set_xticks(np.arange(0, times_hours[-1] + 1, 1))
-                ax.set_xticklabels([f'{int(x)}' for x in np.arange(0, times_hours[-1] + 1, 1)])
-                return times_hours
-            else:  # Less than 2 hours
-                ax.set_xlabel('Time [seconds]')
-                # Set ticks every 10 minutes (600 seconds)
-                tick_interval = 600
-                ax.set_xticks(np.arange(0, total_seconds + tick_interval, tick_interval))
-                ax.set_xticklabels([f'{int(x/60)}' for x in np.arange(0, total_seconds + tick_interval, tick_interval)])
-                return times
-
         # Battery dead?
         if self.timeIndex_first_battery_dead != 0:
             self.first_batt_dead_s = (self.timeIndex_first_battery_dead*timeStep)
@@ -1021,7 +990,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         metric = 0  # Default traffic
         for user in range(0, len(self.NUsers)):
             user_traffic = np.asarray([self.X_user[t][user][metric] for t in range(len(sim_times))])
-            ax.plot(format_time_axis(ax, sim_times), user_traffic/10e6, label=f'User {user}')
+            ax.plot(self.format_time_axis(ax, sim_times), user_traffic/10e6, label=f'User {user}')
         ax.set_title(f'Traffic for each user')
         ax.set_ylabel('Throughput [Mb/s]')
         
@@ -1033,7 +1002,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             
         fig_battery_charging, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_battery_charging, "discharging-cells"))    # In Order to save the figure on output folder
-        ax.step(format_time_axis(ax, sim_times), battery_charging, label="Discharging Cells", color="blue")
+        ax.step(self.format_time_axis(ax, sim_times), battery_charging, label="Discharging Cells", color="blue")
         ax.set_ylim(0, max(battery_charging) + 3)
         ax.legend()
         ax.set_title("Discharging Battery Cells")
@@ -1055,15 +1024,15 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         if self.use_harvesting:
             fig_battery_mean_harvesting, ax = plt.subplots(figsize=fig_size, dpi=dpi)
             self.list_figures.append((fig_battery_mean_harvesting, "battery_mean_harvesting"))
-            ax.plot(format_time_axis(ax, sim_times), self.battery_mean_values, '-', label='Hybrid PoF & Solar', color="tab:red")
-            ax.plot(format_time_axis(ax, sim_times), self.battery_mean_values - self.battery_mean_harvesting, '--', label='Only PoF', color="tab:blue")
+            ax.plot(self.format_time_axis(ax, sim_times), self.battery_mean_values, '-', label='Hybrid PoF & Solar', color="tab:red")
+            ax.plot(self.format_time_axis(ax, sim_times), self.battery_mean_values - self.battery_mean_harvesting, '--', label='Only PoF', color="tab:blue")
             ax.axhline(y=3.3, color='tab:green',label="Max. battery capacity")
             ax.set_ylabel('Battery capacity [Ah]')
             ax.legend()
             
             fig_battery_acc_harvesting, ax = plt.subplots(figsize=fig_size, dpi=dpi)
             self.list_figures.append((fig_battery_acc_harvesting, "battery_accumulative_harvesting"))
-            ax.plot(format_time_axis(ax, sim_times), self.battery_mean_harvesting, label='Accumulative battery harvesting')
+            ax.plot(self.format_time_axis(ax, sim_times), self.battery_mean_harvesting, label='Accumulative battery harvesting')
             ax.set_ylabel('Battery capacity [Ah]')
             ax.set_title('Accumulative battery harvesting')
             ax.legend()
@@ -1071,9 +1040,9 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         ## Throughput
         fig_throughput, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_throughput, 'output-throughput'))
-        ax.plot(format_time_axis(ax, sim_times), self.output_throughput[0]/10e6, label="Macro Cells")
-        ax.plot(format_time_axis(ax, sim_times), self.output_throughput[1]/10e6, label="Femto Cells")
-        ax.plot(format_time_axis(ax, sim_times), self.live_throughput/10e6, label="Total")
+        ax.plot(self.format_time_axis(ax, sim_times), self.output_throughput[0]/10e6, label="Macro Cells")
+        ax.plot(self.format_time_axis(ax, sim_times), self.output_throughput[1]/10e6, label="Femto Cells")
+        ax.plot(self.format_time_axis(ax, sim_times), self.live_throughput/10e6, label="Total")
         ax.legend()
         ax.set_title("Throughput Downlink. System with batteries")
         ax.set_ylabel('Throughput [Mb/s]')
@@ -1081,10 +1050,10 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         ## Throughput no battery
         fig_throughput_no_batt, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_throughput_no_batt, 'output-throughput-no-batt'))
-        ax.plot(format_time_axis(ax, sim_times), self.output_throughput_no_batt[0]/10e6, label="Macro Cells")
-        ax.plot(format_time_axis(ax, sim_times), self.output_throughput_no_batt[1]/10e6, label="Femto Cells")
-        ax.plot(format_time_axis(ax, sim_times), self.output_throughput_no_batt[2]/10e6, label="Femto Cells overflow")
-        ax.plot(format_time_axis(ax, sim_times), self.live_throughput_NO_BATTERY/10e6, label="Total")
+        ax.plot(self.format_time_axis(ax, sim_times), self.output_throughput_no_batt[0]/10e6, label="Macro Cells")
+        ax.plot(self.format_time_axis(ax, sim_times), self.output_throughput_no_batt[1]/10e6, label="Femto Cells")
+        ax.plot(self.format_time_axis(ax, sim_times), self.output_throughput_no_batt[2]/10e6, label="Femto Cells overflow")
+        ax.plot(self.format_time_axis(ax, sim_times), self.live_throughput_NO_BATTERY/10e6, label="Total")
         ax.legend()
         ax.set_title("Throughput Downlink. System without batteries")
         ax.set_ylabel('Throughput [Mb/s]')
@@ -1092,7 +1061,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         ## Only Macro
         fig_throughput_only_macro, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_throughput_only_macro, 'output-throughput-only-macro'))
-        ax.plot(format_time_axis(ax, sim_times), self.output_throughput_only_macro/10e6, label="Macro Cells")
+        ax.plot(self.format_time_axis(ax, sim_times), self.output_throughput_only_macro/10e6, label="Macro Cells")
         ax.legend()
         ax.set_title("Throughput Downlink. System with only Macro Cells")
         ax.set_ylabel('Throughput [Mb/s]')
