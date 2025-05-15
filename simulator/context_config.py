@@ -294,8 +294,12 @@ class Contex_Config():
         self.debug_battery_folder = os.path.join(self.debug_folder, 'battery_capacity')
         os.makedirs(self.debug_battery_folder, exist_ok=True)
         print(f"Debug battery folder: {self.debug_battery_folder}")
+
+        self.technoeconomics_folder = os.path.join(output_folder, 'technoeconomics')    
+        os.makedirs(self.technoeconomics_folder, exist_ok=True)
+        print(f"Technoeconomics folder: {self.technoeconomics_folder}")
         
-        return output_folder, self.data_folder, self.plot_folder, self.debug_folder, self.debug_battery_folder
+        return output_folder, self.data_folder, self.plot_folder, self.debug_folder, self.debug_battery_folder, self.technoeconomics_folder
         
 
     def save_run(self, fig_map, sim_times, run_name, output_folder, dpi: int = 200):

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from model.NodeClass import Node
 import numpy as np
 from numpy.typing import NDArray
-
+from matplotlib.lines import Line2D
 
 
 def standard_plot(
@@ -282,3 +282,94 @@ def plot_algorithm_result_associations(
         plt.show()
     
     return fig, ax
+
+    
+    
+    
+    
+    
+def plot_regions_deliverable(
+    nodes: list[tuple[float, float, float]],
+    femtocells: np.array,
+    hplds: np.array,
+    associations: NDArray[np.int_],
+    regions,
+    title: str,
+    draw_node_names: bool = False,
+):
+    
+    fig, ax = plt.subplots(figsize=(12,8))
+    legend_elements = []
+
+    region_config = {
+        "alpha": 0.3, 
+        "edgecolor": 'black', 
+        "linewidth": 0.5, 
+        "linestyle": '-',
+        "color": 'orange',
+    }
+    def paint_regions_femto(_regions, _ax):
+        for region in _regions.values():
+            if isinstance(region, (Polygon, MultiPolygon, GeometryCollection)):
+                if isinstance(region, Polygon):
+                    polygons = [region]
+                elif isinstance(region, MultiPolygon):
+                    polygons = region.geoms
+                else:  # GeometryCollection
+                    polygons = [g for g in region.geoms if isinstance(g, Polygon)]
+                
+                for poly in polygons:
+                    x, y = poly.exterior.coords.xy
+                    _ax.fill(x, y, **region_config)
+        legend_elements.append(Line2D([0], [0], color='orange', lw=6, label='FemtoCell Region'))
+    
+    paint_regions_femto(regions, ax)
+    
+
+
+    femtos_config = {
+        'color': 'black',
+        's': 10,
+        'marker': 'o',
+    }
+    def paint_femtos(_nodes, _femtos, _ax):
+        for i in range(len(_nodes)):
+            if _femtos[i] != 1:
+                continue
+            
+            _ax.scatter(*_nodes[i][:2], **femtos_config)
+            if draw_node_names:
+                _ax.annotate(str(i), (_nodes[i][0], _nodes[i][1]), textcoords='offset points', fontsize=8)
+        legend_elements.append(Line2D([0], [0], marker='o', color='w', markerfacecolor='black', markersize=6, label='FemtoCell Position'))
+    paint_femtos(nodes, femtocells, ax)
+    
+    
+    
+    pools_config = {
+        'color': 'red',
+        's': 10,
+        'marker': '*',
+    }
+    def paint_pools(_nodes, _pools, _ax):
+        for i in range(len(_pools)):
+            if _pools[i] != 1:
+                continue
+            
+            _ax.scatter(*_nodes[i][:2], **pools_config)
+            if draw_node_names: 
+                _ax.annotate(str(i), (_nodes[i][0], _nodes[i][1]), textcoords='offset points', fontsize=8)
+        legend_elements.append(Line2D([0], [0], marker='*', color='w', markerfacecolor='red', markersize=10, label='PoF Pool Position'))
+
+    paint_pools(nodes, hplds, ax)
+            
+    
+    
+    ax.axis('off')
+    ax.legend(handles=legend_elements, loc='best')
+    fig.tight_layout()
+    
+    return fig, ax
+            
+    
+                        
+                    

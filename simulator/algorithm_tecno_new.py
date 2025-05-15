@@ -22,6 +22,7 @@ from simulator.user_association_utils import search_closest_macro
 from simulator.map_utils import search_closest_bs_optimized
 from model.TrafficModel import estimate_traffic_from_seconds
 from matplotlib.lines import Line2D
+from model.TechnoEconomics import FileWithKPIs
 
 
 
@@ -91,6 +92,12 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
     rng_seed: int
     max_batteries_charging: int
     charging_battery_threshold: float
+    
+    
+    
+    # Technoeconomics variables
+    served_users: np.array
+    blocked_users: np.array
     
     
     # ------------------------------------------------------------------------------------------------------------ #
@@ -230,6 +237,9 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
     #                                                                                                              #
     # ------------------------------------------------------------------------------------------------------------ #
     def start_simulation(self, sim_times, timeStep, text_plot, progressbar_widget, canvas_widget, show_plots: bool = True, speed_plot: float = 0.05):
+        # Store timeStep as class attribute
+        self.timeStep = timeStep
+        
         # Settting up some vars
         self.battery_state = [[] for _ in range(len(sim_times))]
         self.baseStation_users = [[] for _ in range(len(sim_times))]
@@ -296,6 +306,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                 self.algorithm_step(timeIndex=timeIndex, timeStep=timeStep)
                 self.compute_statistics_for_plots(timeIndex=timeIndex)                          # Prepare derivate data for plots
                 self.update_battery_state(timeIndex=timeIndex, timeStep=timeStep)               # Update battery state for next timeStep
+                self.compute_techno_economics(timeIndex=timeIndex)                              # Compute techno-economics
                 
                 if progressbar_widget is not None: 
                     progressbar_widget.setValue(int(stage))
@@ -1301,12 +1312,42 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
 
         csv = os.path.join(self.data_folder, f'{run_name}-output.csv')
         json = os.path.join(self.data_folder, f'{run_name}-output.json')
+        kpis_json = os.path.join(self.data_folder, f'{run_name}-kpis.json')
+
+        # Get techno-economics metrics
+        tecno_metrics = self.get_techno_economics_metrics()
+
+        # Create FileWithKPIs object
+        kpis = FileWithKPIs(
+            total_throughput_gbps=tecno_metrics['total_throughput_gbps'],
+            daily_avg_throughput_gbps=tecno_metrics['daily_avg_throughput_gbps'],
+            total_power_consumption_kWh=tecno_metrics['total_power_consumption_kWh'],
+            daily_avg_power_consumption_kWh=tecno_metrics['daily_avg_power_consumption_kWh'],
+            yearly_power_estimate_kWh=tecno_metrics['yearly_power_estimate_kWh'],
+            availability_percentage=tecno_metrics['availability_percentage'],
+            blocked_traffic_gbps=tecno_metrics['blocked_traffic_gbps'],
+            throughput_time_series_gbps=tecno_metrics['throughput_time_series_gbps'],
+            power_time_series_kWh=tecno_metrics['power_time_series_kWh']
+        )
+
+        # Save KPIs to JSON using FileWithKPIs format
+        kpis.to_file(kpis_json)
 
         # Read CSV and add the new parameters to save!
         df_update = pd.read_csv(csv)
         df_update = df_update.assign(per_served_femto=self.per_served_femto)
         df_update = df_update.assign(per_in_area=self.per_in_area)
         df_update = df_update.assign(per_time_served=self.per_time_served)
+        
+        # Add techno-economics metrics
+        df_update = df_update.assign(total_throughput_gbps=tecno_metrics['total_throughput_gbps'])
+        df_update = df_update.assign(daily_avg_throughput_gbps=tecno_metrics['daily_avg_throughput_gbps'])
+        df_update = df_update.assign(total_power_consumption_kWh=tecno_metrics['total_power_consumption_kWh'])
+        df_update = df_update.assign(daily_avg_power_consumption_kWh=tecno_metrics['daily_avg_power_consumption_kWh'])
+        df_update = df_update.assign(yearly_power_estimate_kWh=tecno_metrics['yearly_power_estimate_kWh'])
+        df_update = df_update.assign(availability_percentage=tecno_metrics['availability_percentage'])
+        df_update = df_update.assign(blocked_traffic_gbps=tecno_metrics['blocked_traffic_gbps'])
+        
         try:
             df_update = df_update.assign(first_batt_dead=self.first_batt_dead_s)
             df_update = df_update.assign(last_batt_dead=self.last_batt_dead_s)
@@ -1332,3 +1373,69 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         # Save to CSV & JSON        
         df_update.to_csv(csv, index=False)
         df_update.to_json(json, orient="index", indent=4)
+
+    def compute_techno_economics(self, timeIndex):
+        """Compute techno-economics metrics for the current time step
+        
+        Args:
+            timeIndex (int): Current simulation time step
+        """
+        # Initialize arrays if first time
+        if not hasattr(self, 'throughput_time_series_gbps'):
+            self.throughput_time_series_gbps = []
+            self.power_time_series_kWh = []
+            self.served_users = np.zeros(len(self.NUsers))
+            self.blocked_users = np.zeros(len(self.NUsers))
+        
+        # Calculate throughput in Gbps
+        current_throughput = self.live_throughput[timeIndex] / 1e9  # Convert from bps to Gbps
+        self.throughput_time_series_gbps.append(current_throughput)
+        
+        # Calculate power consumption in kWh
+        # Convert from watts to kWh using timeStep
+        current_power = (self.live_smallcell_consumption[timeIndex] * self.timeStep) / 3600  # Convert from Wh to kWh
+        self.power_time_series_kWh.append(current_power)
+        
+        # Update served/blocked users
+        for user in range(len(self.NUsers)):
+            if self.is_in_femto[user][timeIndex] > 0:  # User is in coverage area
+                if self.is_in_femto[user][timeIndex] == 1:  # User is served by femto
+                    self.served_users[user] += 1
+                else:  # User is served by macro
+                    self.served_users[user] += 1
+            else:  # User is not in coverage area
+                self.blocked_users[user] += 1
+
+    def get_techno_economics_metrics(self):
+        """Get the final techno-economics metrics
+        
+        Returns:
+            dict: Dictionary containing all techno-economics metrics
+        """
+        # Calculate total and average throughput
+        total_throughput_gbps = sum(self.throughput_time_series_gbps)
+        daily_avg_throughput_gbps = total_throughput_gbps / (len(self.throughput_time_series_gbps) * self.timeStep / 86400)
+        
+        # Calculate power consumption metrics
+        total_power_consumption_kWh = sum(self.power_time_series_kWh)
+        daily_avg_power_consumption_kWh = total_power_consumption_kWh / (len(self.power_time_series_kWh) * self.timeStep / 86400)
+        yearly_power_estimate_kWh = daily_avg_power_consumption_kWh * 365
+        
+        # Calculate availability percentage
+        total_time_steps = len(self.throughput_time_series_gbps)
+        availability_percentage = (np.sum(self.served_users) / (total_time_steps * len(self.NUsers))) * 100
+        
+        # Calculate blocked traffic
+        blocked_traffic_gbps = (np.sum(self.blocked_users) / total_time_steps) * self.MacroCellDownlinkBW / 1e9
+        
+        return {
+            'total_throughput_gbps': total_throughput_gbps,
+            'daily_avg_throughput_gbps': daily_avg_throughput_gbps,
+            'total_power_consumption_kWh': total_power_consumption_kWh,
+            'daily_avg_power_consumption_kWh': daily_avg_power_consumption_kWh,
+            'yearly_power_estimate_kWh': yearly_power_estimate_kWh,
+            'availability_percentage': availability_percentage,
+            'blocked_traffic_gbps': blocked_traffic_gbps,
+            'throughput_time_series_gbps': self.throughput_time_series_gbps,
+            'power_time_series_kWh': self.power_time_series_kWh
+        }
