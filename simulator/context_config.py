@@ -222,9 +222,9 @@ class Contex_Config():
         # 3
         fig_throughput, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_throughput, "throughput"))
-        ax.plot(self.format_time_axis(ax, sim_times), self.live_throughput/10e6, label='With battery system')
-        ax.plot(self.format_time_axis(ax, sim_times), self.live_throughput_NO_BATTERY/10e6, 'r--', label='Without battery system')
-        ax.plot(self.format_time_axis(ax, sim_times), self.live_throughput_only_Macros/10e6, 'g:.', label='Only Macrocells')
+        ax.plot(self.format_time_axis(ax, sim_times), self.live_throughput/1e6, label='With battery system')
+        ax.plot(self.format_time_axis(ax, sim_times), self.live_throughput_NO_BATTERY/1e6, 'r--', label='Without battery system')
+        ax.plot(self.format_time_axis(ax, sim_times), self.live_throughput_only_Macros/1e6, 'g:.', label='Only Macrocells')
         ax.legend()
         ax.set_title('Live system throughput [un-smooth]')
         ax.set_ylabel('Throughput [Mb/s]')
@@ -235,15 +235,15 @@ class Contex_Config():
         fig_throughput_smooth, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_throughput_smooth, "throughput_smooth"))
         X = self.format_time_axis(ax, sim_times[timeIndex-(len(self.live_throughput)-(SMA_WINDOW-1))+1:timeIndex])
-        Y = np.convolve(self.live_throughput/10e6, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
+        Y = np.convolve(self.live_throughput/1e6, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
         ax.plot(X, Y[:-1], label='Using PoF & batteries')
 
         X = self.format_time_axis(ax, sim_times[timeIndex-(len(self.live_throughput_NO_BATTERY)-(SMA_WINDOW-1))+1:timeIndex])
-        Y = np.convolve(self.live_throughput_NO_BATTERY/10e6, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
+        Y = np.convolve(self.live_throughput_NO_BATTERY/1e6, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
         ax.plot(X, Y[:-1], 'r--', label='Using PoF')
 
         X = self.format_time_axis(ax, sim_times[timeIndex-(len(self.live_throughput_only_Macros)-(SMA_WINDOW-1))+1:timeIndex])
-        Y = np.convolve(self.live_throughput_only_Macros/10e6, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
+        Y = np.convolve(self.live_throughput_only_Macros/1e6, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
         ax.plot(X, Y[:-1], 'g--o', label='Only macrocells')
 
         ax.legend()
@@ -312,9 +312,9 @@ class Contex_Config():
                                   'small_cell_ocupacy': self.live_smallcell_occupancy,
                                   'small_cell_overflow': self.live_smallcell_overflow,
                                   'small_cell_consumption[W]': self.live_smallcell_consumption,
-                                  'throughput[mbps]': self.live_throughput/10e6,
-                                  'throughput_no_battery[mbps]': self.live_throughput_NO_BATTERY/10e6,
-                                  'throughput_only_macro[mbps]': self.live_throughput_only_Macros/10e6,
+                                  'throughput[mbps]': self.live_throughput/1e6,
+                                  'throughput_no_battery[mbps]': self.live_throughput_NO_BATTERY/1e6,
+                                  'throughput_only_macro[mbps]': self.live_throughput_only_Macros/1e6,
                                   'battery_mean[Ah]': self.battery_mean_values})
         df_output = df_output.assign(NMacroCells=self.NMacroCells)
         df_output = df_output.assign(NFemtoCells=self.NFemtoCells)

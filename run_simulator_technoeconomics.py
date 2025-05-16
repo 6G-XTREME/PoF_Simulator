@@ -12,7 +12,7 @@ INPUT_PARAMETERS = {
         # 'NMacroCells': 20,
         # 'NFemtoCells': 134,
         'Maplimit': 40,                         # Size of Map grid, [dont touch]
-        'numberOfPofPools': 20,                         # Number of HPLDS
+        'numberOfPofPools': 27,                         # Number of HPLDS
         'numberOfLasersPerPool': 5,                     # Number of lasers per HPLD
         'wattsPerLaser': 1,                     # Watts. Capacity of each HPLD
 
@@ -23,7 +23,7 @@ INPUT_PARAMETERS = {
         'small_cell_voltage_max': 0.033,        # In mVolts
         'mean_user_speed': 5.5,                 # In m/s
         'noise': 2.5e-14,
-        'SMA_WINDOW': 5, 
+        'SMA_WINDOW': 1, 
         'TransmittingPower' : {
             'PMacroCells': 40,
             'PFemtoCells': 0.1,
@@ -38,8 +38,9 @@ INPUT_PARAMETERS = {
 
 CONFIG_PARAMETERS = {
         'use_nice_setup': True,
-        'use_nice_setup_file': "mocks/pruebas_algoritmo/UC1-S3-AllHL4withHPLD-AllHL5withFemto.mat",
+        # 'use_nice_setup_file': "mocks/pruebas_algoritmo/UC1-S3-AllHL4withHPLD-AllHL5withFemto.mat",
         # 'use_nice_setup_file': "mocks/pruebas_algoritmo/use_case_1.mat",
+        'use_nice_setup_file': "mocks/pruebas_algoritmo/UC2-S2.mat",
         'show_plots': False,
 
         'use_user_list': False,
@@ -47,6 +48,7 @@ CONFIG_PARAMETERS = {
         'speed_live_plots': 0.001,
         'save_output': True,
         'output_folder': None,
+        'SMA_WINDOW': 1,
         
         # Figure configuration
         'figure_config': {

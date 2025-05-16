@@ -27,6 +27,7 @@ from model.TechnoEconomics import FileWithKPIs
 
 
 class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
+    SMA_WINDOW: int
     map_scale: int                              # 1 km == 100 points (1:100) 
     
     user_report_position: int                   # TimeStep between user new position report
@@ -94,15 +95,10 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
     charging_battery_threshold: float
     
     
-    
     # Technoeconomics variables
-    served_users: np.array
-    blocked_users: np.array
+    served_users_sim: np.array
+    blocked_users_traffic_bps: np.array
     
-    throughput_time_series_gbps: list
-    power_time_series_kWh: list
-    
-    SMA_WINDOW: int
     
     
     # ------------------------------------------------------------------------------------------------------------ #
@@ -293,6 +289,11 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         for timeIndex in range(len(sim_times)):
             for userIndex in range(len(self.NUsers)):
                 self.valley_spoke_factors[timeIndex, userIndex] = estimate_traffic_from_seconds(timeIndex * timeStep, ruido_max=0.03)
+
+                
+                
+        self.served_users_sim = np.zeros((len(sim_times), len(self.NUsers)), dtype=int) # 0: served by femto, 1: served by macro
+        self.blocked_users_traffic_bps = np.zeros((len(sim_times), len(self.NUsers)), dtype=float)
         
         logger.info("Starting simulation...")
         start = time.time()
@@ -314,7 +315,6 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                 self.algorithm_step(timeIndex=timeIndex, timeStep=timeStep)
                 self.compute_statistics_for_plots(timeIndex=timeIndex)                          # Prepare derivate data for plots
                 self.update_battery_state(timeIndex=timeIndex, timeStep=timeStep)               # Update battery state for next timeStep
-                self.compute_techno_economics(timeIndex=timeIndex)                              # Compute techno-economics
                 
                 if progressbar_widget is not None: 
                     progressbar_widget.setValue(int(stage))
@@ -691,6 +691,20 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         self.live_throughput[timeIndex] = np.sum(self.X_macro_bps[timeIndex]) + np.sum(self.X_femto_bps[timeIndex])
         self.live_throughput_NO_BATTERY[timeIndex] = np.sum(self.X_macro_no_batt_bps[timeIndex]) + np.sum(self.X_femto_no_batt_bps[timeIndex]) + np.sum(self.X_macro_overflow_bps[timeIndex]) 
         self.live_throughput_only_Macros[timeIndex] = np.sum(self.X_macro_only_bps[timeIndex])
+
+
+        # Update the served users and blocked users
+        for userIndex in range(0, len(self.NUsers)):
+            if self.association_vector[0][userIndex] < self.NMacroCells:
+                self.served_users_sim[timeIndex][userIndex] = 1
+                self.blocked_users_traffic_bps[timeIndex][userIndex] = self.X_user[timeIndex][userIndex][0]
+            # else: already 0
+                
+                
+                
+
+        
+        
         return
 
 
@@ -813,7 +827,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                     self.dead_batteries.append(batt)
                 else:
                     # Already found the first battery_dead
-                    if not batt in self.dead_batteries:
+                    if batt not in self.dead_batteries:
                         self.timeIndex_last_battery_dead = timeIndex
                         self.dead_batteries.append(batt)
     
@@ -1102,9 +1116,9 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         ## Throughput
         fig_throughput, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_throughput, 'output-throughput'))
-        ax.plot(self.format_time_axis(ax, sim_times), self.output_throughput[0]/10e6, label="Macro Cells")
-        ax.plot(self.format_time_axis(ax, sim_times), self.output_throughput[1]/10e6, label="Femto Cells")
-        ax.plot(self.format_time_axis(ax, sim_times), self.live_throughput/10e6, label="Total")
+        ax.plot(self.format_time_axis(ax, sim_times), self.output_throughput[0]/1e6, label="Macro Cells")
+        ax.plot(self.format_time_axis(ax, sim_times), self.output_throughput[1]/1e6, label="Femto Cells")
+        ax.plot(self.format_time_axis(ax, sim_times), self.live_throughput/1e6, label="Total")
         ax.legend()
         ax.set_title("Throughput Downlink. System with batteries")
         ax.set_ylabel('Throughput [Mb/s]')
@@ -1112,10 +1126,10 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         ## Throughput no battery
         fig_throughput_no_batt, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_throughput_no_batt, 'output-throughput-no-batt'))
-        ax.plot(self.format_time_axis(ax, sim_times), self.output_throughput_no_batt[0]/10e6, label="Macro Cells")
-        ax.plot(self.format_time_axis(ax, sim_times), self.output_throughput_no_batt[1]/10e6, label="Femto Cells")
-        ax.plot(self.format_time_axis(ax, sim_times), self.output_throughput_no_batt[2]/10e6, label="Femto Cells overflow")
-        ax.plot(self.format_time_axis(ax, sim_times), self.live_throughput_NO_BATTERY/10e6, label="Total")
+        ax.plot(self.format_time_axis(ax, sim_times), self.output_throughput_no_batt[0]/1e6, label="Macro Cells")
+        ax.plot(self.format_time_axis(ax, sim_times), self.output_throughput_no_batt[1]/1e6, label="Femto Cells")
+        ax.plot(self.format_time_axis(ax, sim_times), self.output_throughput_no_batt[2]/1e6, label="Femto Cells overflow")
+        ax.plot(self.format_time_axis(ax, sim_times), self.live_throughput_NO_BATTERY/1e6, label="Total")
         ax.legend()
         ax.set_title("Throughput Downlink. System without batteries")
         ax.set_ylabel('Throughput [Mb/s]')
@@ -1128,19 +1142,53 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         ax.set_title("Throughput Downlink. System with only Macro Cells")
         ax.set_ylabel('Throughput [Mb/s]')
 
+
+
+
+
+
+
+
+
         
         # Throughput for tecnoeconomics
+        
+        # Throughput Gbps
         SMA_WINDOW = self.SMA_WINDOW
         timeIndex = len(sim_times)
         fig_throughput_smooth, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_throughput_smooth, "throughput_smooth_tecno"))
-        X = self.format_time_axis(ax, sim_times[timeIndex-(len(self.live_throughput)-(SMA_WINDOW-1))+1:timeIndex])
-        Y = np.convolve(self.live_throughput/10e9, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
-        ax.plot(X, Y[:-1], label='Using PoF & batteries')
-
-        ax.legend()
+        X = self.format_time_axis(ax, sim_times)
+        Y = np.convolve(self.live_throughput/1e9, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
+        ax.plot(X[:len(Y)], Y, label='Using PoF & batteries')
+        # ax.legend()
         ax.set_title('Live system throughput')
         ax.set_ylabel('Throughput [Gbps]')
+
+        
+        # Power kWh
+        fig_power_smooth, ax = plt.subplots(figsize=fig_size, dpi=dpi)
+        self.list_figures.append((fig_power_smooth, "power_smooth_tecno"))
+        X = self.format_time_axis(ax, sim_times)
+        transformed_y = self.live_smallcell_consumption * self.timeStep / 3600 * 1e-3
+        Y = np.convolve(transformed_y, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
+        ax.step(X[:len(Y)], Y, label='Using PoF & batteries')
+        # ax.legend()
+        ax.set_ylim(0, max(Y)*1.1)
+        ax.set_title('Live system power consumption')
+        ax.set_ylabel('Power [kWh]')
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         
 
         # Plot associations of users to cells - Femto and Macro regions
@@ -1341,8 +1389,8 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
 
         # Create FileWithKPIs object
         kpis = FileWithKPIs(
-            total_throughput_gbps=tecno_metrics['total_throughput_gbps'],
-            daily_avg_throughput_gbps=tecno_metrics['daily_avg_throughput_gbps'],
+            total_throughput_gb=tecno_metrics['total_throughput_Gb'],
+            daily_avg_throughput_gb=tecno_metrics['daily_avg_throughput_Gb'],
             total_power_consumption_kWh=tecno_metrics['total_power_consumption_kWh'],
             daily_avg_power_consumption_kWh=tecno_metrics['daily_avg_power_consumption_kWh'],
             yearly_power_estimate_kWh=tecno_metrics['yearly_power_estimate_kWh'],
@@ -1362,8 +1410,8 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         df_update = df_update.assign(per_time_served=self.per_time_served)
         
         # Add techno-economics metrics
-        df_update = df_update.assign(total_throughput_gbps=tecno_metrics['total_throughput_gbps'])
-        df_update = df_update.assign(daily_avg_throughput_gbps=tecno_metrics['daily_avg_throughput_gbps'])
+        df_update = df_update.assign(total_throughput_gb=tecno_metrics['total_throughput_Gb'])
+        df_update = df_update.assign(daily_avg_throughput_gb=tecno_metrics['daily_avg_throughput_Gb'])
         df_update = df_update.assign(total_power_consumption_kWh=tecno_metrics['total_power_consumption_kWh'])
         df_update = df_update.assign(daily_avg_power_consumption_kWh=tecno_metrics['daily_avg_power_consumption_kWh'])
         df_update = df_update.assign(yearly_power_estimate_kWh=tecno_metrics['yearly_power_estimate_kWh'])
@@ -1396,37 +1444,6 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         df_update.to_csv(csv, index=False)
         df_update.to_json(json, orient="index", indent=4)
 
-    def compute_techno_economics(self, timeIndex):
-        """Compute techno-economics metrics for the current time step
-        
-        Args:
-            timeIndex (int): Current simulation time step
-        """
-        # Initialize arrays if first time
-        if not hasattr(self, 'throughput_time_series_gbps'):
-            self.throughput_time_series_gbps = []
-            self.power_time_series_kWh = []
-            self.served_users = np.zeros(len(self.NUsers))
-            self.blocked_users = np.zeros(len(self.NUsers))
-        
-        # Calculate throughput in Gbps
-        current_throughput = self.live_throughput[timeIndex] / 1e9  # Convert from bps to Gbps
-        self.throughput_time_series_gbps.append(current_throughput)
-        
-        # Calculate power consumption in kWh
-        # Convert from watts to kWh using timeStep
-        current_power = (self.live_smallcell_consumption[timeIndex] * self.timeStep) / 3600  # Convert from Wh to kWh
-        self.power_time_series_kWh.append(current_power)
-        
-        # Update served/blocked users
-        for user in range(len(self.NUsers)):
-            if self.is_in_femto[user][timeIndex] > 0:  # User is in coverage area
-                if self.is_in_femto[user][timeIndex] == 1:  # User is served by femto
-                    self.served_users[user] += 1
-                else:  # User is served by macro
-                    self.served_users[user] += 1
-            else:  # User is not in coverage area
-                self.blocked_users[user] += 1
 
     def get_techno_economics_metrics(self):
         """Get the final techno-economics metrics
@@ -1435,29 +1452,35 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             dict: Dictionary containing all techno-economics metrics
         """
         # Calculate total and average throughput
-        total_throughput_gbps = sum(self.throughput_time_series_gbps)
-        daily_avg_throughput_gbps = total_throughput_gbps / (len(self.throughput_time_series_gbps) * self.timeStep / 86400)
+
+        # self.live_throughput = bps por cada paso de simulación -> total bits = *timeStep
+        total_throughput_Gb = sum(self.live_throughput * self.timeStep / 1e9 )  
+        daily_avg_throughput_Gb = total_throughput_Gb / (len(self.live_throughput) * self.timeStep / 24*3600)
         
         # Calculate power consumption metrics
-        total_power_consumption_kWh = sum(self.power_time_series_kWh)
-        daily_avg_power_consumption_kWh = total_power_consumption_kWh / (len(self.power_time_series_kWh) * self.timeStep / 86400)
+        total_power_consumption_kWh = sum(self.live_smallcell_consumption) * 1e-3 * self.timeStep/3600
+        daily_avg_power_consumption_kWh = total_power_consumption_kWh / (len(self.live_smallcell_consumption) * self.timeStep / 24*3600)
         yearly_power_estimate_kWh = daily_avg_power_consumption_kWh * 365
         
         # Calculate availability percentage
-        total_time_steps = len(self.throughput_time_series_gbps)
-        availability_percentage = (np.sum(self.served_users) / (total_time_steps * len(self.NUsers))) * 100
+        # Calculate based on the number of users served by either femto or macro cells
+        total_possible_connections = len(self.served_users_sim) * len(self.NUsers)
+        total_nonserved_connections = np.sum(self.served_users_sim)  # Sum of all 1s (macro)
+        availability_percentage = ((total_possible_connections - total_nonserved_connections) / total_possible_connections) * 100
         
         # Calculate blocked traffic
-        blocked_traffic_gbps = (np.sum(self.blocked_users) / total_time_steps) * self.MacroCellDownlinkBW / 1e9
+        # Sum up all blocked traffic across all users and time steps, convert to Gbps
+        total_blocked_traffic_bps = np.sum(self.blocked_users_traffic_bps)
+        blocked_traffic_gbps = total_blocked_traffic_bps / 1e9
         
         return {
-            'total_throughput_gbps': total_throughput_gbps,
-            'daily_avg_throughput_gbps': daily_avg_throughput_gbps,
+            'total_throughput_Gb': total_throughput_Gb,
+            'daily_avg_throughput_Gb': daily_avg_throughput_Gb,
             'total_power_consumption_kWh': total_power_consumption_kWh,
             'daily_avg_power_consumption_kWh': daily_avg_power_consumption_kWh,
             'yearly_power_estimate_kWh': yearly_power_estimate_kWh,
             'availability_percentage': availability_percentage,
             'blocked_traffic_gbps': blocked_traffic_gbps,
-            'throughput_time_series_gbps': self.throughput_time_series_gbps,
-            'power_time_series_kWh': self.power_time_series_kWh
+            'throughput_time_series_gbps': self.live_throughput,
+            'power_time_series_kWh': self.live_smallcell_consumption * 1e-3 * self.timeStep/3600,
         }
