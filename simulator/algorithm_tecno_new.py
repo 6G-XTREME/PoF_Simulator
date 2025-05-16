@@ -864,9 +864,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             _user_count = 1
         max_bw = (_BW / _user_count)
         estm_bw = max_bw * np.log2(1 + _naturalDL) * _traffic_factor
-        if estm_bw > 1e10:
-            return 1e10
-        return estm_bw
+        return min(estm_bw, max_bw)
 
 
     
@@ -1066,7 +1064,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         metric = 0  # Default traffic
         for user in range(0, len(self.NUsers)):
             user_traffic = np.asarray([self.X_user[t][user][metric] for t in range(len(sim_times))])
-            ax.plot(self.format_time_axis(ax, sim_times), user_traffic/10e6, label=f'User {user}')
+            ax.plot(self.format_time_axis(ax, sim_times), user_traffic/1e6, label=f'User {user}')
         ax.set_title(f'Traffic for each user')
         ax.set_ylabel('Throughput [Mb/s]')
         
@@ -1137,7 +1135,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         ## Only Macro
         fig_throughput_only_macro, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         self.list_figures.append((fig_throughput_only_macro, 'output-throughput-only-macro'))
-        ax.plot(self.format_time_axis(ax, sim_times), self.output_throughput_only_macro/10e6, label="Macro Cells")
+        ax.plot(self.format_time_axis(ax, sim_times), self.output_throughput_only_macro/1e6, label="Macro Cells")
         ax.legend()
         ax.set_title("Throughput Downlink. System with only Macro Cells")
         ax.set_ylabel('Throughput [Mb/s]')
