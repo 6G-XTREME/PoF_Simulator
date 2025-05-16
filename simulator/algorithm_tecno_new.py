@@ -1160,7 +1160,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         Y = np.convolve(self.live_throughput/1e9, np.ones((SMA_WINDOW,))/SMA_WINDOW, mode='valid')
         ax.plot(X[:len(Y)], Y, label='Using PoF & batteries')
         # ax.legend()
-        ax.set_title('Live system throughput')
+        ax.set_title(f'PoF Throughput. Delta Time: {self.timeStep/3600:.1f} h')
         ax.set_ylabel('Throughput [Gbps]')
 
         
@@ -1173,7 +1173,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         ax.step(X[:len(Y)], Y, label='Using PoF & batteries')
         # ax.legend()
         ax.set_ylim(0, max(Y)*1.1)
-        ax.set_title('Live system power consumption')
+        ax.set_title(f'PoF Power consumption. Delta Time: {self.timeStep/3600:.1f} h')
         ax.set_ylabel('Power [kWh]')
         
         
@@ -1453,11 +1453,11 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
 
         # self.live_throughput = bps por cada paso de simulación -> total bits = *timeStep
         total_throughput_Gb = sum(self.live_throughput * self.timeStep / 1e9 )  
-        daily_avg_throughput_Gb = total_throughput_Gb / (len(self.live_throughput) * self.timeStep / 24*3600)
+        daily_avg_throughput_Gb = total_throughput_Gb / ((len(self.live_throughput) - 1) * self.timeStep / (24*3600))
         
         # Calculate power consumption metrics
         total_power_consumption_kWh = sum(self.live_smallcell_consumption) * 1e-3 * self.timeStep/3600
-        daily_avg_power_consumption_kWh = total_power_consumption_kWh / (len(self.live_smallcell_consumption) * self.timeStep / 24*3600)
+        daily_avg_power_consumption_kWh = total_power_consumption_kWh / ((len(self.live_smallcell_consumption) - 1) * self.timeStep / (24*3600))
         yearly_power_estimate_kWh = daily_avg_power_consumption_kWh * 365
         
         # Calculate availability percentage
@@ -1479,6 +1479,6 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             'yearly_power_estimate_kWh': yearly_power_estimate_kWh,
             'availability_percentage': availability_percentage,
             'blocked_traffic_gbps': blocked_traffic_gbps,
-            'throughput_time_series_gbps': self.live_throughput,
+            'throughput_time_series_gbps': self.live_throughput / 1e9,
             'power_time_series_kWh': self.live_smallcell_consumption * 1e-3 * self.timeStep/3600,
         }
