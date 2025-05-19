@@ -1452,8 +1452,8 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         # Calculate total and average throughput
 
         # self.live_throughput = bps por cada paso de simulación -> total bits = *timeStep
-        total_throughput_Gb = sum(self.live_throughput * self.timeStep / 1e9 )  
-        daily_avg_throughput_Gb = total_throughput_Gb / ((len(self.live_throughput) - 1) * self.timeStep / (24*3600))
+        total_throughput_GB = sum(self.live_throughput * self.timeStep / 1e9 ) / 8
+        daily_avg_throughput_GB = total_throughput_GB / ((len(self.live_throughput) - 1) * self.timeStep / (24*3600))
         
         # Calculate power consumption metrics
         total_power_consumption_kWh = sum(self.live_smallcell_consumption) * 1e-3 * self.timeStep/3600
@@ -1472,8 +1472,8 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         blocked_traffic_gbps = total_blocked_traffic_bps / 1e9
         
         return {
-            'total_throughput_Gb': total_throughput_Gb,
-            'daily_avg_throughput_Gb': daily_avg_throughput_Gb,
+            'total_throughput_Gb': total_throughput_GB,
+            'daily_avg_throughput_Gb': daily_avg_throughput_GB,
             'total_power_consumption_kWh': total_power_consumption_kWh,
             'daily_avg_power_consumption_kWh': daily_avg_power_consumption_kWh,
             'yearly_power_estimate_kWh': yearly_power_estimate_kWh,
