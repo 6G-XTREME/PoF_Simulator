@@ -19,7 +19,7 @@ class FileModel:
     @staticmethod
     def load_file_basic(file_path: str):
         data = loadmat(file_path)
-        return data["BaseStations"], data["NFemtoCells"], data["NMacroCells"]
+        return data["BaseStations"], data["NFemtoCells"][0][0], data["NMacroCells"][0][0]
 
     @staticmethod
     def save_file_complete(
