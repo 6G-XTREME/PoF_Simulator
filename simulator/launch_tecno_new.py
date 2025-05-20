@@ -477,6 +477,9 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
 
 
 
+    # Some passing of variables
+    custom_parameters['numberOfPofPools'] = numberOfPofPools
+
 
 
     # ------------------------------------------------------------------------------------------------------------ #

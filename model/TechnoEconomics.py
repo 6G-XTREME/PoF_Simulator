@@ -4,8 +4,8 @@ from pydantic import BaseModel, Field
 
 class FileWithKPIs(BaseModel):
     # KPIs
-    total_throughput_gb: float = Field(default=0.0, description="Total throughput in Gb")
-    daily_avg_throughput_gb: float = Field(default=0.0, description="Average daily throughput in Gb")
+    total_throughput_gbps: float = Field(default=0.0, description="Total throughput in Gbps")
+    daily_avg_throughput_gbps: float = Field(default=0.0, description="Average daily throughput in Gbps")
     
     # Power consumption
     total_power_consumption_kWh: float = Field(default=0.0, description="Total power consumption in kWh")

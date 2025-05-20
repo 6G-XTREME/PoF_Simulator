@@ -99,6 +99,8 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
     served_users_sim: np.array
     blocked_users_traffic_bps: np.array
     
+    numberOfPofPools: int
+    
     
     
     # ------------------------------------------------------------------------------------------------------------ #
@@ -228,6 +230,10 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         
         # SMA Window
         self.SMA_WINDOW = CONFIG_PARAMETERS.get('SMA_WINDOW', 10)
+        
+        
+        # Number of POF Pools
+        self.numberOfPofPools = elighthouse_parameters.get('numberOfPofPools', 1)
         
         super().create_folders(run_name, output_folder)
 
@@ -1387,8 +1393,8 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
 
         # Create FileWithKPIs object
         kpis = FileWithKPIs(
-            total_throughput_gb=tecno_metrics['total_throughput_Gb'],
-            daily_avg_throughput_gb=tecno_metrics['daily_avg_throughput_Gb'],
+            total_throughput_gbps=tecno_metrics['total_throughput_gbps'],
+            daily_avg_throughput_gbps=tecno_metrics['daily_avg_throughput_gbps'],
             total_power_consumption_kWh=tecno_metrics['total_power_consumption_kWh'],
             daily_avg_power_consumption_kWh=tecno_metrics['daily_avg_power_consumption_kWh'],
             yearly_power_estimate_kWh=tecno_metrics['yearly_power_estimate_kWh'],
@@ -1452,12 +1458,39 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         # Calculate total and average throughput
 
         # self.live_throughput = bps por cada paso de simulación -> total bits = *timeStep
-        total_throughput_GB = sum(self.live_throughput * self.timeStep / 1e9 ) / 8
-        daily_avg_throughput_GB = total_throughput_GB / ((len(self.live_throughput) - 1) * self.timeStep / (24*3600))
+        total_throughput_gbps = sum(self.live_throughput / 1e9 )
+        total_seconds = len(self.live_throughput) * self.timeStep
+        num_days = total_seconds / (24 * 3600)
+        daily_avg_throughput_gbps = total_throughput_gbps / num_days
+        
         
         # Calculate power consumption metrics
-        total_power_consumption_kWh = sum(self.live_smallcell_consumption) * 1e-3 * self.timeStep/3600
-        daily_avg_power_consumption_kWh = total_power_consumption_kWh / ((len(self.live_smallcell_consumption) - 1) * self.timeStep / (24*3600))
+        def transform_to_real_power_kwatts(num_pof_pools: int, power_series):
+            ptx_on = 0.0136*30 + 27.34
+            ptx_off = 27.34
+            
+            real_power_series = []
+            max_femtos = num_pof_pools * 5
+            
+            for i in range(len(power_series)):
+                p_i = power_series[i] # Watts
+                # Calcular el número de femtos activos en el instante i
+                # Cada femto consume 0.7W, por lo que el número de femtos activos es:
+                num_femtos_active = p_i / 0.7
+                # Si quieres el número entero más cercano:
+                num_femtos_active = int(round(num_femtos_active))
+                
+                power_this_series = ptx_on * num_femtos_active + ptx_off * (max_femtos - num_femtos_active)
+                real_power_series.append(power_this_series/1000)
+                
+            return real_power_series
+
+        power_comsumption_series = transform_to_real_power_kwatts(self.numberOfPofPools, self.live_smallcell_consumption)
+        total_power_consumption_kWh = sum(power_comsumption_series) * self.timeStep/3600
+        
+        
+        total_power_consumption_kWh = sum(power_comsumption_series) * self.timeStep/3600
+        daily_avg_power_consumption_kWh = total_power_consumption_kWh / ((len(power_comsumption_series) - 1) * self.timeStep / (24*3600))
         yearly_power_estimate_kWh = daily_avg_power_consumption_kWh * 365
         
         # Calculate availability percentage
@@ -1472,13 +1505,13 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         blocked_traffic_gbps = total_blocked_traffic_bps / 1e9
         
         return {
-            'total_throughput_Gb': total_throughput_GB,
-            'daily_avg_throughput_Gb': daily_avg_throughput_GB,
+            'total_throughput_gbps': total_throughput_gbps,
+            'daily_avg_throughput_gbps': daily_avg_throughput_gbps,
             'total_power_consumption_kWh': total_power_consumption_kWh,
             'daily_avg_power_consumption_kWh': daily_avg_power_consumption_kWh,
             'yearly_power_estimate_kWh': yearly_power_estimate_kWh,
             'availability_percentage': availability_percentage,
             'blocked_traffic_gbps': blocked_traffic_gbps,
             'throughput_time_series_gbps': self.live_throughput / 1e9,
-            'power_time_series_kWh': self.live_smallcell_consumption * 1e-3 * self.timeStep/3600,
+            'power_time_series_kWh': power_comsumption_series,
         }
