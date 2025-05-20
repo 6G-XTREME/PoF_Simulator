@@ -17,6 +17,11 @@ class FileModel:
         savemat(file_path, complete_data)
 
     @staticmethod
+    def load_file_basic(file_path: str):
+        data = loadmat(file_path)
+        return data["BaseStations"], data["NFemtoCells"], data["NMacroCells"]
+
+    @staticmethod
     def save_file_complete(
             file: str,
             BaseStations: list[tuple[float, float, float]],
