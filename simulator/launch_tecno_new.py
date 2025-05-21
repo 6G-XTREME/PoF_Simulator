@@ -1,19 +1,22 @@
-__author__ = "Gabriel Otero Perez (gaoterop@it.uc3m.es), Jose-Manuel Martinez-Caro (jmmartinez@e-lighthouse.com), Enrique Fernandez Sanchez (efernandez@e-lighthouse.com)"
-__credits__ = ["Gabriel Otero Perez", "Jose-Manuel Martinez-Caro", "Enrique Fernandez Sanchez"]
-__version__ = "1.1"
-__maintainer__ = "Jose-Manuel Martinez-Caro"
-__email__ = "jmmartinez@e-lighthouse.com"
-__status__ = "Validated"
 
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy.io, uuid, logging, sys
+import scipy.io
+import uuid
+import logging
+import sys
 
 from simulator.bcolors import bcolors
-import simulator.map_utils, simulator.mobility_utils, simulator.user_association_utils, simulator.radio_utils
+from datetime import datetime
+import simulator.map_utils
+import simulator.mobility_utils
 import model.RegionsCalcs
-from datetime import datetime, timezone
-import os, json
+import os
+import json
+import model.SpatialHeatMap as SpatialHeatMap
+
+
+
 
 # Default input_parameters. Copy and modify ad-hoc  [Legacy version]
 INPUT_PARAMETERS = {
@@ -21,14 +24,15 @@ INPUT_PARAMETERS = {
     'UserMobilityType': "STATIC",           # STATIC (random initial positions, same positions all the time steps)
                                             # RANDOM (random initial positions, random positions each time step)
                                             # MOBILE (random walk)
+                                            # HEATMAP (sample users from a heat map)
     'timeStep': 3600,                       # In seconds, 1 hour
-    'Simulation_Time': 7200,             # In seconds, Debug 2 steps
-    # 'Simulation_Time': 2592000,             # In seconds, 1 month of 30 days
+    'Simulation_Time': 7200,                # In seconds, Debug 2 steps
+    # 'Simulation_Time': 2592000,           # In seconds, 1 month of 30 days
     # 'NMacroCells': 20,
     # 'NFemtoCells': 134,
-    'Maplimit': 40,                         # Size of Map grid, [dont touch]
-    'numberOfPofPools': 20,                         # Number of PoF Pools
-    'numberOfLasersPerPool': 5,                     # Number of lasers per PoF Pool 
+    'Maplimit': 40,                         # Size of Map grid, [dont touch] DEPRECATED
+    'numberOfPofPools': 20,                 # Number of PoF Pools
+    'numberOfLasersPerPool': 5,             # Number of lasers per PoF Pool 
     'wattsPerLaser': 1,                     # Watts. Power of each laser
 
     'battery_capacity': 3.3,                # Ah
@@ -107,8 +111,9 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
     logger.info(f"Run_name: {run_name}")
     
     if canvas_widget is None:
+        pass
         # In CLI execution, Tk works better than Qt
-        import matplotlib
+        # import matplotlib
         # matplotlib.use('TkAgg')  # Set the Matplotlib backend
     
     # ------------------------------------------------------------------------------------------------------------ #
@@ -220,6 +225,9 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
             Maplimit = max(max_x, max_y) + margin
 
             logger.debug(f"BaseStations: {BaseStations}, Maplimit: {Maplimit}")
+            
+            # Store the map limit values for further uses
+            min_x_map, min_y_map, max_x_map, max_y_map = 0, 0, Maplimit, Maplimit
 
         except Exception as e:
             logger.error(bcolors.FAIL + 'Error importing the nice_setup.mat' + bcolors.ENDC)
@@ -326,8 +334,6 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
     #                                                                                                              #
     # ------------------------------------------------------------------------------------------------------------ #
     try:
-        # TODO: Modify here
-        
         macro_bs, femto_bs = BaseStations[:NMacroCells], BaseStations[NMacroCells:]
         max_radius_km_list = [1] * len(femto_bs)
         polygon_bounds = [(0, 0), (Maplimit, 0), (Maplimit, Maplimit), (0, Maplimit), (0, 0)]
@@ -355,14 +361,6 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
             Regions[ind + NMacroCells] = reg
         for ind, reg in Regions_mac.items():
             Regions[ind] = reg
-        
-        # Setup Regions!
-        # Regions = simulator.map_utils.create_regions(Npoints=Npoints, 
-                                                    #  BaseStations=BaseStations, 
-                                                    #  ax=ax, 
-                                                    #  alpha_loss=alpha_loss, 
-                                                    #  config_parameters=config_parameters,
-                                                    #  canvas_widget=canvas_widget)
    
         basestation_dict = {
             'BaseStations': BaseStations,
@@ -393,17 +391,23 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         'N_STEPS': Simulation_Time / timeStep,                     # (number of steps)
         'NB_USERS': Users
     }
+    
 
-
-    # TODO: modify here
-    # Generate randomly the path of the users
-    # Generate the mobility path of users
+    # Generate the mobility path of users based on the selection of UserMobilityType
     if UserMobilityType == "STATIC":
         s_mobility = simulator.mobility_utils.generate_constant_random_mobility(sim_input, seed)
     elif UserMobilityType == "RANDOM":
         s_mobility = simulator.mobility_utils.generate_random_mobility(sim_input, seed)
     elif UserMobilityType == "MOBILE":
         s_mobility = simulator.mobility_utils.generate_mobility(sim_input, seed)
+    elif UserMobilityType == "HEATMAP":
+        # Generate the heatmap
+        grid_size = 1000
+        bandwidth = 0.5
+        heatmap = SpatialHeatMap.generate_heat_map(BaseStations, grid_size, bandwidth, min_x_map, max_x_map, min_y_map, max_y_map)
+        s_mobility = simulator.mobility_utils.generate_random_mobility_heatmap(sim_input, seed, heatmap)
+    
+    
     
     s_mobility["NB_USERS"] = []
     for user in range(0, sim_input['NB_USERS']):

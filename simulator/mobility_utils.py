@@ -8,6 +8,10 @@ __status__ = "Validated"
 from random import uniform
 import math
 import numpy as np
+import model.SpatialHeatMap as SpatialHeatMap
+
+
+
 
 userIndex_tmp = 0
 def Out_adjustDuration_random_waypoint(time,duration,dict):
@@ -94,8 +98,7 @@ def Out_setRestrictedWalk_random_waypoint(previousX, previousY, previousDuration
 
 def generate_random_mobility(input_dict: dict, seed: int):
     # Initialize random number generator with seed
-    from random import Random
-    rng = Random(seed)
+    rng = np.random.default_rng(seed)
 
     def uniform(min_val, max_val):
         """Helper function to generate uniform random numbers using seeded RNG"""
@@ -179,8 +182,7 @@ def generate_random_mobility(input_dict: dict, seed: int):
 
 def generate_constant_random_mobility(input_dict: dict, seed: int):
     # Initialize random number generator with seed
-    from random import Random
-    rng = Random(seed)
+    rng = np.random.default_rng(seed)
 
     def uniform(min_val, max_val):
         """Helper function to generate uniform random numbers using seeded RNG"""
@@ -278,10 +280,127 @@ def generate_constant_random_mobility(input_dict: dict, seed: int):
 
 
 
-def generate_mobility (dict, seed: int):
-
+def generate_random_mobility_heatmap(input_dict: dict, seed: int, heatmap: tuple[np.ndarray, np.ndarray, np.ndarray]):
     # Initialize random number generator with seed
-    rng = np.random.RandomState(seed)
+    rng = np.random.default_rng(seed)
+
+    def uniform(min_val, max_val):
+        """Helper function to generate uniform random numbers using seeded RNG"""
+        return min_val + rng.random() * (max_val - min_val)
+
+    data = {
+        'V_TIME': [None] * input_dict['NB_USERS'],
+        'V_POSITION_X': [None] * input_dict['NB_USERS'],
+        'V_POSITION_Y': [None] * input_dict['NB_USERS'],
+        'V_DIRECTION': [None] * input_dict['NB_USERS'],
+        'V_SPEED_MAGNITUDE': [None] * input_dict['NB_USERS'],
+        'V_IS_MOVING': [None] * input_dict['NB_USERS'],
+        'V_DURATION': [None] * input_dict['NB_USERS'],
+        'V_SPEED_X': [None] * input_dict['NB_USERS'],
+        'V_SPEED_Y': [None] * input_dict['NB_USERS']
+    }
+
+    global s_mobility
+    global userIndex_tmp
+    s_mobility = data
+    
+    
+
+    min_x, max_x = input_dict['V_POSITION_X_INTERVAL']
+    min_y, max_y = input_dict['V_POSITION_Y_INTERVAL']
+    n_steps = int(input_dict['N_STEPS'])
+    time_step = input_dict['SIMULATION_TIME'] / input_dict['N_STEPS']
+    
+    
+    
+
+    # Sample the users positions on each step using the heatmap
+    xi, yi, zi_norm = heatmap
+    users_positions_step = []
+    for i in range(n_steps):
+        # Each element is shape (NB_USERS, 2): columns are x, y
+        seed_tmp = seed + i # different seed for each step to avoid the same positions
+        users_positions_step.append(
+            SpatialHeatMap.sample_users(xi, yi, zi_norm, num_users=input_dict['NB_USERS'], seed=seed_tmp)
+        )
+
+    for userIndex_tmp in range(input_dict['NB_USERS']):
+        s_mobility['V_TIME'][userIndex_tmp] = []
+        s_mobility['V_POSITION_X'][userIndex_tmp] = []
+        s_mobility['V_POSITION_Y'][userIndex_tmp] = []
+        s_mobility['V_DIRECTION'][userIndex_tmp] = []
+        s_mobility['V_SPEED_MAGNITUDE'][userIndex_tmp] = []
+        s_mobility['V_IS_MOVING'][userIndex_tmp] = []
+        s_mobility['V_DURATION'][userIndex_tmp] = []
+        s_mobility['V_SPEED_X'][userIndex_tmp] = []
+        s_mobility['V_SPEED_Y'][userIndex_tmp] = []
+
+        for step in range(n_steps):
+            current_time = step * time_step
+            # Get the x, y position for this user at this step from the sampled heatmap
+            x, y = users_positions_step[step][userIndex_tmp]
+
+            add_element_to_s_mobility('V_TIME', current_time)
+            add_element_to_s_mobility('V_POSITION_X', x)
+            add_element_to_s_mobility('V_POSITION_Y', y)
+            add_element_to_s_mobility('V_DIRECTION', 0)
+            add_element_to_s_mobility('V_SPEED_MAGNITUDE', 0)
+            add_element_to_s_mobility('V_IS_MOVING', False)
+            add_element_to_s_mobility('V_DURATION', time_step)
+            add_element_to_s_mobility('V_SPEED_X', 0)
+            add_element_to_s_mobility('V_SPEED_Y', 0)
+
+        # Adjust final time if needed
+        if s_mobility['V_TIME'][userIndex_tmp][-1] < input_dict['SIMULATION_TIME']:
+            s_mobility['V_TIME'][userIndex_tmp].append(input_dict['SIMULATION_TIME'])
+            # For the final position, just repeat the last sampled position
+            last_x = s_mobility['V_POSITION_X'][userIndex_tmp][-1]
+            last_y = s_mobility['V_POSITION_Y'][userIndex_tmp][-1]
+            s_mobility['V_POSITION_X'][userIndex_tmp].append(last_x)
+            s_mobility['V_POSITION_Y'][userIndex_tmp].append(last_y)
+            s_mobility['V_DIRECTION'][userIndex_tmp].append(0)
+            s_mobility['V_SPEED_MAGNITUDE'][userIndex_tmp].append(0)
+            s_mobility['V_IS_MOVING'][userIndex_tmp].append(False)
+            s_mobility['V_DURATION'][userIndex_tmp].append(0)
+            s_mobility['V_SPEED_X'][userIndex_tmp].append(0)
+            s_mobility['V_SPEED_Y'][userIndex_tmp].append(0)
+
+        user_data = {
+            'V_TIME': s_mobility['V_TIME'][userIndex_tmp],
+            'V_POSITION_X': s_mobility['V_POSITION_X'][userIndex_tmp],
+            'V_POSITION_Y': s_mobility['V_POSITION_Y'][userIndex_tmp],
+            'V_SPEED_X': s_mobility['V_SPEED_X'][userIndex_tmp],
+            'V_SPEED_Y': s_mobility['V_SPEED_Y'][userIndex_tmp]
+        }
+
+        s_mobility[userIndex_tmp] = user_data
+
+    del userIndex_tmp
+
+    return s_mobility
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def generate_mobility (dict, seed: int):
+    # Initialize random number generator with seed
+    rng = np.random.default_rng(seed)
 
     def uniform(min_val, max_val):
         """Helper function to generate uniform random numbers using seeded RNG"""
@@ -393,3 +512,15 @@ def generate_mobility (dict, seed: int):
     del userIndex_tmp
     
     return s_mobility
+
+
+
+
+
+
+
+
+
+
+
+
