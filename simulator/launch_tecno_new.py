@@ -16,78 +16,6 @@ import json
 import model.SpatialHeatMap as SpatialHeatMap
 
 
-
-
-# Default input_parameters. Copy and modify ad-hoc  [Legacy version]
-INPUT_PARAMETERS = {
-    'Users': 1000,
-    'UserMobilityType': "STATIC",           # STATIC (random initial positions, same positions all the time steps)
-                                            # RANDOM (random initial positions, random positions each time step)
-                                            # MOBILE (random walk)
-                                            # HEATMAP (sample users from a heat map)
-    'timeStep': 3600,                       # In seconds, 1 hour
-    'Simulation_Time': 7200,                # In seconds, Debug 2 steps
-    # 'Simulation_Time': 2592000,           # In seconds, 1 month of 30 days
-    # 'NMacroCells': 20,
-    # 'NFemtoCells': 134,
-    'Maplimit': 40,                         # Size of Map grid, [dont touch] DEPRECATED
-    'numberOfPofPools': 20,                 # Number of PoF Pools
-    'numberOfLasersPerPool': 5,             # Number of lasers per PoF Pool 
-    'wattsPerLaser': 1,                     # Watts. Power of each laser
-
-    'battery_capacity': 3.3,                # Ah
-    'small_cell_consumption_on': 0.7,       # In Watts
-    'small_cell_consumption_sleep': 0.05,   # In Watts
-    'small_cell_voltage_min': 0.028,        # In mVolts
-    'small_cell_voltage_max': 0.033,        # In mVolts
-    'mean_user_speed': 5.5,                 # In m/s
-    'noise': 2.5e-14,
-    'SMA_WINDOW': 5, 
-    'TransmittingPower' : {
-        'PMacroCells': 40,
-        'PFemtoCells': 0.1,
-        'PDevice': 0.1,
-        'MacroCellDownlinkBW': 20e6,
-        'FemtoCellDownlinkBW': 1e9,
-        'alpha_loss': 4.0            
-    },
-    'simultaneous_charging_batteries': "40%", # ALL, x%, NUM
-    'charging_battery_threshold': 0.95,      # (0, 1)
-}
-
-CONFIG_PARAMETERS = {
-    'use_nice_setup': True,
-    'use_nice_setup_file': "mocks/pruebas_algoritmo/use_case_1.mat",
-    'show_plots': False,
-
-    'use_user_list': False,
-    'show_live_plots': False,
-    'speed_live_plots': 0.001,
-    'save_output': True,
-    'output_folder': None,
-}
-
-
-CUSTOM_CONFIG = {
-    'user_report_position': 1,  # For each four timeSteps, the users updates position
-    'startup_max_tokens': 1,   # TimeSlots to startup a FemtoCell
-    'poweroff_unused_cell': 1, # TimeSlots to poweroff an unused Cell
-    'extraPoFCharger': False,     # Enable an extra Charger with 1W on the centroid
-    'typeExtraPoFCharger': "Centroid",
-    'use_harvesting': False,      # Enable the Solar Harvesting Mode -> New graph + solar charging...
-    'weather': "RAINY",          # Select over SUNNY, CLOUDY or RAINY
-    'city': "Cartagena",         # Select city
-    'MapScale': 1,               # 1 km == 1 points (1:1)
-    'fiberAttdBperKm': 0.2,      # Fiber attenuation in dB/Km
-    'plot_dpi': 200,
-    'config_times': {
-        'femto_boot_time_seconds': 30,          # Time to boot a femto cell
-        'femto_shutdown_time_seconds': 30,      # Time to shutdown a femto cell
-        'time_to_shutdown_unused_femto': 60,    # Time to shutdown an unused femto cell
-    },
-    'seed': 1234567890,
-}
-
 logger = logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 logging.getLogger("PIL.PngImagePlugin").setLevel(logging.WARNING)
@@ -101,7 +29,7 @@ logging.getLogger("PIL.PngImagePlugin").setLevel(logging.WARNING)
 #                                                                                                              #
 #                                                                                                              #
 # ------------------------------------------------------------------------------------------------------------ #
-def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name: str = "", input_parameters: dict = INPUT_PARAMETERS, config_parameters: dict = CONFIG_PARAMETERS, custom_parameters: dict = {}):
+def execute_simulator(input_parameters, config_parameters, custom_parameters, canvas_widget = None, progressbar_widget = None, run_name: str = ""):
     if run_name == "":
         run_name = str(uuid.uuid4())[:8]
     
@@ -122,13 +50,12 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
     #                                                                                                              #
     #                                                                                                              #
     # ------------------------------------------------------------------------------------------------------------ #
-    seed = custom_parameters.get('seed', CUSTOM_CONFIG.get('seed', 1234567890))
     
     try:
+        seed = custom_parameters.get('seed', 1234567890)
         battery_capacity = input_parameters.get('battery_capacity', 3.3)
         small_cell_consumption_ON = input_parameters.get('small_cell_consumption_on', 0.7)
         small_cell_consumption_SLEEP = input_parameters.get('small_cell_consumption_sleep', 0.05)
-        Maplimit = input_parameters.get('Maplimit', 40)
         Simulation_Time = input_parameters.get('Simulation_Time', 7200)
         Users = input_parameters.get('Users', 1000)
         UserMobilityType = input_parameters.get('UserMobilityType', "STATIC")
@@ -137,7 +64,6 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         numberOfLasersPerPool = input_parameters.get('numberOfLasersPerPool', 5)
         wattsPerLaser = input_parameters.get('wattsPerLaser', 1)
         noise = input_parameters.get('noise', 2.5e-14)
-        SMA_WINDOW = input_parameters.get('SMA_WINDOW', 5)
         small_cell_voltage_range = np.array([input_parameters.get('small_cell_voltage_min', 0.028), 
                                              input_parameters.get('small_cell_voltage_max', 0.033)])
         
@@ -195,9 +121,26 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
     if config_parameters.get('use_nice_setup', True):
         # Use nice_setup from .mat file. Already selected distribution of BaseStations
         try:
-            # TODO
             file_name = config_parameters.get('use_nice_setup_file', 'simulator/nice_setup.mat')
             nice_setup_mat = scipy.io.loadmat(file_name)
+
+            
+            map_transform = input_parameters.get('map_transform', {
+                'transform': True,
+                'mode': 'auto',
+                'border_function': 'input', # Input, Percentage, Auto
+                'margin': 2,
+                'scale': 1,
+                'min_x': 0,
+                'min_y': 0,
+            })
+
+            transform_mode = map_transform.get('mode', 'auto')
+            transform_border_function = map_transform.get('border_function', 'input')
+            transform_margin = map_transform.get('margin', 2)
+            transform_scale = map_transform.get('scale', 1)
+            transform_min_x = map_transform.get('min_x', 0)
+            transform_min_y = map_transform.get('min_y', 0)
 
             BaseStations = nice_setup_mat['BaseStations']
             Stations = BaseStations.shape
@@ -207,27 +150,36 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
             
             # Scale the BaseStations. The MapScale returns the number of km that are 1 point in the map
             # We need to scale the BaseStations into meters
-            BaseStations[:,0] = BaseStations[:,0] * MapScale
-            BaseStations[:,1] = BaseStations[:,1] * MapScale
+            if map_transform.get('transform', False):
+                BaseStations[:,0] = BaseStations[:,0] * transform_scale
+                BaseStations[:,1] = BaseStations[:,1] * transform_scale
 
-            NMacroCells = nice_setup_mat['NMacroCells'][0][0]
-            NFemtoCells = nice_setup_mat['NFemtoCells'][0][0]
-
-
-            # Correct the gaps between celds and border
-            min_x, min_y = np.min(BaseStations[:,0]), np.min(BaseStations[:,1])
-            margin = MapScale * 0.01 # 1% of the MapScale for the margin
-
-            BaseStations[:,0] = BaseStations[:,0] - min_x + margin
-            BaseStations[:,1] = BaseStations[:,1] - min_y + margin
-
-            max_x, max_y = np.max(BaseStations[:,0]), np.max(BaseStations[:,1])
-            Maplimit = max(max_x, max_y) + margin
-
-            logger.debug(f"BaseStations: {BaseStations}, Maplimit: {Maplimit}")
-            
-            # Store the map limit values for further uses
-            min_x_map, min_y_map, max_x_map, max_y_map = 0, 0, Maplimit, Maplimit
+                NMacroCells = nice_setup_mat['NMacroCells'][0][0]
+                NFemtoCells = nice_setup_mat['NFemtoCells'][0][0]
+    
+    
+                # Correct the gaps between celds and border
+                min_x, min_y = np.min(BaseStations[:,0]), np.min(BaseStations[:,1])
+                
+                if transform_border_function == 'input':
+                    margin = transform_margin
+                elif transform_border_function == 'percentage':
+                    margin = MapScale * transform_margin
+                elif transform_border_function == 'auto':
+                    margin = MapScale * 0.1 # 1% of the MapScale for the margin
+    
+                # Transform the BaseStations positions
+                BaseStations[:,0] = BaseStations[:,0] - min_x + transform_min_x + margin
+                BaseStations[:,1] = BaseStations[:,1] - min_y + transform_min_y + margin
+    
+                # Calculate the Maplimit
+                max_x, max_y = np.max(BaseStations[:,0]), np.max(BaseStations[:,1])
+                Maplimit = max(max_x, max_y) + margin
+    
+                logger.debug(f"BaseStations: {BaseStations}, Maplimit: {Maplimit}")
+                
+                # Store the map limit values for further uses
+                min_x_map, min_y_map, max_x_map, max_y_map = transform_min_x, transform_min_y, Maplimit, Maplimit
 
         except Exception as e:
             logger.error(bcolors.FAIL + 'Error importing the nice_setup.mat' + bcolors.ENDC)
@@ -402,8 +354,8 @@ def execute_simulator(canvas_widget = None, progressbar_widget = None, run_name:
         s_mobility = simulator.mobility_utils.generate_mobility(sim_input, seed)
     elif UserMobilityType == "HEATMAP":
         # Generate the heatmap
-        grid_size = 1000
-        bandwidth = 0.5
+        grid_size = input_parameters.get('heatmap_grid_size', 1000)
+        bandwidth = input_parameters.get('heatmap_bandwidth', 0.15)
         heatmap = SpatialHeatMap.generate_heat_map(BaseStations, grid_size, bandwidth, min_x_map, max_x_map, min_y_map, max_y_map)
         s_mobility = simulator.mobility_utils.generate_random_mobility_heatmap(sim_input, seed, heatmap)
     

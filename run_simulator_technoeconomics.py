@@ -3,16 +3,14 @@ from simulator.launch_tecno_new import execute_simulator
 
 # Default input_parameters. Copy and modify ad-hoc  [Legacy version]
 INPUT_PARAMETERS = {
-        'Users': 1000,
-        'UserMobilityType': "RANDOM",           # STATIC (random initial positions, same positions all the time steps)
+        'Users': 100,
+        'UserMobilityType': "HEATMAP",          # STATIC (random initial positions, same positions all the time steps)
                                                 # RANDOM (random initial positions, random positions each time step)
                                                 # MOBILE (random walk)
-        'timeStep': 60*60,                       # In seconds, 5 minutes
-        'Simulation_Time': 3600*24*31,             # In seconds, 24 hours
-        # 'NMacroCells': 20,
-        # 'NFemtoCells': 134,
-        'Maplimit': 40,                         # Size of Map grid, [dont touch]
-        'numberOfPofPools': 27,                         # Number of HPLDS
+                                                # HEATMAP (sample users from a heat map)
+        'timeStep': 3600,                       # In seconds, 1 hour
+        'Simulation_Time': 3600*24*31,          # In seconds, 1 month
+        'numberOfPofPools': 2,                         # Number of HPLDS
         'numberOfLasersPerPool': 5,                     # Number of lasers per HPLD
         'wattsPerLaser': 1,                     # Watts. Capacity of each HPLD
 
@@ -32,6 +30,17 @@ INPUT_PARAMETERS = {
             'FemtoCellDownlinkBW': 1e9,
             'alpha_loss': 4.0            
         },
+        'heatmap_bandwidth': 0.15,
+        'heatmap_grid_size': 1000,
+        'map_transform': {
+            'transform': True,
+            'mode': 'auto',
+            'border_function': 'input', # Input, Percentage, Auto
+            'margin': 2,
+            'scale': 1,
+            'min_x': 0,
+            'min_y': 0,
+        },
         'simultaneous_charging_batteries': "6", # ALL, x%, NUM
         'charging_battery_threshold': 0.95,     # (0, 1) %
     }
@@ -40,7 +49,8 @@ CONFIG_PARAMETERS = {
         'use_nice_setup': True,
         # 'use_nice_setup_file': "mocks/pruebas_algoritmo/UC1-S3-AllHL4withHPLD-AllHL5withFemto.mat",
         # 'use_nice_setup_file': "mocks/pruebas_algoritmo/use_case_1.mat",
-        'use_nice_setup_file': "mocks/pruebas_algoritmo/UC2-S2.mat",
+        'use_nice_setup_file': "mocks/pruebas_mapa_rural/use_case_1_2_pools.mat",
+        # 'use_nice_setup_file': "mocks/pruebas_mapa_rural/use_case_2_4_pools.mat",
         'show_plots': False,
 
         'use_user_list': False,

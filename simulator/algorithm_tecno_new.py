@@ -1414,8 +1414,8 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         df_update = df_update.assign(per_time_served=self.per_time_served)
         
         # Add techno-economics metrics
-        df_update = df_update.assign(total_throughput_gb=tecno_metrics['total_throughput_Gb'])
-        df_update = df_update.assign(daily_avg_throughput_gb=tecno_metrics['daily_avg_throughput_Gb'])
+        df_update = df_update.assign(total_throughput_gbps=tecno_metrics['total_throughput_gbps'])
+        df_update = df_update.assign(daily_avg_throughput_gbps=tecno_metrics['daily_avg_throughput_gbps'])
         df_update = df_update.assign(total_power_consumption_kWh=tecno_metrics['total_power_consumption_kWh'])
         df_update = df_update.assign(daily_avg_power_consumption_kWh=tecno_metrics['daily_avg_power_consumption_kWh'])
         df_update = df_update.assign(yearly_power_estimate_kWh=tecno_metrics['yearly_power_estimate_kWh'])
