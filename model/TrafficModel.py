@@ -102,11 +102,14 @@ def estimate_traffic_from_seconds(t_segundos, ruido=True, ruido_max=0.015, seed=
         if seed is not None:
             np.random.seed(seed)
         delta = np.random.uniform(-ruido_max, ruido_max)
-        valor_estimado += delta
+        valor_estimado -= delta
 
     # Aplicar el pulso de fin de semana
     t_segundos_semana = t_segundos_des % (7 * 24 * 3600)
     valor_estimado *= f_gaussiana_finde_pulso(t_segundos_semana)
 
     # return np.clip(valor_estimado, 0.1, 1.0)
+    # Aplicar límite superior
+    if valor_estimado > 1.0:
+        return 1.0
     return valor_estimado

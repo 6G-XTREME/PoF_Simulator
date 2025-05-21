@@ -356,7 +356,7 @@ def execute_simulator(input_parameters, config_parameters, custom_parameters, ca
         # Generate the heatmap
         grid_size = input_parameters.get('heatmap_grid_size', 1000)
         bandwidth = input_parameters.get('heatmap_bandwidth', 0.15)
-        heatmap = SpatialHeatMap.generate_heat_map(BaseStations, grid_size, bandwidth, min_x_map, max_x_map, min_y_map, max_y_map)
+        heatmap = SpatialHeatMap.generate_heat_map(BaseStations[NMacroCells:], grid_size, bandwidth, min_x_map, max_x_map, min_y_map, max_y_map)
         s_mobility = simulator.mobility_utils.generate_random_mobility_heatmap(sim_input, seed, heatmap)
     
     

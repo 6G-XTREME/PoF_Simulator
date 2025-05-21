@@ -294,7 +294,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         self.valley_spoke_factors = np.zeros((len(sim_times), len(self.NUsers)))
         for timeIndex in range(len(sim_times)):
             for userIndex in range(len(self.NUsers)):
-                self.valley_spoke_factors[timeIndex, userIndex] = estimate_traffic_from_seconds(timeIndex * timeStep, ruido_max=0.03)
+                self.valley_spoke_factors[timeIndex, userIndex] = estimate_traffic_from_seconds(timeIndex * timeStep, ruido_max=0.05)
 
                 
                 
@@ -869,8 +869,8 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         if _user_count < 1:
             _user_count = 1
         max_bw = (_BW / _user_count)
-        estm_bw = max_bw * np.log2(1 + _naturalDL) * _traffic_factor
-        return min(estm_bw, max_bw)
+        estm_bw = max_bw * np.log2(1 + _naturalDL)
+        return min(estm_bw, max_bw) * _traffic_factor
 
 
     
@@ -1457,7 +1457,6 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         """
         # Calculate total and average throughput
 
-        # self.live_throughput = bps por cada paso de simulación -> total bits = *timeStep
         total_throughput_gbps = sum(self.live_throughput / 1e9 )
         total_seconds = len(self.live_throughput) * self.timeStep
         num_days = total_seconds / (24 * 3600)
@@ -1477,7 +1476,6 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                 # Calcular el número de femtos activos en el instante i
                 # Cada femto consume 0.7W, por lo que el número de femtos activos es:
                 num_femtos_active = p_i / 0.7
-                # Si quieres el número entero más cercano:
                 num_femtos_active = int(round(num_femtos_active))
                 
                 power_this_series = ptx_on * num_femtos_active + ptx_off * (max_femtos - num_femtos_active)

@@ -9,8 +9,8 @@ INPUT_PARAMETERS = {
                                                 # MOBILE (random walk)
                                                 # HEATMAP (sample users from a heat map)
         'timeStep': 3600,                       # In seconds, 1 hour
-        'Simulation_Time': 3600*24*31,          # In seconds, 1 month
-        'numberOfPofPools': 2,                         # Number of HPLDS
+        'Simulation_Time': 3600*24*10,          # In seconds, 1 month
+        'numberOfPofPools': 4,                         # Number of HPLDS
         'numberOfLasersPerPool': 5,                     # Number of lasers per HPLD
         'wattsPerLaser': 1,                     # Watts. Capacity of each HPLD
 
@@ -30,7 +30,7 @@ INPUT_PARAMETERS = {
             'FemtoCellDownlinkBW': 1e9,
             'alpha_loss': 4.0            
         },
-        'heatmap_bandwidth': 0.15,
+        'heatmap_bandwidth': 0.09,
         'heatmap_grid_size': 1000,
         'map_transform': {
             'transform': True,
