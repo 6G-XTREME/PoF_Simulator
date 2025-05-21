@@ -1105,6 +1105,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             fig_battery_mean_harvesting, ax = plt.subplots(figsize=fig_size, dpi=dpi)
             self.list_figures.append((fig_battery_mean_harvesting, "battery_mean_harvesting"))
             ax.plot(self.format_time_axis(ax, sim_times), self.battery_mean_values, '-', label='Hybrid PoF & Solar', color="tab:red")
+            # TODO Faker
             ax.plot(self.format_time_axis(ax, sim_times), self.battery_mean_values - self.battery_mean_harvesting, '--', label='Only PoF', color="tab:blue")
             ax.axhline(y=3.3, color='tab:green',label="Max. battery capacity")
             ax.set_ylabel('Battery capacity [Ah]')

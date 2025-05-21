@@ -63,6 +63,10 @@ class SolarPanel:
         charging_power = self.calculate_power_generated(solar_irradiance=solar_irradiance, timeStep=timeStep, weather_condition=weather_condition)
         return charging_power / self.voltage_charging   # In Amperes Hour (Ah)
 
+        
+        
+    
+
 if __name__ == "__main__":
     # Example of usage
     # 1. Create a solar panel with the specific caracteristics:

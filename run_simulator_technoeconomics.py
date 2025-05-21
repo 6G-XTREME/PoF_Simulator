@@ -30,8 +30,8 @@ INPUT_PARAMETERS = {
             'FemtoCellDownlinkBW': 1e9,
             'alpha_loss': 4.0            
         },
-        'heatmap_bandwidth': 0.09,
-        'heatmap_grid_size': 1000,
+        'heatmap_bandwidth': 0.08,
+        'heatmap_grid_size': 100,
         'map_transform': {
             'transform': True,
             'mode': 'auto',
@@ -88,7 +88,7 @@ CUSTOM_CONFIG = {
         'time_to_shutdown_unused_femto': 60,    # Time to shutdown an unused femto cell
         
     },
-    'seed': 1234567890,
+    'seed': 12345890,
 }
 
 logging.basicConfig(format='%(asctime)s %(levelname)s:%(module)s:%(funcName)s: %(message)s', 
