@@ -8,8 +8,8 @@ INPUT_PARAMETERS = {
                                                 # RANDOM (random initial positions, random positions each time step)
                                                 # MOBILE (random walk)
                                                 # HEATMAP (sample users from a heat map)
-        'timeStep': 3600/2,                       # In seconds, 1 hour
-        'Simulation_Time': 3600*24*2,          # In seconds, 1 month
+        'timeStep': 60,                       # In seconds, 1 hour
+        'Simulation_Time': 3600*24*7,          # In seconds, 1 month
         'numberOfPofPools': 2,                         # Number of HPLDS
         'numberOfLasersPerPool': 5,                     # Number of lasers per HPLD
         'wattsPerLaser': 1,                     # Watts. Capacity of each HPLD

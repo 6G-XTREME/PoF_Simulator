@@ -67,6 +67,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
     cumulative_harvested_power: np.array
     live_solar_harvesting: np.array
     raw_solar_harvesting_inyect_capacity: np.array
+    total_charging_energy: np.array
     
     # Centroid Charging
     use_centroid: bool
@@ -272,6 +273,9 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         self.cumulative_harvested_power = np.zeros(len(self.battery_vector[0]))
         self.live_solar_harvesting = np.zeros(len(sim_times))
         self.raw_solar_harvesting_inyect_capacity = np.zeros(len(sim_times))
+        self.total_charging_energy = np.zeros(len(sim_times))
+        
+        
         # Traffic global vars
         self.X_macro_bps = np.zeros((len(sim_times), self.NMacroCells))
         self.X_macro_only_bps = np.zeros((len(sim_times), self.NMacroCells))
@@ -733,6 +737,8 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             timeStep (_type_): actual simulation step
         """
 
+        original_battery_state = self.battery_vector[0].copy()
+
         # First, add the Solar harvesting for each battery of femtocell ...
         if self.use_harvesting:
             charge_power_this_timeStep = 0
@@ -764,7 +770,6 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             self.battery_mean_harvesting[timeIndex] = np.mean(self.cumulative_harvested_power)
             self.live_solar_harvesting[timeIndex] = charge_power_this_timeStep
             self.raw_solar_harvesting_inyect_capacity[timeIndex] = raw_solar_harvesting_inyect_capacity_this_timeStep
-
         # extra_budget = total-active
         # live_energy < max_energy_active:
         #   available = max_energy_active - live_energy + extra_budget [big number]
@@ -857,7 +862,11 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                     if batt not in self.dead_batteries:
                         self.timeIndex_last_battery_dead = timeIndex
                         self.dead_batteries.append(batt)
-    
+
+
+                        
+        # Compute the total charging energy
+        self.total_charging_energy[timeIndex] = np.sum(self.battery_vector[0] - original_battery_state)
     
     
     
@@ -1127,7 +1136,8 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             self.list_figures.append((fig_battery_mean_harvesting, "battery_mean_harvesting"))
             ax.plot(self.format_time_axis(ax, sim_times), self.battery_mean_values, '-', label='Hybrid PoF & Solar', color="tab:red")
             # TODO Faker
-            ax.plot(self.format_time_axis(ax, sim_times), self.battery_mean_values - self.battery_mean_harvesting, '--', label='Only PoF', color="tab:blue")
+            pof_charging = self.total_charging_energy - self.live_solar_harvesting
+            ax.plot(self.format_time_axis(ax, sim_times), pof_charging, '--', label='Only PoF', color="tab:blue")
             ax.axhline(y=3.3, color='tab:green',label="Max. battery capacity")
             ax.set_ylabel('Battery capacity [Ah]')
             ax.legend()
@@ -1145,6 +1155,25 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             ax.plot(self.format_time_axis(ax, sim_times), self.raw_solar_harvesting_inyect_capacity, label='Energy received on solar panels')
             ax.set_ylabel('Charging energy [Ah]')
             ax.set_title('Live battery harvesting')
+            ax.legend(loc='lower right')
+
+            
+            
+            fig_battery_live_harvesting, ax = plt.subplots(figsize=fig_size, dpi=dpi)
+            self.list_figures.append((fig_battery_live_harvesting, "battery_live"))
+            time_axis = self.format_time_axis(ax, sim_times)
+            # 1. Energy applied to batteries (solar harvesting actually used)
+            ax.plot(time_axis, self.live_solar_harvesting, label='Energy applied to batteries (solar)', color='tab:orange')
+            # 2. Energy received on solar panels (raw solar input)
+            ax.plot(time_axis, self.raw_solar_harvesting_inyect_capacity, label='Energy received on solar panels', color='tab:blue')
+            # 3. Charging by PoF (total charging - solar charging)
+            pof_charging = self.total_charging_energy - self.live_solar_harvesting
+            ax.plot(time_axis, pof_charging, label='Energy applied to batteries (PoF)', color='tab:red', linestyle='--', alpha=0.5)
+            # 4. Mean battery capacity
+            ax.plot(time_axis, self.battery_mean_values, label='Mean battery capacity', color='tab:green')
+            
+            ax.set_ylabel('Charging energy / Battery capacity [Ah]')
+            ax.set_title('Live battery harvesting and capacity')
             ax.legend(loc='lower right')
            
         ## Throughput

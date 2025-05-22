@@ -41,7 +41,7 @@ class SolarPanel:
     # > Select a place, and save the value of GTI *per Day*
     # -> Example: Cartagena, GTI per Day: 5.73 kWh/m2
     gti_city = {
-        "Cartagena": 5.73, # kWh/m2 by day
+        "Cartagena": 5.55, # kWh/m2 by day
     }
     
     # GTI is the most adecuate value to use for this solar panel, as it is the value of the solar irradiance in the plane of the panel

@@ -131,7 +131,11 @@ class Contex_Config():
             if len(ticks) <= max_ticks:
                 return ticks
             idxs = np.linspace(0, len(ticks) - 1, max_ticks, dtype=int)
-            return ticks[idxs]
+            reduced = ticks[idxs]
+            if ticks[-1] not in reduced:
+                reduced = np.append(reduced, ticks[-1])
+                reduced = np.unique(reduced)
+            return reduced
 
         if total_seconds > 1.5 * 3600 * 24 * 7:  # More than 1.5 weeks
             ax.set_xlabel('Time [weeks]')
@@ -155,7 +159,11 @@ class Contex_Config():
             ax.set_xlabel('Time [hours]')
             times_hours = times / 3600
             max_tick = math.ceil(times_hours[-1])
-            ticks = np.arange(0, max_tick + 1, 1)
+            ticks = np.arange(0, max_tick + 1, 2)  # Only even hours
+            # Ensure 24 is included if in range
+            # if 24 not in ticks and max_tick >= 24:
+                # ticks = np.append(ticks, 24)
+                # ticks = np.sort(ticks)
             ticks = reduce_ticks(ticks)
             ax.set_xticks(ticks)
             ax.set_xticklabels([f'{int(x)}' for x in ticks])
