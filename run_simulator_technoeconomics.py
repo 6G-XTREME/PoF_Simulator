@@ -8,9 +8,9 @@ INPUT_PARAMETERS = {
                                                 # RANDOM (random initial positions, random positions each time step)
                                                 # MOBILE (random walk)
                                                 # HEATMAP (sample users from a heat map)
-        'timeStep': 3600,                       # In seconds, 1 hour
-        'Simulation_Time': 3600*24*10,          # In seconds, 1 month
-        'numberOfPofPools': 4,                         # Number of HPLDS
+        'timeStep': 3600/2,                       # In seconds, 1 hour
+        'Simulation_Time': 3600*24*2,          # In seconds, 1 month
+        'numberOfPofPools': 2,                         # Number of HPLDS
         'numberOfLasersPerPool': 5,                     # Number of lasers per HPLD
         'wattsPerLaser': 1,                     # Watts. Capacity of each HPLD
 
@@ -76,7 +76,7 @@ CUSTOM_CONFIG = {
     'poweroff_unused_cell': 1, # TimeSlots to poweroff an unused Cell
     'extraPoFCharger': False,     # Enable an extra Charger with 1W on the centroid
     'typeExtraPoFCharger': "Centroid",
-    'use_harvesting': False,      # Enable the Solar Harvesting Mode -> New graph + solar charging...
+    'use_harvesting': True,      # Enable the Solar Harvesting Mode -> New graph + solar charging...
     'weather': "RAINY",          # Select over SUNNY, CLOUDY or RAINY
     'city': "Cartagena",         # Select city
     'MapScale': 1,               # How many km are 1 point in the source topology

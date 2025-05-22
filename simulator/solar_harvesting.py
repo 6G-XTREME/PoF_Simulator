@@ -6,25 +6,81 @@ __email__ = "efernandez@e-lighthouse.com"
 __status__ = "Validated"
 
 from enum import Enum
+import numpy as np
 
 class Weather(Enum):
     SUNNY = 1.0   # No reduction in irradiance for sunny day
     CLOUDY = 0.5  # 50% reduction in irradiance for cloudy day [20-50% less]
     RAINY = 0.1   # 90% reduction in irradiance for rainy day [80-90% less]
 
-class SolarPanel:
-    def __init__(self, power_rating, voltage_charging, efficiency, area):
-        self.power_rating = power_rating            # Panel's power rating in Watts (10W) 
-        self.voltage_charging = voltage_charging    # Panel's Voltage charging to battery
-        self.efficiency = efficiency                # Panel's efficiency as decimal (0.15 == 15%)
-        self.area = area                            # Panel's area in square meters (0.10 == 0.1m2)
 
+
+class SolarPanel:
+    
+    DEFAULT_DAY_NIGHT_SUN_PROFILE = {
+        "day_night_cycle_profile_type": "gaussiana_finde_pulso",
+        "base_val": 0.0,
+        "peak_val": 1.0,
+        "transition_width": 3/4 * 3600,
+        "rising_start_hour": 6,
+        "rising_end_hour": 12,
+        "falling_start_hour": 16,
+        "falling_end_hour": 21,
+    }
+    
+    
     # > Go to this website: https://globalsolaratlas.info/
     # > Select a place, and save the value of GHI *per Day*
     # -> Example: Cartagena, GHI per Day: 4.900 kWh/m2
     irradiance_city = {
         "Cartagena": 0.980,   # kWh/m2 -> mean of two peak hours, summer, sunny day
     }
+
+    
+    # > Go to this website: https://globalsolaratlas.info/
+    # > Select a place, and save the value of GTI *per Day*
+    # -> Example: Cartagena, GTI per Day: 5.73 kWh/m2
+    gti_city = {
+        "Cartagena": 5.73, # kWh/m2 by day
+    }
+    
+    # GTI is the most adecuate value to use for this solar panel, as it is the value of the solar irradiance in the plane of the panel
+    # including estimations of the atmosphere, and the angle of the sun, considering that the panel is fixed and not rotating
+    
+    
+    
+    def __init__(
+        self, 
+        power_rating, 
+        voltage_charging, 
+        efficiency, 
+        area,
+        irradiance_city: str = "Cartagena",
+        day_night_cycle_profile_config: dict = DEFAULT_DAY_NIGHT_SUN_PROFILE
+    ):
+        self.power_rating = power_rating            # Panel's power rating in Watts (10W) 
+        self.voltage_charging = voltage_charging    # Panel's Voltage charging to battery
+        self.efficiency = efficiency                # Panel's efficiency as decimal (0.15 == 15%)
+        self.area = area                            # Panel's area in square meters (0.10 == 0.1m2)
+        
+        
+        # Configure time limits for the day-night cycle profile
+        self.day_night_cycle_profile_config = day_night_cycle_profile_config
+        
+        self.rise_t_start = day_night_cycle_profile_config.get("rising_start_hour", 6) * 3600
+        self.rise_t_end = day_night_cycle_profile_config.get("rising_end_hour", 12) * 3600
+        self.fall_t_start = day_night_cycle_profile_config.get("falling_start_hour", 16) * 3600
+        self.fall_t_end = day_night_cycle_profile_config.get("falling_end_hour", 21) * 3600
+        
+        # Preconfigure the curve parameters
+        self.rising_mid = (self.rise_t_start + self.rise_t_end) / 2
+        self.falling_mid = (self.fall_t_start + self.fall_t_end) / 2
+        self.base_val = day_night_cycle_profile_config.get("base_val", 0.0)
+        self.peak_val = day_night_cycle_profile_config.get("peak_val", 1.0)
+        self.transition_width = day_night_cycle_profile_config.get("transition_width", 3600)
+        
+        self.irradiance_city = irradiance_city
+    
     
     def calculate_power_generated(self, solar_irradiance, timeStep: int, weather_condition: Weather = Weather.SUNNY) -> float:
         """
@@ -36,8 +92,10 @@ class SolarPanel:
         """
         solar_irradiance = solar_irradiance * 1000  # Convert kWh to Wh
         adjusted_irradiance = solar_irradiance * weather_condition.value
+        
         power_generated = adjusted_irradiance * self.area * self.efficiency
         power_generated_timeStep = (power_generated / 3600) * timeStep
+        
         return power_generated_timeStep  # In Watts (W)
     
     def calculate_current(self, solar_irradiance, timeStep: int, weather_condition : Weather = Weather.SUNNY) -> float:
@@ -52,7 +110,7 @@ class SolarPanel:
         current = self.calculate_power_generated(solar_irradiance, timeStep=timeStep, weather_condition=weather_condition) / self.power_rating
         return current  # In Amperes (A)
     
-    def calculate_Ah_in_timeStep(self, solar_irradiance, timeStep, weather_condition : Weather = Weather.SUNNY):
+    def calculate_Ah_in_timeStep(self, solar_irradiance, timeStep: int, weather_condition : Weather = Weather.SUNNY):
         """
         Calculate the Amperes Hours of a solara panel, based on the irradiance and the weather conditions
         :param solar_irradiance: Solar irradiance in khW/m² per day
@@ -63,8 +121,46 @@ class SolarPanel:
         charging_power = self.calculate_power_generated(solar_irradiance=solar_irradiance, timeStep=timeStep, weather_condition=weather_condition)
         return charging_power / self.voltage_charging   # In Amperes Hour (Ah)
 
+    @staticmethod
+    def _sigmoid(x, midpoint, width):
+        # width controla la "pendiente" de la sigmoide (más pequeño = más abrupto)
+        return 1 / (1 + np.exp(-(x - midpoint) / width))
+    
+    def day_night_cycle_profile(self, timeStep: int, noise: float = 0.0136):
+        """
+        Generate a day-night cycle profile for a solar panel.
         
+        :param timeStep: Simulation time step in seconds
+        :param low_bound: Lower bound of the cycle (0.0 for night, 0.5 for day)
+        :param high_bound: Upper bound of the cycle (1.0 for night, 0.5 for day)
+        :return: Day-night cycle profile
+        """
+        # Convert time from absolute to relative into a day, using module of a day (all in seconds)
+        t = timeStep % (24 * 3600)
         
+        # Sigmoide de subida: pasa de base a peak
+        subida = self.base_val + (self.peak_val - self.base_val) * SolarPanel._sigmoid(t, self.rising_mid, self.transition_width)
+        # Sigmoide de bajada: pasa de peak a base
+        bajada = self.peak_val - (self.peak_val - self.base_val) * SolarPanel._sigmoid(t, self.falling_mid, self.transition_width)
+        
+        curva = np.minimum(subida, bajada)
+        curva_ruido = curva + np.random.normal(0, noise)
+        curva_ruido = np.clip(curva_ruido, 0, 1)
+        return curva_ruido
+
+    
+    def calculate_mean_irradiance(self, timeStep: int, t_seconds: int, step_size: int = 60):
+        """
+        Calculate the mean irradiance of a solar panel, based on the irradiance and the time step
+        :param timeStep: simulation steps in seconds (s)
+        :param t_seconds: simulation time in seconds (s)
+        :param step_size: step size in seconds (s) to calculate intermediate steps of the irradiance over the duration of the timeStep
+        :return: Mean irradiance in kWh/m² per day
+        """
+        
+        irrds = np.array([self.day_night_cycle_profile(i) for i in np.arange(t_seconds, t_seconds + timeStep, step_size)])
+        return np.mean(irrds)
+
     
 
 if __name__ == "__main__":

@@ -65,6 +65,8 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
     solar_panel: SolarPanel                 # Helper Object to obtain the charging intensity
     battery_mean_harvesting: np.array
     cumulative_harvested_power: np.array
+    live_solar_harvesting: np.array
+    raw_solar_harvesting_inyect_capacity: np.array
     
     # Centroid Charging
     use_centroid: bool
@@ -116,44 +118,23 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         # Validation of custom parameters
         try:
             # Number of timeSlots that user should wait to re-send the position
-            if elighthouse_parameters['user_report_position'] > 0 and elighthouse_parameters['user_report_position'] < 100:
-                self.user_report_position = elighthouse_parameters['user_report_position']
+            if elighthouse_parameters.get('user_report_position', 0) > 0 and elighthouse_parameters.get('user_report_position', 0) < 100:
+                self.user_report_position = elighthouse_parameters.get('user_report_position', 0)
             else:
                 self.user_report_position = 1   # For each timeStep, the user report his position
             
             # Number of timeSlots to startup a femtocell 
-            if elighthouse_parameters['startup_max_tokens'] > 0 and elighthouse_parameters['startup_max_tokens'] < 100:
-                self.startup_max_tokens = elighthouse_parameters['startup_max_tokens']
+            if elighthouse_parameters.get('startup_max_tokens', 0) > 0 and elighthouse_parameters.get('startup_max_tokens', 0) < 100:
+                self.startup_max_tokens = elighthouse_parameters.get('startup_max_tokens', 0)
             else:
                 self.startup_max_tokens = 1
                
             # Number of timeSlots to Poweroff a non used Cell
-            if elighthouse_parameters['poweroff_unused_cell'] > 0 and elighthouse_parameters['poweroff_unused_cell'] < 100:
-                self.poweroff_max_tokens = elighthouse_parameters['poweroff_unused_cell']
+            if elighthouse_parameters.get('poweroff_unused_cell', 0) > 0 and elighthouse_parameters.get('poweroff_unused_cell', 0) < 100:
+                self.poweroff_max_tokens = elighthouse_parameters.get('poweroff_unused_cell', 0)
             else:
                 self.poweroff_max_tokens = 1
 
-            # Solar Harvesting + PoF
-            if elighthouse_parameters.get('use_harvesting', False):
-                self.use_harvesting = True
-                # Reference Solar Panel:
-                # SeedStudio Panel: https://www.seeedstudio.com/Solar-Panel-PV-12W-with-mounting-bracket-p-5003.html
-                # https://www.mouser.es/new/seeed-studio/seeed-studio-pv-12w-solar-panel/
-                self.solar_panel = SolarPanel(power_rating=12, voltage_charging=14, efficiency=0.2, area=(0.35 * 0.25))
-                
-                valid_enum_member_names = {member.name for member in Weather}
-                if elighthouse_parameters.get('weather', "") in valid_enum_member_names:
-                    self.weather = elighthouse_parameters.get('weather')
-                else:
-                    self.weather = "SUNNY"
-                
-                if elighthouse_parameters.get('city', "") in self.solar_panel.irradiance_city:
-                    self.city = elighthouse_parameters.get('city')
-                else:
-                    self.city = "Cartagena"
-                logger.info("Using solar harvesting, located at city: " + self.city)
-            else:
-                self.use_harvesting = False
                 
             # Map Scale
             self.map_scale = elighthouse_parameters.get('MapScale', 100)
@@ -188,12 +169,32 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                 self.use_centroid = False
                 
             # Config times
-            if elighthouse_parameters.get('config_times', None) is not None:
-                self.femto_boot_time_seconds = elighthouse_parameters['config_times']['femto_boot_time_seconds']
-                self.femto_shutdown_time_seconds = elighthouse_parameters['config_times']['femto_shutdown_time_seconds']
-                self.time_to_shutdown_unused_femto = elighthouse_parameters['config_times']['time_to_shutdown_unused_femto']
+            self.femto_boot_time_seconds = elighthouse_parameters.get('config_times', {}).get('femto_boot_time_seconds', 3)
+            self.femto_shutdown_time_seconds = elighthouse_parameters.get('config_times', {}).get('femto_shutdown_time_seconds', 3)
+            self.time_to_shutdown_unused_femto = elighthouse_parameters.get('config_times', {}).get('time_to_shutdown_unused_femto', 10)
                 
                 
+            # Solar Harvesting + PoF
+            if elighthouse_parameters.get('use_harvesting', False):
+                self.use_harvesting = True
+                # Reference Solar Panel:
+                # SeedStudio Panel: https://www.seeedstudio.com/Solar-Panel-PV-12W-with-mounting-bracket-p-5003.html
+                # https://www.mouser.es/new/seeed-studio/seeed-studio-pv-12w-solar-panel/
+                self.solar_panel = SolarPanel(power_rating=12, voltage_charging=14, efficiency=0.2, area=(0.35 * 0.25))
+                
+                valid_enum_member_names = {member.name for member in Weather}
+                if elighthouse_parameters.get('weather', "") in valid_enum_member_names:
+                    self.weather = elighthouse_parameters.get('weather')
+                else:
+                    self.weather = "SUNNY"
+                
+                if elighthouse_parameters.get('city', "") in self.solar_panel.irradiance_city:
+                    self.city = elighthouse_parameters.get('city')
+                else:
+                    self.city = "Cartagena"
+                logger.info("Using solar harvesting, located at city: " + self.city)
+            else:
+                self.use_harvesting = False
                 
                 
         except Exception as ex:
@@ -269,7 +270,8 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         # Solar Harvesting
         self.battery_mean_harvesting = np.zeros(len(sim_times))
         self.cumulative_harvested_power = np.zeros(len(self.battery_vector[0]))
-        
+        self.live_solar_harvesting = np.zeros(len(sim_times))
+        self.raw_solar_harvesting_inyect_capacity = np.zeros(len(sim_times))
         # Traffic global vars
         self.X_macro_bps = np.zeros((len(sim_times), self.NMacroCells))
         self.X_macro_only_bps = np.zeros((len(sim_times), self.NMacroCells))
@@ -733,16 +735,35 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
 
         # First, add the Solar harvesting for each battery of femtocell ...
         if self.use_harvesting:
+            charge_power_this_timeStep = 0
+            raw_solar_harvesting_inyect_capacity_this_timeStep = 0
+            
             for batt in range(self.NMacroCells, len(self.battery_vector[0])):
+                mean_gti = self.solar_panel.calculate_mean_irradiance(
+                    timeStep=timeStep,
+                    t_seconds=timeIndex*timeStep
+                ) * self.solar_panel.gti_city[self.city]
+                
+                charging_power_amperes_timeStep = self.solar_panel.calculate_Ah_in_timeStep(
+                    solar_irradiance=mean_gti,
+                    timeStep=timeStep,
+                    weather_condition=Weather[self.weather]
+                )
+                
+                raw_solar_harvesting_inyect_capacity_this_timeStep += charging_power_amperes_timeStep
+
+                
                 if self.battery_vector[0][batt] < self.battery_capacity:
-                    charging_power_amperes_timeStep = self.solar_panel.calculate_Ah_in_timeStep(
-                        solar_irradiance=self.solar_panel.irradiance_city[self.city],
-                        timeStep=timeStep,
-                        weather_condition=Weather[self.weather]
-                    )
-                    self.battery_vector[0][batt] = min(self.battery_vector[0][batt] + charging_power_amperes_timeStep, self.battery_capacity)
-                    self.cumulative_harvested_power[batt] += charging_power_amperes_timeStep
+                    # Calculate the real charge that can be applied without exceeding battery capacity
+                    real_charge = min(charging_power_amperes_timeStep, self.battery_capacity - self.battery_vector[0][batt])
+                    self.battery_vector[0][batt] += real_charge
+                    self.cumulative_harvested_power[batt] += real_charge
+                    charge_power_this_timeStep += real_charge
+
+                    
             self.battery_mean_harvesting[timeIndex] = np.mean(self.cumulative_harvested_power)
+            self.live_solar_harvesting[timeIndex] = charge_power_this_timeStep
+            self.raw_solar_harvesting_inyect_capacity[timeIndex] = raw_solar_harvesting_inyect_capacity_this_timeStep
 
         # extra_budget = total-active
         # live_energy < max_energy_active:
@@ -1117,6 +1138,14 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             ax.set_ylabel('Battery capacity [Ah]')
             ax.set_title('Accumulative battery harvesting')
             ax.legend()
+            
+            fig_battery_live_harvesting, ax = plt.subplots(figsize=fig_size, dpi=dpi)
+            self.list_figures.append((fig_battery_live_harvesting, "battery_live_harvesting"))
+            ax.plot(self.format_time_axis(ax, sim_times), self.live_solar_harvesting, label='Energy applied to batteries')
+            ax.plot(self.format_time_axis(ax, sim_times), self.raw_solar_harvesting_inyect_capacity, label='Energy received on solar panels')
+            ax.set_ylabel('Charging energy [Ah]')
+            ax.set_title('Live battery harvesting')
+            ax.legend(loc='lower right')
            
         ## Throughput
         fig_throughput, ax = plt.subplots(figsize=fig_size, dpi=dpi)
