@@ -441,7 +441,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                     estimated_consumption = (timeStep/3600) * self.small_cell_current_draw
                     freedom_degree = 0.4
                     enough_battery = current_battery > estimated_consumption * (1 - freedom_degree)
-                    enough_battery = True
+                    # enough_battery = True
 
                     if current_watts >= (self.max_energy_consumption_active - self.small_cell_consumption_ON + self.small_cell_consumption_SLEEP):
                         if enough_battery:
@@ -1152,7 +1152,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             fig_battery_live_harvesting, ax = plt.subplots(figsize=fig_size, dpi=dpi)
             self.list_figures.append((fig_battery_live_harvesting, "battery_live_harvesting"))
             ax.plot(self.format_time_axis(ax, sim_times), self.live_solar_harvesting, label='Energy applied to batteries')
-            ax.plot(self.format_time_axis(ax, sim_times), self.raw_solar_harvesting_inyect_capacity, label='Energy received on solar panels')
+            ax.plot(self.format_time_axis(ax, sim_times), self.raw_solar_harvesting_inyect_capacity, label='Energy received on solar panels', linestyle='--', alpha=0.75)
             ax.set_ylabel('Charging energy [Ah]')
             ax.set_title('Live battery harvesting')
             ax.legend(loc='lower right')
@@ -1165,12 +1165,12 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             # 1. Energy applied to batteries (solar harvesting actually used)
             ax.plot(time_axis, self.live_solar_harvesting, label='Energy applied to batteries (solar)', color='tab:orange')
             # 2. Energy received on solar panels (raw solar input)
-            ax.plot(time_axis, self.raw_solar_harvesting_inyect_capacity, label='Energy received on solar panels', color='tab:blue')
+            ax.plot(time_axis, self.raw_solar_harvesting_inyect_capacity, label='Energy received on solar panels', linestyle='--', alpha=0.75)
+            # 4. Mean battery capacity
+            ax.plot(time_axis, self.battery_mean_values, label='Mean battery capacity', color='tab:green')
             # 3. Charging by PoF (total charging - solar charging)
             pof_charging = self.total_charging_energy - self.live_solar_harvesting
             ax.plot(time_axis, pof_charging, label='Energy applied to batteries (PoF)', color='tab:red', linestyle='--', alpha=0.5)
-            # 4. Mean battery capacity
-            ax.plot(time_axis, self.battery_mean_values, label='Mean battery capacity', color='tab:green')
             
             ax.set_ylabel('Charging energy / Battery capacity [Ah]')
             ax.set_title('Live battery harvesting and capacity')
