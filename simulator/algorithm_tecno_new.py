@@ -237,6 +237,9 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         # Number of POF Pools
         self.numberOfPofPools = elighthouse_parameters.get('numberOfPofPools', 1)
         
+        # Debug Plots
+        self.debug_plots = elighthouse_parameters.get('debug_plots', False)
+        
         super().create_folders(run_name, output_folder)
 
 
@@ -300,7 +303,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         self.valley_spoke_factors = np.zeros((len(sim_times), len(self.NUsers)))
         for timeIndex in range(len(sim_times)):
             for userIndex in range(len(self.NUsers)):
-                self.valley_spoke_factors[timeIndex, userIndex] = estimate_traffic_from_seconds(timeIndex * timeStep, ruido_max=0.05)
+                self.valley_spoke_factors[timeIndex, userIndex] = estimate_traffic_from_seconds(timeIndex * timeStep, ruido_max=0.4)
 
                 
                 
@@ -559,6 +562,9 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
             self.X_user[timeIndex][userIndex][0] = self.calculate_traffic(userIndex=userIndex, timeIndex=timeIndex, timeStep=timeStep)
             self.X_user[timeIndex][userIndex][1] = self.calculate_traffic_no_battery(userIndex=userIndex, timeIndex=timeIndex, timeStep=timeStep)
             self.X_user[timeIndex][userIndex][2] = self.calculate_traffic_only_macro(userIndex=userIndex, timeIndex=timeIndex, timeStep=timeStep)
+
+        if self.debug_plots:
+            self.save_battery_capacity_debug_plot(timeIndex)
 
         return
 
@@ -1516,7 +1522,7 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         """
         # Calculate total and average throughput
 
-        total_throughput_gbps = sum(self.live_throughput / 1e9 )
+        total_throughput_gbps = sum(self.live_throughput / 1e9 ) * self.timeStep / 3600
         total_seconds = len(self.live_throughput) * self.timeStep
         num_days = total_seconds / (24 * 3600)
         daily_avg_throughput_gbps = total_throughput_gbps / num_days
@@ -1524,8 +1530,8 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
         
         # Calculate power consumption metrics
         def transform_to_real_power_kwatts(num_pof_pools: int, power_series):
-            ptx_on = 0.0136*30 + 27.34
             ptx_off = 27.34
+            ptx_on = ptx_off + 0.0136*30
             
             real_power_series = []
             max_femtos = num_pof_pools * 5
@@ -1537,7 +1543,8 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                 num_femtos_active = p_i / 0.7
                 num_femtos_active = int(round(num_femtos_active))
                 
-                power_this_series = ptx_on * num_femtos_active + ptx_off * (max_femtos - num_femtos_active)
+                # power_this_series = ptx_on * num_femtos_active + ptx_off * (max_femtos - num_femtos_active)
+                power_this_series = ptx_on * num_femtos_active
                 real_power_series.append(power_this_series/1000)
                 
             return real_power_series

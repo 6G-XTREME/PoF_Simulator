@@ -112,4 +112,6 @@ def estimate_traffic_from_seconds(t_segundos, ruido=True, ruido_max=0.015, seed=
     # Aplicar límite superior
     if valor_estimado > 1.0:
         return 1.0
+    elif valor_estimado < 0.0:
+        return 0.0
     return valor_estimado

@@ -10,7 +10,7 @@ INPUT_PARAMETERS = {
                                                 # HEATMAP (sample users from a heat map)
         'timeStep': 60*8,                       # In seconds, 1 hour
         'Simulation_Time': 3600*24*31,          # In seconds, 1 month
-        'numberOfPofPools': 2,                         # Number of HPLDS
+        'numberOfPofPools': 4,                         # Number of HPLDS
         'numberOfLasersPerPool': 5,                     # Number of lasers per HPLD
         'wattsPerLaser': 1,                     # Watts. Capacity of each HPLD
 
@@ -30,7 +30,7 @@ INPUT_PARAMETERS = {
             'FemtoCellDownlinkBW': 1e9,
             'alpha_loss': 4.0            
         },
-        'heatmap_bandwidth': 0.08,
+        'heatmap_bandwidth': 0.025,
         'heatmap_grid_size': 100,
         'map_transform': {
             'transform': True,
@@ -50,6 +50,7 @@ CONFIG_PARAMETERS = {
         # 'use_nice_setup_file': "mocks/pruebas_algoritmo/UC1-S3-AllHL4withHPLD-AllHL5withFemto.mat",
         # 'use_nice_setup_file': "mocks/pruebas_algoritmo/use_case_1.mat",
         'use_nice_setup_file': "mocks/pruebas_mapa_rural/use_case_1_2_pools.mat",
+        # 'use_nice_setup_file': "mocks/pruebas_mapa_rural/use_case_2_4_pools.mat",
         # 'use_nice_setup_file': "mocks/pruebas_mapa_rural/use_case_2_4_pools.mat",
         'show_plots': False,
 
@@ -88,7 +89,8 @@ CUSTOM_CONFIG = {
         'time_to_shutdown_unused_femto': 60,    # Time to shutdown an unused femto cell
         
     },
-    'seed': 12345890,
+    'seed': 123890,
+    'debug_plots': False,
 }
 
 logging.basicConfig(format='%(asctime)s %(levelname)s:%(module)s:%(funcName)s: %(message)s', 
