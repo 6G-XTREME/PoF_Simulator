@@ -444,7 +444,6 @@ class PoF_simulation_ELighthouse_TecnoAnalysis(Contex_Config):
                     estimated_consumption = (timeStep/3600) * self.small_cell_current_draw
                     freedom_degree = 0.4
                     enough_battery = current_battery > estimated_consumption * (1 - freedom_degree)
-                    # enough_battery = True
 
                     if current_watts >= (self.max_energy_consumption_active - self.small_cell_consumption_ON + self.small_cell_consumption_SLEEP):
                         if enough_battery:

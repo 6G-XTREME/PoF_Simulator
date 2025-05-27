@@ -30,14 +30,6 @@ logging.getLogger("PIL.PngImagePlugin").setLevel(logging.WARNING)
 #                                                                                                              #
 # ------------------------------------------------------------------------------------------------------------ #
 def execute_simulator(input_parameters, config_parameters, custom_parameters, canvas_widget = None, progressbar_widget = None, run_name: str = ""):
-    if run_name == "":
-        run_name = str(uuid.uuid4())[:8]
-    
-    now_utc = datetime.now()
-    now_str = now_utc.strftime('%Y%m%d_%H:%M')
-    run_name = f"{now_str} - {run_name}"
-    logger.info(f"Run_name: {run_name}")
-    
     if canvas_widget is None:
         pass
         # In CLI execution, Tk works better than Qt
@@ -437,13 +429,22 @@ def execute_simulator(input_parameters, config_parameters, custom_parameters, ca
     custom_parameters['numberOfPofPools'] = numberOfPofPools
 
 
-
     # ------------------------------------------------------------------------------------------------------------ #
     # -- START SIMULATION ---------------------------------------------------------------------------------------- #
     #                                                                                                              #
     #                                                                                                              #
     #                                                                                                              #
     # ------------------------------------------------------------------------------------------------------------ #
+    
+    if run_name == "":
+        run_name = f"{numberOfPofPools}Pools_{timeStep}s_{Users}Users"
+    
+    now_utc = datetime.now()
+    now_str = now_utc.strftime('%Y%m%d%H%M')
+    run_name = f"{now_str}_{run_name}"
+    logger.info(f"Run_name: {run_name}")
+
+    
     logger.info("Using E-Lighthouse algorithm...")
     from simulator.algorithm_tecno_new import PoF_simulation_ELighthouse_TecnoAnalysis
     

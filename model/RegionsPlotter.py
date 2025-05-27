@@ -371,5 +371,123 @@ def plot_regions_deliverable(
     return fig, ax
             
     
+    
+    
+
+def plot_regions_deliverable_e17(
+    nodes: list[tuple[float, float, float]],
+    femtocells: np.array,
+    hplds: np.array,
+    Links: NDArray[np.float64],
+    regions,
+    title: str,
+    draw_node_names: bool = False,
+):
+    
+    fig, ax = plt.subplots(figsize=(12,8))
+    legend_elements = []
+
+    region_config = {
+        "alpha": 0.3, 
+        "edgecolor": 'black', 
+        "linewidth": 0.5, 
+        "linestyle": '-',
+        "color": 'orange',
+    }
+    def paint_regions_femto(_regions, _ax):
+        for region in _regions.values():
+            if isinstance(region, (Polygon, MultiPolygon, GeometryCollection)):
+                if isinstance(region, Polygon):
+                    polygons = [region]
+                elif isinstance(region, MultiPolygon):
+                    polygons = region.geoms
+                else:  # GeometryCollection
+                    polygons = [g for g in region.geoms if isinstance(g, Polygon)]
+                
+                for poly in polygons:
+                    x, y = poly.exterior.coords.xy
+                    _ax.fill(x, y, **region_config)
+        legend_elements.append(Line2D([0], [0], color='orange', lw=6, label='FemtoCell Region'))
+    
+    paint_regions_femto(regions, ax)
+    
+
+
+    femtos_config = {
+        'color': 'black',
+        's': 10,
+        'marker': 'o',
+    }
+    def paint_femtos(_nodes, _femtos, _ax):
+        for i in range(len(_nodes)):
+            if _femtos[i] != 1:
+                continue
+            
+            _ax.scatter(*_nodes[i][:2], **femtos_config)
+            if draw_node_names:
+                _ax.annotate(str(i), (_nodes[i][0], _nodes[i][1]), textcoords='offset points', xytext=(8,8), fontsize=8)
+        legend_elements.append(Line2D([0], [0], marker='o', color='w', markerfacecolor='black', markersize=6, label='HL5 with FemtoCell'))
+    paint_femtos(nodes, femtocells, ax)
+    
+    
+    
+    pools_config = {
+        'color': 'red',
+        's': 160,
+        'marker': '*',
+    }
+    def paint_pools(_nodes, _pools, _ax):
+        for i in range(len(_pools)):
+            if _pools[i] != 1:
+                continue
+            
+            _ax.scatter(*_nodes[i][:2], **pools_config)
+            if draw_node_names: 
+                _ax.annotate(str(i), (_nodes[i][0], _nodes[i][1]), textcoords='offset points', xytext=(8,8), fontsize=8)
+        legend_elements.append(Line2D([0], [0], marker='*', color='w', markerfacecolor='red', markersize=10, label='HL4 with PoF Pool'))
+
+    paint_pools(nodes, hplds, ax)
+    
+    
+    
+    nodes_config = {
+        'color': 'green',
+        's': 160,
+        'marker': 'o',
+    }
+    def paint_nodes(_nodes, _ax):
+        for i in range(len(_nodes)):
+            _ax.scatter(*_nodes[i][:2], **nodes_config)
+            if draw_node_names:
+                _ax.annotate(str(i), (_nodes[i][0], _nodes[i][1]), textcoords='offset points', xytext=(8,8), fontsize=8)
+        legend_elements.append(Line2D([0], [0], marker='o', color='w', markerfacecolor='green', markersize=6, label='HL4 without PoF Pool'))
+    sel_nodes = np.ones(len(nodes), dtype=np.int_)
+    sel_nodes[femtocells == 1] = 0
+    sel_nodes[hplds == 1] = 0
+    paint_nodes(nodes[sel_nodes == 1], ax)
+    
+    
+    
+    association_config = {
+        'color': 'black',
+        'lw': 0.5,
+    }
+    def paint_links(_links, _ax):
+        for i in range(_links.shape[0]):
+            a_x = _links[i][0]
+            a_y = _links[i][1]
+            b_x = _links[i][2]
+            b_y = _links[i][3]
+
+            _ax.plot([a_x, b_x], [a_y, b_y], **association_config)
+    
+    paint_links(Links, ax)
+    
+    
+    ax.axis('off')
+    ax.legend(handles=legend_elements, loc='best')
+    fig.tight_layout()
+    
+    return fig, ax
                         
                     

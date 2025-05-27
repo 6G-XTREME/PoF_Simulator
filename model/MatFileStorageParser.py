@@ -15,12 +15,28 @@ class FileModel:
             "NMacroCells": NMacroCells
         }
         savemat(file_path, complete_data)
+        
+    @staticmethod
+    def save_file_extended(file_path: str, BaseStations: list[tuple[float, float, float]], NFemtoCells: int, NMacroCells: int, Links: NDArray[np.float64]):
+        complete_data = {
+            "BaseStations": BaseStations,
+            "NFemtoCells": NFemtoCells,
+            "NMacroCells": NMacroCells,
+            "Links": Links.tolist(),
+        }
+        savemat(file_path, complete_data)
 
     @staticmethod
-    def load_file_basic(file_path: str):
+    def load_file_basic(file_path: str) -> tuple[list[tuple[float, float, float]], int, int]:
         data = loadmat(file_path)
         return data["BaseStations"], data["NFemtoCells"][0][0], data["NMacroCells"][0][0]
 
+    @staticmethod
+    def load_file_extended(file_path: str) -> tuple[list[tuple[float, float, float]], int, int, NDArray[np.float64]]:
+        data = loadmat(file_path)
+        adjacency_matrix = np.array(data["Links"])
+        return data["BaseStations"], data["NFemtoCells"][0][0], data["NMacroCells"][0][0], adjacency_matrix
+        
     @staticmethod
     def save_file_complete(
             file: str,
